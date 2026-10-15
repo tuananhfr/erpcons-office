@@ -1,0 +1,27 @@
+:root {
+  --erp-crimson: #da3548;
+  --erp-crimson-hover: #c22d3f;
+  --erp-blue: #3678d4;
+  --erp-teal: #16a6a0;
+  --erp-green: #27a66f;
+  --erp-bg: #f2f6f8;
+  --erp-surface: #ffffff;
+  --erp-surface-2: #e7eef2;
+  --erp-text: #101820;
+  --erp-text-2: #344454;
+  --erp-border: #d6e0e6;
+  --erp-focus: #3678d4;
+  --erp-warning: #c88920;
+  --erp-radius-sm: 4px;
+  --erp-radius-md: 8px;
+  --erp-radius-lg: 12px;
+  --erp-space-1: 4px;
+  --erp-space-2: 8px;
+  --erp-space-3: 12px;
+  --erp-space-4: 16px;
+  --erp-space-5: 24px;
+  --erp-space-6: 32px;
+  --erp-space-7: 48px;
+  --erp-space-8: 64px;
+  --erp-space-9: 96px;
+}

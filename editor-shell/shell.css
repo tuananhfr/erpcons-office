@@ -1,0 +1,42 @@
+:root {
+  --erp-shell-h: 40px;
+  --erp-crimson: #da3548;
+  --erp-ink: #101820;
+  --erp-text-2: #344454;
+  --erp-surface: #ffffff;
+  --erp-surface-2: #e7eef2;
+  --erp-border: #d6e0e6;
+  --erp-focus: #3678d4;
+}
+.erp-shell {
+  position: fixed; inset: 0 0 auto 0; z-index: 10; height: var(--erp-shell-h); box-sizing: border-box;
+  display: flex; align-items: center; gap: 16px; padding: 0 12px;
+  background: var(--erp-surface); border-bottom: 1px solid var(--erp-border); color: var(--erp-ink);
+  font: 500 14px/1 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.erp-shell a { color: inherit; text-decoration: none; border-radius: 4px; }
+.erp-shell a:focus-visible, .erp-shell summary:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
+.erp-shell__brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; white-space: nowrap; }
+.erp-shell__current { display: none; color: var(--erp-text-2); }
+.erp-shell__nav { display: flex; gap: 4px; margin-left: auto; }
+.erp-shell__nav a { padding: 8px 12px; color: var(--erp-text-2); }
+.erp-shell__nav a:hover { background: var(--erp-surface-2); }
+.erp-shell__nav a[aria-current="page"] { color: var(--erp-ink); box-shadow: inset 0 -2px 0 var(--erp-crimson); }
+.erp-shell__menu { display: none; margin-left: auto; position: relative; }
+.erp-shell__menu summary { cursor: pointer; padding: 8px 12px; list-style: none; border: 1px solid var(--erp-border); border-radius: 4px; }
+.erp-shell__menu nav { position: absolute; right: 0; top: calc(100% + 4px); display: grid; min-width: 180px; padding: 4px;
+  background: var(--erp-surface); border: 1px solid var(--erp-border); border-radius: 8px; }
+.erp-shell__menu nav a { padding: 12px; }
+.erp-shell__menu nav a[aria-current="page"] { font-weight: 700; box-shadow: inset 2px 0 0 var(--erp-crimson); }
+.erp-shell__unsupported, .erp-shell__noscript {
+  position: fixed; inset: var(--erp-shell-h) 0 0 0; z-index: 9; margin: 0; padding: 32px 16px;
+  background: var(--erp-surface); color: var(--erp-ink); font: 400 16px/1.6 Inter, system-ui, sans-serif; text-align: center;
+}
+.erp-shell__unsupported { display: none; }
+.erp-shell-unsupported .erp-shell__unsupported { display: block; }
+@media (max-width: 767px) {
+  .erp-shell__brand span { display: none; }
+  .erp-shell__current { display: inline; }
+  .erp-shell__nav { display: none; }
+  .erp-shell__menu { display: block; }
+}

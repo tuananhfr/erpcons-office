@@ -1,0 +1,30 @@
+{
+  "name": "erpcons-office",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/build-editors.mts --skip-rust --allow-missing",
+    "dev": "next dev -p 3010",
+    "build": "node scripts/build-editors.mts && next build && node scripts/assemble.mts",
+    "build:site": "node scripts/build-editors.mts --skip-rust && next build && node scripts/assemble.mts",
+    "preview": "node scripts/preview.mts",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bootstrap-icons": "1.13.1",
+    "next": "16.3.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.3.8",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.2"
+  }
+}
