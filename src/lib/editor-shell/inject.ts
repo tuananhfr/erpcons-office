@@ -15,7 +15,7 @@ function countMatches(html: string, pattern: RegExp): number {
   return html.match(pattern)?.length ?? 0
 }
 
-const loadingText = (editor: EditorEntry) => `Đang tải ${escapeHtml(editor.name)}…`
+const LOADING_TEXT = 'Đang khởi tạo...'
 
 // The upstream note names the upstream app ("Loading WordCraft…"); the engine removes the element itself once started.
 // loadingId is a plain CSS identifier (validateEditors), so it is safe inside the pattern.
@@ -23,7 +23,7 @@ function replaceLoadingNote(html: string, editor: EditorEntry): string {
   if (!editor.loadingId) return html
   const note = new RegExp(String.raw`(<div\b[^>]*\bid="${editor.loadingId}"[^>]*>)[\s\S]*?(</div>)`, 'i')
   if (!note.test(html)) throw new Error(`${editor.slug}: loading note #${editor.loadingId} not found`)
-  return html.replace(note, (_m, open: string, close: string) => `${open}${loadingText(editor)}${close}`)
+  return html.replace(note, (_m, open: string, close: string) => `${open}${LOADING_TEXT}${close}`)
 }
 
 // Other editors open in a new tab: navigating away would drop the unsaved document in this one.
@@ -67,7 +67,7 @@ function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: 
     `<details class="erp-shell__menu"><summary>Chức năng</summary><nav aria-label="Chức năng">${links}</nav></details>`,
     `</header>`,
     // Engines without a note of their own (PDF) get one; shell.js drops it on TrunkApplicationStarted.
-    ...(editor.loadingId ? [] : [`<div class="erp-shell__loading" ${LOADING_MARKER}>${loadingText(editor)}</div>`]),
+    ...(editor.loadingId ? [] : [`<div class="erp-shell__loading" ${LOADING_MARKER}>${LOADING_TEXT}</div>`]),
     `<p class="erp-shell__unsupported" role="alert">Trình duyệt này không có WebGPU hoặc WebGL2 nên không chạy được trình soạn thảo. Hãy dùng Chrome, Edge, Firefox hoặc Safari phiên bản mới.</p>`,
     `<noscript><p class="erp-shell__noscript">Cần bật JavaScript để dùng trình soạn thảo.</p></noscript>`,
     `<script>${assets.script}</script>`,

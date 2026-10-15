@@ -45,16 +45,16 @@ describe('injectEditorShell', () => {
     expect(out).toContain('<a href="/pdf/" target="_blank" rel="noopener" aria-label="PDF (tab mới)">PDF</a>')
   })
 
-  it('says what is loading in Vietnamese instead of the upstream app name', () => {
+  it('replaces the upstream loading note, which names the upstream app, with a Vietnamese one', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
-    expect(out).toContain('<div id="wordcraft_loading">Đang tải Văn bản…</div>')
+    expect(out).toContain('<div id="wordcraft_loading">Đang khởi tạo...</div>')
     expect(out).not.toMatch(/Loading|WordCraft&hellip;/)
   })
 
   it('gives PDF, which ships no loading note, one the shell removes once the app starts', () => {
     const html = '<!doctype html>\n<html lang="en"><head><title>PdfCraft</title></head><body><canvas id="pdfcraft"></canvas></body></html>'
     const out = injectEditorShell(html, pdf, EDITORS, assets)
-    expect(out).toContain('<div class="erp-shell__loading" data-erpcons-loading>Đang tải PDF…</div>')
+    expect(out).toContain('<div class="erp-shell__loading" data-erpcons-loading>Đang khởi tạo...</div>')
   })
 
   it('names the logo link for screen readers, since mobile hides its text', () => {
