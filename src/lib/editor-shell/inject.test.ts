@@ -45,6 +45,18 @@ describe('injectEditorShell', () => {
     expect(out).toContain('<a href="/pdf/" target="_blank" rel="noopener" aria-label="PDF (tab mới)">PDF</a>')
   })
 
+  it('says what is loading in Vietnamese instead of the upstream app name', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    expect(out).toContain('<div id="wordcraft_loading">Đang tải Văn bản…</div>')
+    expect(out).not.toMatch(/Loading|WordCraft&hellip;/)
+  })
+
+  it('gives PDF, which ships no loading note, one the shell removes once the app starts', () => {
+    const html = '<!doctype html>\n<html lang="en"><head><title>PdfCraft</title></head><body><canvas id="pdfcraft"></canvas></body></html>'
+    const out = injectEditorShell(html, pdf, EDITORS, assets)
+    expect(out).toContain('<div class="erp-shell__loading" data-erpcons-loading>Đang tải PDF…</div>')
+  })
+
   it('names the logo link for screen readers, since mobile hides its text', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('<a class="erp-shell__brand" href="/" aria-label="ERPCons Văn phòng">')
@@ -64,7 +76,7 @@ describe('injectEditorShell', () => {
   })
 
   it('accepts body attributes, CRLF and a missing title', () => {
-    const html = '<html>\r\n<head>\r\n</head>\r\n<body class="x" data-a="1">\r\n<canvas id="wordcraft_canvas"></canvas>\r\n</body>\r\n</html>'
+    const html = '<html>\r\n<head>\r\n</head>\r\n<body class="x" data-a="1">\r\n<canvas id="wordcraft_canvas"></canvas>\r\n<div id="wordcraft_loading">Loading</div>\r\n</body>\r\n</html>'
     const out = injectEditorShell(html, word, EDITORS, assets)
     expect(out).toMatch(/<body class="x" data-a="1">\s*<header class="erp-shell"/)
     expect(out.match(/<title>/g)).toHaveLength(1)
@@ -93,5 +105,6 @@ describe('injectEditorShell', () => {
     expect(() => injectEditorShell(trunkWord.replace('</head>', ''), word, EDITORS, assets)).toThrow('expected exactly one </head>')
     expect(() => injectEditorShell(trunkWord.replace('<body>', ''), word, EDITORS, assets)).toThrow('expected exactly one <body>')
     expect(() => injectEditorShell(trunkWord.replace('wordcraft_canvas', 'other'), word, EDITORS, assets)).toThrow('canvas #wordcraft_canvas not found')
+    expect(() => injectEditorShell(trunkWord.replace(/<div id="wordcraft_loading">.*<\/div>/, ''), word, EDITORS, assets)).toThrow('loading note #wordcraft_loading not found')
   })
 })

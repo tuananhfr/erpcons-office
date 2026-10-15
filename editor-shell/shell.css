@@ -33,6 +33,11 @@
   background: var(--erp-surface); color: var(--erp-ink); font: 400 16px/1.6 Inter, system-ui, sans-serif; text-align: center;
 }
 .erp-shell__unsupported { display: none; }
+.erp-shell__loading {
+  position: fixed; inset: var(--erp-shell-h) 0 0 0; display: flex; align-items: center; justify-content: center;
+  color: #555; font: 14px system-ui, sans-serif; pointer-events: none;
+}
+@media (prefers-color-scheme: dark) { .erp-shell__loading { color: #aaa; } }
 .erp-shell-unsupported .erp-shell__unsupported { display: block; }
 @media (max-width: 767px) {
   .erp-shell__brand span { display: none; }

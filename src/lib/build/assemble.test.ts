@@ -7,7 +7,7 @@ import { installEditor } from './assemble.ts'
 
 const assets = { css: '', script: '' }
 const word = EDITORS[0]
-const page = '<html lang="en"><head><title>W</title></head><body><canvas id="wordcraft_canvas"></canvas></body></html>'
+const page = '<html lang="en"><head><title>W</title></head><body><canvas id="wordcraft_canvas"></canvas><div id="wordcraft_loading">Loading</div></body></html>'
 let tmp: string
 
 function setup() {

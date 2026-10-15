@@ -13,6 +13,7 @@ function loadShell(initialController: string | null) {
   const worker = (name: string): Worker => ({ name, postMessage: (m) => sent.push({ to: name, urls: m.urls }) })
   const swListeners: Record<string, () => void> = {}
   const winListeners: Record<string, () => void> = {}
+  const removed: string[] = []
   let observer: ((list: { getEntries: () => { name: string }[] }) => void) | undefined
   const entries = ['https://office.erpcons.vn/van-ban/w.js']
   const container = {
@@ -23,7 +24,11 @@ function loadShell(initialController: string | null) {
   const context = {
     navigator: { gpu: {}, serviceWorker: container },
     window: { addEventListener: (type: string, fn: () => void) => { winListeners[type] = fn } },
-    document: { documentElement: { classList: { add: () => {} } }, createElement: () => ({ getContext: () => null }) },
+    document: {
+      documentElement: { classList: { add: () => {} } },
+      createElement: () => ({ getContext: () => null }),
+      querySelector: (sel: string) => ({ remove: () => removed.push(sel) }),
+    },
     location: { href: 'https://office.erpcons.vn/van-ban/' },
     performance: { getEntriesByType: () => entries.map((name) => ({ name })) },
     PerformanceObserver: class { constructor(cb: typeof observer) { observer = cb } observe() {} },
@@ -31,6 +36,8 @@ function loadShell(initialController: string | null) {
   vm.runInNewContext(SOURCE, context)
   return {
     sent,
+    removed,
+    start: () => winListeners.TrunkApplicationStarted(),
     load: async () => { winListeners.load(); await new Promise((r) => setTimeout(r, 0)) },
     switchTo: (name: string) => { container.controller = worker(name); swListeners.controllerchange() },
     finish: (url: string) => { entries.push(url); observer!({ getEntries: () => [{ name: url }] }) },
@@ -66,5 +73,14 @@ describe('shell warm-up', () => {
     expect(s.sent).toEqual([])
     s.switchTo('A')
     expect(s.sent).toEqual([{ to: 'A', urls: ['https://office.erpcons.vn/van-ban/', 'https://office.erpcons.vn/van-ban/w.js', 'https://office.erpcons.vn/van-ban/w_bg.wasm'] }])
+  })
+})
+
+describe('shell loading note', () => {
+  it('drops the shell loading note once the app has started', () => {
+    const s = loadShell('A')
+    expect(s.removed).toEqual([])
+    s.start()
+    expect(s.removed).toEqual(['[data-erpcons-loading]'])
   })
 })

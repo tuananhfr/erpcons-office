@@ -10,6 +10,10 @@
     } catch (e) { supported = false }
   }
   if (!supported) document.documentElement.classList.add('erp-shell-unsupported')
+  window.addEventListener('TrunkApplicationStarted', function () {
+    var note = document.querySelector('[data-erpcons-loading]')
+    if (note) note.remove()
+  })
   // The page loads before any worker controls it, and a deploy swaps workers mid-visit; so always
   // post to the current controller and re-send everything when a new one takes over.
   function warmUp(container) {
