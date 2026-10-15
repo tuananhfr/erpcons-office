@@ -40,9 +40,9 @@ describe('injectEditorShell', () => {
   it('links every feature and marks the current one', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('<a href="/van-ban/" aria-current="page">Văn bản</a>')
-    expect(out).toContain('<a href="/bang-tinh/">Bảng tính</a>')
-    expect(out).toContain('<a href="/trinh-chieu/">Trình chiếu</a>')
-    expect(out).toContain('<a href="/pdf/">PDF</a>')
+    expect(out).toContain('<a href="/bang-tinh/" target="_blank" rel="noopener" aria-label="Bảng tính (tab mới)">Bảng tính</a>')
+    expect(out).toContain('<a href="/trinh-chieu/" target="_blank" rel="noopener" aria-label="Trình chiếu (tab mới)">Trình chiếu</a>')
+    expect(out).toContain('<a href="/pdf/" target="_blank" rel="noopener" aria-label="PDF (tab mới)">PDF</a>')
   })
 
   it('names the logo link for screen readers, since mobile hides its text', () => {

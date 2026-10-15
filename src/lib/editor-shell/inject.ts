@@ -14,11 +14,12 @@ function countMatches(html: string, pattern: RegExp): number {
   return html.match(pattern)?.length ?? 0
 }
 
+// Other editors open in a new tab: navigating away would drop the unsaved document in this one.
 function navLinks(current: EditorEntry, editors: readonly EditorEntry[]): string {
   return editors
     .map((e) => (e.slug === current.slug
       ? `<a href="${editorPath(e.slug)}" aria-current="page">${escapeHtml(e.name)}</a>`
-      : `<a href="${editorPath(e.slug)}">${escapeHtml(e.name)}</a>`))
+      : `<a href="${editorPath(e.slug)}" target="_blank" rel="noopener" aria-label="${escapeHtml(e.name)} (tab mới)">${escapeHtml(e.name)}</a>`))
     .join('')
 }
 

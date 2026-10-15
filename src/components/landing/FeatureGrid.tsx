@@ -18,7 +18,15 @@ export function FeatureGrid() {
                 <h3>{editor.name} <span className="erp-feature__ext">{editor.extension}</span></h3>
                 <p>{editor.summary}</p>
                 {size ? <p className="erp-feature__size">Lần đầu tải {size}</p> : null}
-                <a className="erp-btn erp-btn--secondary" href={editorPath(editor.slug)}>Mở {editor.name}</a>
+                <a
+                  className="erp-btn erp-btn--secondary"
+                  href={editorPath(editor.slug)}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label={`Mở ${editor.name} (tab mới)`}
+                >
+                  Mở {editor.name}
+                </a>
               </li>
             )
           })}
