@@ -1,17 +1,27 @@
-import Link from 'next/link'
-import { SITE } from '@/config/editors.ts'
+/* eslint-disable @next/next/no-html-link-for-pages -- Static hosting uses full navigation without RSC rewrites. */
+import { Brand } from '@/components/Brand.tsx'
+import { Icon } from '@/components/Icon.tsx'
 
-export function SiteHeader() {
-  return (
-    <header className="erp-site-header">
-      <div className="erp-container erp-site-header__inner">
-        <Link className="erp-site-header__brand" href="/">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/erpcons-mark.svg" alt="" width={28} height={28} />
-          <span>{SITE.name}</span>
-        </Link>
-        <a className="erp-btn erp-btn--secondary" href="#chuc-nang">Chức năng</a>
-      </div>
-    </header>
-  )
+function Navigation({ active }: { active: 'home' | 'explore' }) {
+  return <>
+    <a href="/" aria-current={active === 'home' ? 'page' : undefined}>Trang chủ</a>
+    <a href="/#chuc-nang">Công cụ</a>
+    <a href="/kham-pha/" aria-current={active === 'explore' ? 'page' : undefined}>Khám phá</a>
+    <a href="/#huong-dan">Hướng dẫn</a>
+  </>
+}
+
+export function SiteHeader({ active = 'home' }: { active?: 'home' | 'explore' }) {
+  return <header className="erp-site-header">
+    <a className="erp-skip" href="#noi-dung">Đến nội dung chính</a>
+    <div className="erp-container erp-site-header__inner">
+      <Brand />
+      <nav className="erp-desktop-nav" aria-label="Điều hướng chính"><Navigation active={active} /></nav>
+      <a className="erp-header-link" href="https://erpcons.vn/">ERPCons <Icon name="arrow-up-right" /></a>
+      <details className="erp-mobile-menu">
+        <summary aria-label="Mở menu điều hướng"><Icon name="list" /></summary>
+        <nav aria-label="Điều hướng di động"><Navigation active={active} /><a href="https://erpcons.vn/">ERPCons ↗</a></nav>
+      </details>
+    </div>
+  </header>
 }

@@ -5,3 +5,5 @@ src/generated/
 .superpowers/
 *.tsbuildinfo
 next-env.d.ts
+
+.qa/

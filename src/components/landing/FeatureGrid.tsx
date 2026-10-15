@@ -3,35 +3,21 @@ import { EDITORS, editorPath } from '@/config/editors.ts'
 import { formatSize } from '@/content/landing.ts'
 import sizes from '@/generated/editor-sizes.json'
 
+const icons = ['file-earmark-text', 'table', 'easel', 'file-earmark-richtext']
+
 export function FeatureGrid() {
   const known = sizes as Record<string, number | null>
-  return (
-    <section id="chuc-nang" className="erp-section" aria-labelledby="chuc-nang-title">
-      <div className="erp-container">
-        <h2 id="chuc-nang-title">Chức năng</h2>
-        <ul className="erp-features">
-          {EDITORS.map((editor) => {
-            const size = formatSize(known[editor.slug])
-            return (
-              <li key={editor.slug} className="erp-feature">
-                <span className="erp-feature__icon"><Icon name={editor.icon} /></span>
-                <h3>{editor.name} <span className="erp-feature__ext">{editor.extension}</span></h3>
-                <p>{editor.summary}</p>
-                {size ? <p className="erp-feature__size">Lần đầu tải {size}</p> : null}
-                <a
-                  className="erp-btn erp-btn--secondary"
-                  href={editorPath(editor.slug)}
-                  target="_blank"
-                  rel="noopener"
-                  aria-label={`Mở ${editor.name} (tab mới)`}
-                >
-                  Mở {editor.name}
-                </a>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-    </section>
-  )
+  return <section id="chuc-nang" className="erp-tools" aria-labelledby="chuc-nang-title">
+    <div className="erp-container">
+      <h2 id="chuc-nang-title" className="erp-sr-only">Chọn công cụ văn phòng</h2>
+      <ul className="erp-features">{EDITORS.map((editor, i) => <li key={editor.slug} className={`erp-feature erp-feature--${editor.slug}`}>
+        <a href={editorPath(editor.slug)} target="_blank" rel="noopener" aria-label={`Mở ${editor.name} (tab mới)`} className="erp-feature__link">
+          <span className="erp-feature__icon"><Icon name={icons[i]} /></span>
+          <span className="erp-feature__body"><strong>{editor.name}</strong><span className="erp-feature__ext">{editor.extension.slice(1).toUpperCase()}</span><span className="erp-feature__summary">{editor.summary}</span></span>
+          <span className="erp-feature__arrow"><Icon name="arrow-right" /></span>
+        </a>
+        {formatSize(known[editor.slug]) ? <p className="erp-feature__size">Lần đầu tải {formatSize(known[editor.slug])}</p> : null}
+      </li>)}</ul>
+    </div>
+  </section>
 }

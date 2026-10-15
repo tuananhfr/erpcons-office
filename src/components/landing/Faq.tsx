@@ -2,7 +2,7 @@ import { FAQ } from '@/content/landing.ts'
 
 export function Faq() {
   return (
-    <section className="erp-section erp-section--alt" aria-labelledby="hoi-dap-title">
+    <section id="huong-dan" className="erp-section erp-section--alt" aria-labelledby="hoi-dap-title">
       <div className="erp-container">
         <h2 id="hoi-dap-title">Câu hỏi thường gặp</h2>
         <div className="erp-faq">

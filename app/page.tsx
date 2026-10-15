@@ -1,6 +1,7 @@
 import { JsonLd } from '@/components/JsonLd.tsx'
 import { Faq } from '@/components/landing/Faq.tsx'
 import { FeatureGrid } from '@/components/landing/FeatureGrid.tsx'
+import { ExploreBanner } from '@/components/landing/ExploreBanner.tsx'
 import { Hero } from '@/components/landing/Hero.tsx'
 import { Notices } from '@/components/landing/Notices.tsx'
 import { SiteFooter } from '@/components/landing/SiteFooter.tsx'
@@ -13,9 +14,10 @@ export default function HomePage() {
   return (
     <>
       <SiteHeader />
-      <main>
+      <main id="noi-dung">
         <Hero />
         <FeatureGrid />
+        <ExploreBanner />
         <WhyUse />
         <Notices />
         <Faq />

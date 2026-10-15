@@ -25,6 +25,7 @@ describe('structured data', () => {
   it('lists the landing and the four editors', () => {
     expect(sitemapEntries().map((e) => e.url)).toEqual([
       'https://office.erpcons.vn/',
+      'https://office.erpcons.vn/kham-pha/',
       'https://office.erpcons.vn/van-ban/',
       'https://office.erpcons.vn/bang-tinh/',
       'https://office.erpcons.vn/trinh-chieu/',

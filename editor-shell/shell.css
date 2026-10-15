@@ -45,3 +45,6 @@
   .erp-shell__nav { display: none; }
   .erp-shell__menu { display: block; }
 }
+
+.erp-shell__transfer { position: fixed; z-index: 100; bottom: 20px; left: 20px; right: 20px; max-width: 600px; margin: auto; padding: 14px 20px; border: 1px solid #b8d1ed; border-radius: 10px; background: #fff; color: #082674; font: 14px/1.6 system-ui, sans-serif; box-shadow: 0 6px 24px #08267418; }
+.erp-shell__transfer a { color: #0960ea; }

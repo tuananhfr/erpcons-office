@@ -26,6 +26,7 @@ export function faqLd(items: { question: string; answer: string }[]): Record<str
 export function sitemapEntries(): { url: string; priority: number }[] {
   return [
     { url: `${SITE.origin}/`, priority: 1 },
+    { url: `${SITE.origin}/kham-pha/`, priority: 0.7 },
     ...EDITORS.map((e) => ({ url: SITE.origin + editorPath(e.slug), priority: 0.8 })),
   ]
 }
