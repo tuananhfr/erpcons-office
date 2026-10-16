@@ -8,7 +8,7 @@ import { SiteFooter } from '@/components/landing/SiteFooter.tsx'
 import { SiteHeader } from '@/components/landing/SiteHeader.tsx'
 import { WhyUse } from '@/components/landing/WhyUse.tsx'
 import { FAQ } from '@/content/landing.ts'
-import { faqLd, softwareApplicationLd } from '@/lib/seo/structured-data.ts'
+import { faqLd, softwareApplicationLd, websiteLd } from '@/lib/seo/structured-data.ts'
 
 export default function HomePage() {
   return (
@@ -23,6 +23,7 @@ export default function HomePage() {
         <Faq />
       </main>
       <SiteFooter />
+      <JsonLd data={websiteLd()} />
       <JsonLd data={softwareApplicationLd()} />
       <JsonLd data={faqLd(FAQ)} />
     </>

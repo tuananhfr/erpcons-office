@@ -1,4 +1,7 @@
-import { SITE, editorPath, type EditorEntry } from '../../config/editors.ts'
+import { editorPath, type EditorEntry } from '../../config/editors.ts'
+import { PWA_THEME_COLOR } from '../pwa/web-manifest.ts'
+import { editorSeoTags } from '../seo/editor-head.ts'
+import { SEO_ASSETS, SEO_BRAND } from '../seo/page-seo.ts'
 
 export const SHELL_MARKER = 'data-erpcons-shell'
 export const LOADING_MARKER = 'data-erpcons-loading'
@@ -36,23 +39,14 @@ function navLinks(current: EditorEntry, editors: readonly EditorEntry[]): string
 }
 
 function headTags(editor: EditorEntry, assets: ShellAssets): string {
-  const url = SITE.origin + editorPath(editor.slug)
-  const title = `${editor.seoTitle} | ${SITE.name}`
   // Upstream styles pin the canvas to the viewport; push it below the bar for both layouts (absolute and flow).
   const below = (id: string) =>
     `#${id}{position:absolute!important;top:var(--erp-shell-h)!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:calc(100% - var(--erp-shell-h))!important}`
   const placement = [editor.canvasId, editor.loadingId].filter((id): id is string => Boolean(id)).map(below).join('')
   return [
-    `<title>${escapeHtml(title)}</title>`,
-    `<meta name="description" content="${escapeHtml(editor.seoDescription)}">`,
-    `<link rel="canonical" href="${url}">`,
-    `<meta property="og:type" content="website">`,
-    `<meta property="og:site_name" content="${escapeHtml(SITE.name)}">`,
-    `<meta property="og:title" content="${escapeHtml(title)}">`,
-    `<meta property="og:description" content="${escapeHtml(editor.seoDescription)}">`,
-    `<meta property="og:url" content="${url}">`,
-    `<meta property="og:image" content="${SITE.origin}/brand/og-image.png">`,
-    `<link rel="icon" href="/brand/erpcons-mark.svg" type="image/svg+xml">`,
+    ...editorSeoTags(editor),
+    '<link rel="manifest" href="/manifest.webmanifest">',
+    `<meta name="theme-color" content="${PWA_THEME_COLOR}">`,
     `<style ${SHELL_MARKER}>${assets.css}${placement}</style>`,
   ].join('\n')
 }
@@ -61,7 +55,7 @@ function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: 
   const links = navLinks(editor, editors)
   return [
     `<header class="erp-shell" ${SHELL_MARKER}>`,
-    `<a class="erp-shell__brand" href="/" aria-label="${escapeHtml(SITE.name)}"><img src="/brand/erpcons-mark.svg" alt="" width="24" height="24"><span>${escapeHtml(SITE.name)}</span></a>`,
+    `<a class="erp-shell__brand" href="/" aria-label="${escapeHtml(SEO_BRAND)}, trang chủ"><img src="${SEO_ASSETS.logo64}" alt="" width="28" height="28"><span>Văn phòng <small>by <b>ERPCons</b></small></span></a>`,
     `<span class="erp-shell__current">${escapeHtml(editor.name)}</span>`,
     `<nav class="erp-shell__nav" aria-label="Chức năng">${links}</nav>`,
     `<details class="erp-shell__menu"><summary>Chức năng</summary><nav aria-label="Chức năng">${links}</nav></details>`,

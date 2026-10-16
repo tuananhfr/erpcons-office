@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { faqLd, sitemapEntries, softwareApplicationLd } from './structured-data.ts'
+import { faqLd, sitemapEntries, softwareApplicationLd, websiteLd } from './structured-data.ts'
 
 describe('structured data', () => {
   it('describes a free browser application', () => {
     expect(softwareApplicationLd()).toMatchObject({
       '@type': 'SoftwareApplication',
-      name: 'ERPCons Văn phòng',
+      name: 'Văn phòng by ERPCons',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web browser',
       url: 'https://office.erpcons.vn/',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'VND' },
       inLanguage: 'vi',
     })
+  })
+
+  it('uses the same product brand for the website name', () => {
+    expect(websiteLd()).toMatchObject({ '@type': 'WebSite', name: 'Văn phòng by ERPCons', url: 'https://office.erpcons.vn/' })
   })
 
   it('turns FAQ items into a FAQPage', () => {

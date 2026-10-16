@@ -24,11 +24,11 @@ describe('injectEditorShell', () => {
   it('sets Vietnamese language, title, canonical and drops upstream title/icon', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('<html lang="vi">')
-    expect(out).toContain('<title>Văn bản – soạn và sửa tệp Word (.docx) trực tuyến | ERPCons Văn phòng</title>')
+    expect(out).toContain('<title>Soạn thảo Word trực tuyến miễn phí | Văn phòng by ERPCons</title>')
     expect(out).toContain('<link rel="canonical" href="https://office.erpcons.vn/van-ban/">')
     expect(out).not.toContain('<title>WordCraft</title>')
     expect(out).not.toContain('wordcraft-45f84b7721cb79a9.ico')
-    expect(out).toContain('<link rel="icon" href="/brand/erpcons-mark.svg" type="image/svg+xml">')
+    expect(out).toContain('<link rel="icon" href="/brand/van-phong-icon-32.png" type="image/png" sizes="32x32">')
   })
 
   it('puts the bar right after <body> and keeps the engine script untouched', () => {
@@ -59,7 +59,20 @@ describe('injectEditorShell', () => {
 
   it('names the logo link for screen readers, since mobile hides its text', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
-    expect(out).toContain('<a class="erp-shell__brand" href="/" aria-label="ERPCons Văn phòng">')
+    expect(out).toContain('<a class="erp-shell__brand" href="/" aria-label="Văn phòng by ERPCons, trang chủ">')
+  })
+
+  it('shows the same Văn phòng logo and wordmark as the landing header', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    expect(out).toContain('<img src="/brand/van-phong-logo-64.png" alt="" width="28" height="28">')
+    expect(out).toContain('<span>Văn phòng <small>by <b>ERPCons</b></small></span>')
+    expect(out).not.toContain('erpcons-mark.svg')
+  })
+
+  it('links the web manifest so the app can be installed from any editor', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    expect(out).toContain('<link rel="manifest" href="/manifest.webmanifest">')
+    expect(out).toContain('<meta name="theme-color" content="#ffffff">')
   })
 
   it('moves both canvas and loading element below the bar', () => {

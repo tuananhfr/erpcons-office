@@ -1,4 +1,5 @@
-import type { Metadata } from 'next'
+import { EXPLORE_SEO } from '@/lib/seo/page-seo.ts'
+import { pageMetadata } from '@/lib/seo/metadata.ts'
 import Image from 'next/image'
 import { SiteHeader } from '@/components/landing/SiteHeader.tsx'
 import { SiteFooter } from '@/components/landing/SiteFooter.tsx'
@@ -6,11 +7,7 @@ import { ToolCatalog } from '@/components/explore/ToolCatalog.tsx'
 import { Icon } from '@/components/Icon.tsx'
 import { ECOSYSTEM_TOOLS } from '@/content/ecosystem.ts'
 
-export const metadata: Metadata = {
-  title: 'Khám phá hệ sinh thái',
-  description: 'Khám phá các công cụ ERPCons dành cho công việc, cuộc sống và doanh nghiệp.',
-  alternates: { canonical: '/kham-pha/' },
-}
+export const metadata = pageMetadata(EXPLORE_SEO)
 export default function ExplorePage() {
   const icons = Object.fromEntries(ECOSYSTEM_TOOLS.map(tool => [tool.id, <Icon key={tool.id} name={tool.icon} />]))
   return <><SiteHeader active="explore" /><main id="noi-dung">
