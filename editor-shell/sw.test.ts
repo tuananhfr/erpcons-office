@@ -42,6 +42,8 @@ interface WorkerOptions {
   caches?: Record<string, Record<string, string>>
   manifest?: string[] | null
   network?: (url: string) => FakeResponse | 'offline'
+  // Other windows already open on the site (the page being fetched is not among them).
+  windows?: string[]
 }
 
 function loadWorker(options: WorkerOptions = {}) {
@@ -74,7 +76,13 @@ function loadWorker(options: WorkerOptions = {}) {
       addEventListener: (type: string, fn: unknown) => { listeners[type] = fn },
       location: { origin },
       skipWaiting: () => {},
-      clients: { claim: async () => {} },
+      clients: {
+        claim: async () => {},
+        matchAll: async () => [
+          ...(options.windows ?? []).map((p, i) => ({ id: `other-${i}`, url: u(p) })),
+          { id: 'fetching', url: 'about:blank' },
+        ],
+      },
     },
   }
   vm.runInNewContext(source, context)
@@ -103,7 +111,7 @@ function loadWorker(options: WorkerOptions = {}) {
     paths,
     message: (data: unknown) => dispatch('message', { data }),
     activate: () => dispatch('activate', {}),
-    fetchPage: (p: string) => dispatch('fetch', { request: { url: u(p), method: 'GET', mode: 'navigate' } }) as Promise<Promise<FakeResponse>>,
+    fetchPage: (p: string) => dispatch('fetch', { request: { url: u(p), method: 'GET', mode: 'navigate' }, resultingClientId: 'fetching' }) as Promise<Promise<FakeResponse>>,
     fetchAsset: (p: string) => dispatch('fetch', { request: { url: u(p), method: 'GET', mode: 'cors' } }) as Promise<Promise<FakeResponse>>,
   }
 }
@@ -216,6 +224,19 @@ describe('sw across deploys', () => {
     expect(w.paths()).toContain('/pdf/old_bg.wasm')
     await (await w.fetchPage('/'))
     expect(w.paths()).toEqual(['/', '/_next/static/new.js', '/pdf/', '/pdf/old_bg.wasm', '/van-ban/', '/van-ban/new_bg.wasm'])
+  })
+
+  it('keeps an older build while another tab still runs that page', async () => {
+    const manifest = ['/', '/van-ban/', '/van-ban/new_bg.wasm', '/pdf/']
+    const caches = { [CURRENT]: { '/van-ban/': 'old', '/van-ban/old_font.ttf': 'o', '/pdf/old_bg.wasm': 'o' } }
+    const busy = loadWorker({ manifest, caches, windows: ['/van-ban/?open=x'] })
+    await (await busy.fetchPage('/van-ban/'))
+    expect(busy.paths()).toContain('/van-ban/old_font.ttf')
+
+    // A tab on another editor does not hold this page's files.
+    const other = loadWorker({ manifest, caches, windows: ['/pdf/'] })
+    await (await other.fetchPage('/van-ban/'))
+    expect(other.paths()).not.toContain('/van-ban/old_font.ttf')
   })
 
   it('never prunes when the manifest was not filled in', async () => {

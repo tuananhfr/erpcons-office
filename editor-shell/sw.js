@@ -19,9 +19,21 @@ function ownedBy(pageDir, pathname) {
   return !MANIFEST.some(function (p) { return p !== pageDir && p.slice(-1) === '/' && p.indexOf(pageDir) === 0 && pathname.indexOf(p) === 0 })
 }
 
+// A tab still running the previous build can lazy-load its old files (fonts, chunks) at any time.
+async function pageOpenElsewhere(pageDir, requestingId) {
+  var windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  return windows.some(function (client) {
+    if (client.id === requestingId) return false
+    var url
+    try { url = new URL(client.url) } catch (error) { return false }
+    return url.origin === self.location.origin && ownedBy(pageDir, url.pathname)
+  })
+}
+
 // Old-build files stay until their page is fetched fresh: until then they are what that cached page needs offline.
-async function prune(cache, pageDir) {
+async function prune(cache, pageDir, requestingId) {
   if (MANIFEST.length === 0) return
+  if (await pageOpenElsewhere(pageDir, requestingId)) return
   var keys = await cache.keys()
   await Promise.all(keys.map(function (request) {
     var pathname = new URL(request.url).pathname
@@ -29,14 +41,14 @@ async function prune(cache, pageDir) {
   }))
 }
 
-async function networkFirst(request) {
+async function networkFirst(request, requestingId) {
   var cache = await caches.open(CACHE)
   try {
     var response = await fetch(request)
     if (storable(response)) {
       await cache.put(request, response.clone())
       var pathname = new URL(request.url).pathname
-      if (pathname.slice(-1) === '/') await prune(cache, pathname)
+      if (pathname.slice(-1) === '/') await prune(cache, pathname, requestingId)
     }
     return response
   } catch (error) {
@@ -115,5 +127,7 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('fetch', function (event) {
   var strategy = classify(new URL(event.request.url), event.request.method, event.request.mode, self.location.origin)
   if (strategy === 'bypass') return
-  event.respondWith(strategy === 'network-first' ? networkFirst(event.request) : cacheFirst(event.request))
+  // A navigation's own window only exists as resultingClientId; clientId is the tab that started it.
+  var requestingId = event.resultingClientId || event.clientId
+  event.respondWith(strategy === 'network-first' ? networkFirst(event.request, requestingId) : cacheFirst(event.request))
 })
