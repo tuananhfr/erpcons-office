@@ -6,7 +6,6 @@ export function Hero() {
   return <section className="erp-hero" aria-labelledby="hero-title">
     <div className="erp-container erp-hero__inner">
       <div className="erp-hero__copy">
-        <p className="erp-handwritten">Đơn giản hơn mỗi ngày!</p>
         <h1 id="hero-title">Mở tệp là<br /><span>làm việc.</span></h1>
         <p className="erp-hero__lead">Soạn văn bản, bảng tính, trình chiếu và PDF ngay trên trình duyệt.</p>
         <p className="erp-hero__tagline">Miễn phí. Nhanh. Tiện lợi.</p>
