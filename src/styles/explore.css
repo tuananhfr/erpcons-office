@@ -14,9 +14,10 @@
 .erp-search input { padding: 11px 16px; min-height: 44px; width: 240px; border-radius: 10px; border: 1px solid var(--erp-border); background: var(--erp-bg); font-size: 14px; color: var(--erp-text); }
 .erp-catalog__grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .erp-catalog__grid li { border: 1px solid var(--erp-border); border-radius: 14px; background: #fff; min-width: 0; }
-.erp-catalog__grid a, .erp-catalog__upcoming { display: grid; grid-template-columns: 40px 1fr; gap: 16px; position: relative; align-items: start; padding: 22px 20px; height: 100%; text-decoration: none; color: var(--erp-text); border-radius: 14px; }
+.erp-catalog__grid a, .erp-catalog__upcoming { display: grid; grid-template-columns: 56px 1fr; gap: 16px; position: relative; align-items: start; padding: 22px 20px; height: 100%; text-decoration: none; color: var(--erp-text); border-radius: 14px; }
 .erp-catalog__grid a:hover { background: var(--erp-bg); }
 .erp-catalog__icon { font-size: 36px; line-height: 1.3; }
+.erp-catalog__icon img { display: block; width: 56px; height: 56px; object-fit: contain; }
 .erp-catalog__body { display: flex; flex-direction: column; gap: 7px; }
 .erp-catalog__body strong { font-size: 17px; letter-spacing: -.04em; line-height: 1.3; }
 .erp-catalog__body > span { color: var(--erp-text-2); font-size: 12px; line-height: 1.65; }
