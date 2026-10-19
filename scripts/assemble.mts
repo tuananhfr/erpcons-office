@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { EDITORS } from '../src/config/editors.ts'
+import { embedHosts } from '../src/config/embed.ts'
 import { assetManifest, fillServiceWorker } from '../src/lib/build/asset-manifest.ts'
 import { loadShellAssets } from '../src/lib/editor-shell/assets.ts'
 import { installEditor } from '../src/lib/build/assemble.ts'
@@ -11,7 +12,7 @@ const out = path.join(REPO_ROOT, 'out')
 if (!fs.existsSync(path.join(out, 'index.html'))) throw new Error('out/index.html missing — run next build first')
 
 const shell = path.join(REPO_ROOT, 'editor-shell')
-const assets = loadShellAssets(shell)
+const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS))
 
 const root = workspaceRoot()
 for (const editor of EDITORS) {

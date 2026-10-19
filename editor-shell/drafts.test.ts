@@ -71,6 +71,12 @@ describe('draft store', () => {
     expect(page(new FakeIdb(), { pathname: '/pdf/' }).drafts).toBeDefined()
   })
 
+  it('does not install the draft store when embedded for ERP', () => {
+    const embedded = page(new FakeIdb(), { pathname: '/van-ban/', search: '?embed=erpcons&parent=https%3A%2F%2Flpc.vn' })
+    expect(embedded.drafts).toBeUndefined()
+    expect(embedded.store).toBeUndefined()
+  })
+
   it('holds a lock for its own tab so other tabs know it is alive', async () => {
     const { held, store } = await opened()
     expect(held).toEqual(['erpcons-draft-tab:' + store!.tab])

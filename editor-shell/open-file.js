@@ -40,6 +40,8 @@
       } catch (error) { fail('Không chuyển được tệp. Hãy mở tệp từ menu File của công cụ.', cleanup) }
     }, 300)
   }
+  // host-bridge.js opens files sent by an embedding ERP page through the same path.
+  window.erpShellDeliver = deliver
 
   // The installed app was opened from "Open with" in the operating system.
   if (window.launchQueue) {

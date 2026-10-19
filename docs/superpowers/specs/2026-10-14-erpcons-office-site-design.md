@@ -26,6 +26,10 @@ dạng, sửa, lưu về máy, mở lại được — cho cả bốn chức nă
 | Công nghệ landing | Next.js + TypeScript, `output: 'export'` (tĩnh, không chạy Node trên server) |
 | Server đích | VPS Linux + Apache2 — **ngoài phạm vi lần này**; làm và kiểm ở local trước |
 
+> **Cập nhật 19/10/2026.** "Không iframe" vẫn đúng với site công khai. Ngoại lệ duy nhất là ERPCons
+> nhúng editor bằng iframe khác origin để sửa tệp Drive dự án (`?embed=erpcons`). Ở chế độ này shell
+> bị ẩn, không dùng bản nháp và tệp đi qua postMessage. Chi tiết xem `docs/erp-embed.md`.
+
 ## 1. Kiến trúc
 
 ```

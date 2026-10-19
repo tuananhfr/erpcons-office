@@ -3,7 +3,8 @@
   var editor = location.pathname.split('/')[1]
   if (EDITORS.indexOf(editor) === -1 || location.pathname !== '/' + editor + '/') return
   // Embedded editors report unsaved work to the host page, which owns recovery there.
-  if (new URLSearchParams(location.search).get('host') === 'parent') return
+  var embedding = new URLSearchParams(location.search)
+  if (embedding.get('host') === 'parent' || embedding.get('embed') === 'erpcons') return
 
   var STORE = 'drafts'
   var LOCK_PREFIX = 'erpcons-draft-tab:'
