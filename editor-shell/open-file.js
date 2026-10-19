@@ -1,16 +1,26 @@
 (function () {
   var banner
-  var timer
+  // Counts messages so a delayed hide never takes down a newer one.
+  var shown = 0
   function say(text, role) {
     if (!banner) {
       banner = document.createElement('div')
       banner.className = 'erp-shell__transfer'
       document.body.appendChild(banner)
     }
+    shown++
     banner.setAttribute('role', role || 'status')
     banner.textContent = text
   }
-  function fail(message, cleanup) {
+  function hideLater() {
+    var mine = shown
+    setTimeout(function () {
+      if (mine !== shown || !banner) return
+      banner.remove()
+      banner = undefined
+    }, 4500)
+  }
+  function fail(message, cleanup, timer) {
     clearInterval(timer)
     if (cleanup) cleanup()
     say(message + ' ', 'alert')
@@ -20,11 +30,12 @@
     banner.appendChild(back)
   }
   // Hands files to the editor as a drop on its canvas; `done` runs once the editor has taken them.
+  // Each handoff owns its timer: an ERP page may send the next file before the last one landed.
   function deliver(files, name, done, cleanup) {
     var started = Date.now()
     say('Đang khởi tạo công cụ để nhận “' + name + '”…')
-    timer = setInterval(function () {
-      if (Date.now() - started > 120000) { fail('Công cụ chưa sẵn sàng. Tải lại trang để thử lại hoặc mở tệp từ menu File.', cleanup); return }
+    var timer = setInterval(function () {
+      if (Date.now() - started > 120000) { fail('Công cụ chưa sẵn sàng. Tải lại trang để thử lại hoặc mở tệp từ menu File.', cleanup, timer); return }
       var canvas = document.querySelector('canvas')
       if (!canvas) return
       try {
@@ -36,8 +47,8 @@
         clearInterval(timer)
         if (done) done()
         say('Đã chuyển “' + name + '” vào công cụ.')
-        setTimeout(function () { banner.remove() }, 4500)
-      } catch (error) { fail('Không chuyển được tệp. Hãy mở tệp từ menu File của công cụ.', cleanup) }
+        hideLater()
+      } catch (error) { fail('Không chuyển được tệp. Hãy mở tệp từ menu File của công cụ.', cleanup, timer) }
     }, 300)
   }
   // host-bridge.js opens files sent by an embedding ERP page through the same path.

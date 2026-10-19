@@ -113,3 +113,73 @@ describe('editor file handoff', () => {
     expect(harness.deleted).toEqual([])
   })
 })
+
+function shell() {
+  let next = 0
+  const intervals = new Map<number, () => void>()
+  const timeouts: (() => void)[] = []
+  let handled = false
+  const drops: { init: { dataTransfer: { files: unknown[] } } }[] = []
+  let removed = 0
+  const banners: { textContent: string }[] = []
+  const window: { addEventListener(): void; erpShellDeliver?: (files: unknown[], name: string, done?: () => void) => void } = { addEventListener() {} }
+  const context = {
+    URLSearchParams, URL, Date, window,
+    navigator: { gpu: {} },
+    location: { search: '', pathname: '/van-ban/', href: 'https://example.test/van-ban/' },
+    indexedDB: { open: () => { throw new Error('no transfer in this test') } },
+    document: {
+      createElement: () => { const b = { textContent: '', className: '', setAttribute() {}, appendChild() {}, remove() { removed++ } }; banners.push(b); return b },
+      body: { appendChild() {} },
+      querySelector: () => ({ dispatchEvent(event: never) { drops.push(event); return !handled } }),
+    },
+    DataTransfer: class { files: unknown[] = []; items = { add: (file: unknown) => { this.files.push(file) } } },
+    File: class {},
+    DragEvent: class { type: string; init: unknown; constructor(type: string, init: unknown) { this.type = type; this.init = init } },
+    history: { replaceState() {} },
+    setInterval: (callback: () => void) => { intervals.set(++next, callback); return next },
+    clearInterval: (id: number) => { intervals.delete(id) },
+    setTimeout: (callback: () => void) => { timeouts.push(callback) },
+  }
+  vm.runInNewContext(script, context)
+  return {
+    deliver: (name: string, done?: () => void) => window.erpShellDeliver!([{ name }], name, done),
+    tick: () => [...intervals.values()].forEach(callback => callback()),
+    live: () => intervals.size,
+    ready: () => { handled = true },
+    runTimeout: (i: number) => timeouts[i](),
+    drops, banners, removed: () => removed,
+  }
+}
+
+describe('overlapping handoffs (an ERP page sending several files)', () => {
+  it('drops each file once and stops every timer', () => {
+    const harness = shell()
+    const done: string[] = []
+    harness.deliver('A.docx', () => done.push('A'))
+    harness.deliver('B.docx', () => done.push('B'))
+    harness.ready()
+    harness.tick()
+    harness.tick()
+    expect(harness.drops.map(drop => drop.init.dataTransfer.files)).toEqual([[{ name: 'A.docx' }], [{ name: 'B.docx' }]])
+    expect(done).toEqual(['A', 'B'])
+    expect(harness.live()).toBe(0)
+  })
+
+  it('keeps a newer message up when an older one would hide the banner', () => {
+    const harness = shell()
+    harness.ready()
+    harness.deliver('A.docx')
+    harness.tick()
+    harness.deliver('B.docx')
+    harness.runTimeout(0)
+    expect(harness.removed()).toBe(0)
+    expect(harness.banners[0].textContent).toContain('B.docx')
+    harness.tick()
+    harness.runTimeout(1)
+    expect(harness.removed()).toBe(1)
+    harness.deliver('C.docx')
+    expect(harness.banners).toHaveLength(2)
+    expect(harness.banners[1].textContent).toContain('C.docx')
+  })
+})
