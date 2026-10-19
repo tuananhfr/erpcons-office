@@ -51,7 +51,7 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
   `lang="vi"`, SEO tags, manifest, the 40px `.erp-shell` bar, and the canvas pushed below it.
   It is idempotent (`data-erpcons-shell`) and throws if the page shape changes upstream.
 - `editor-shell/*.js` are plain-ES5 IIFEs concatenated in order by `assets.ts`
-  (`shell → open-file → keys → drafts → drafts-ui → host-bridge`) into one inline `<script>`,
+  (`shell → open-file → keys → drafts → drafts-ui → host-bridge → crash-guard`) into one inline `<script>`,
   after `window.erpEmbedHosts` (from `src/config/embed.ts`); no bundler, no TS. Tests run them
   in node against fakes (`fake-idb.ts`).
   - `open-file.js`: landing → editor file handoff via IndexedDB `erpcons-file-transfer-v1`
@@ -64,6 +64,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
   - `host-bridge.js`: ERP embedding (`?embed=erpcons&parent=<origin>`, origin must be in
     `erpEmbedHosts`): postMessage protocol v1 in `docs/erp-embed.md`. It identifies the document
     by file name only, so two open documents with the same name are ambiguous.
+  - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
+    blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
     of that build is open.
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.

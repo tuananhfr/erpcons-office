@@ -39,6 +39,11 @@ sai `v`, khác origin, hoặc không đến từ đúng cửa sổ (`parent` / `
 | `open-failed` | `reason` (tiếng Việt, hiển thị được) | editor từ chối tệp |
 | `save` | `id`, `name`, `bytes` (ArrayBuffer, transfer), `ack` (boolean) | người dùng lưu đúng tên tệp đang mở |
 | `dirty` | `dirty` (boolean) | trạng thái chưa lưu thay đổi |
+| `crashed` | (không có) | editor đã dừng (Rust panic, wasm trap, hết bộ nhớ); iframe hiện hộp "Công cụ gặp sự cố và đã dừng" với nút "Tải lại trang". ERP có thể bỏ qua |
+
+`crashed` do `editor-shell/crash-guard.js` gửi, tối đa một lần cho mỗi lần tải trang. Thay đổi chưa lưu kể từ lần
+`save` gần nhất coi như mất. Khi người dùng bấm "Tải lại trang", iframe tải lại cùng URL và gửi lại `ready`;
+ERP trả lời bằng `open` như mọi lần nhận `ready`.
 
 ### ERP → Office
 

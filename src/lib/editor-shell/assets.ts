@@ -4,7 +4,7 @@ import { embedHosts } from '../../config/embed.ts'
 import type { ShellAssets } from './inject.ts'
 
 export function loadShellAssets(directory: string, hosts: readonly string[] = embedHosts(undefined)): ShellAssets {
-  const scripts = ['shell.js', 'open-file.js', 'keys.js', 'drafts.js', 'drafts-ui.js', 'host-bridge.js']
+  const scripts = ['shell.js', 'open-file.js', 'keys.js', 'drafts.js', 'drafts-ui.js', 'host-bridge.js', 'crash-guard.js']
   return {
     css: fs.readFileSync(path.join(directory, 'shell.css'), 'utf8'),
     // Each file is an IIFE; a newline alone would chain them as one expression.

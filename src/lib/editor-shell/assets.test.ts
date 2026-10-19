@@ -30,4 +30,12 @@ describe('loadShellAssets', () => {
     expect(part('host-bridge.js')).toBeGreaterThan(part('drafts.js'))
     expect(part('open-file.js')).toBeGreaterThan(-1)
   })
+
+  it('runs the crash guard last, once the draft store and the host bridge it reads exist', () => {
+    const script = loadShellAssets(shellDir).script
+    const part = (name: string) => script.indexOf(fs.readFileSync(`${shellDir}${name}`, 'utf8').trim())
+    expect(part('crash-guard.js')).toBeGreaterThan(part('drafts.js'))
+    expect(part('crash-guard.js')).toBeGreaterThan(part('host-bridge.js'))
+    expect(script.trimEnd().endsWith(fs.readFileSync(`${shellDir}crash-guard.js`, 'utf8').trim())).toBe(true)
+  })
 })
