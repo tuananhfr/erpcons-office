@@ -2,8 +2,9 @@
   // eframe only cancels the browser default for Ctrl+O/P/S, so Ctrl+R reloads, Ctrl+L jumps to the
   // address bar and Ctrl+D bookmarks while the editor runs the same key. Clipboard keys stay
   // untouched: the engine needs the browser's copy/cut/paste events.
-  var OFFICE_LETTERS = ['KeyB', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyR', 'KeyU']
-  var PLAIN = ['F1', 'F3', 'F7']
+  var OFFICE_LETTERS = ['KeyB', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyR', 'KeyU', 'KeyY']
+  // F12 is Save As in every editor; developer tools stay reachable on F12 outside the editor and from the browser menu.
+  var PLAIN = ['F1', 'F3', 'F7', 'F12']
   var BY_EDITOR = {
     '/van-ban/': { ctrl: [], plain: [] },
     '/bang-tinh/': { ctrl: [], plain: [] },

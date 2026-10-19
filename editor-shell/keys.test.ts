@@ -50,7 +50,7 @@ describe('editor keys the browser must not take', () => {
 
   it('keeps Office formatting keys (Ctrl+B/R/L/F...) away from bookmarks, reload, address bar and find', () => {
     const k = loadKeys('/van-ban/')
-    for (const code of ['KeyB', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyR', 'KeyU']) {
+    for (const code of ['KeyB', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyR', 'KeyU', 'KeyY']) {
       expect(k.press(code, { ctrl: true }).prevented, code).toBe(true)
       expect(k.press(code, { ctrl: true, shift: true }).prevented, `shift ${code}`).toBe(true)
     }
@@ -98,9 +98,12 @@ describe('editor keys the browser must not take', () => {
     expect(loadKeys('/').press('KeyB', { ctrl: true }).prevented).toBe(false)
   })
 
-  it('keeps developer tools and plain typing untouched', () => {
+  it('makes F12 Save As in the editor but leaves developer tools reachable', () => {
     const k = loadKeys('/van-ban/')
-    expect(k.press('F12').prevented).toBe(false)
+    expect(k.press('F12').prevented).toBe(true)
+    expect(k.press('F12', { shift: true }).prevented).toBe(true)
+    expect(k.press('F12', { target: k.targets.body }).prevented).toBe(false)
+    expect(k.press('F12', { target: k.targets.shellLink }).prevented).toBe(false)
     expect(k.press('KeyB').prevented).toBe(false)
   })
 })
