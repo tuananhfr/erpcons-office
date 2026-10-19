@@ -46,16 +46,27 @@ không bôi chọn. Danh sách Phím tắt Văn bản chưa có phím theo ngữ
 | Văn bản | 1 tài liệu / `Session` | Không | `document_id` bắt đầu từ 1 mỗi Session → trùng khóa nháp `doc-1`; bộ lưu nháp chỉ theo 1 tài liệu |
 | Bảng tính | `Vec<DocState>`, tối đa 10 | Thanh tab khi ≥2 sổ (7a, gridcraft `f01be07`) | Cửa sổ ẩn theo uid. Còn: `host.rs` `Bridge::sync` đánh dấu đã lưu cho tài liệu active, không phải tài liệu vừa lưu (7f); thanh notice, pane, tab ribbon dùng chung |
 | Trình chiếu | `Vec<DocState>`, tối đa 10 | Thanh tab khi ≥2 bản (7a, deckcraft `a6a71ff`) | Zoom, cuộn, Slide Sorter riêng từng tài liệu. Còn dùng chung: chế độ xem, task pane, Selection pane |
-| PDF | Có tab, cả web | Có | Web đánh dấu đã lưu ngay khi tải xuống (`editing.rs:636`) |
+| PDF | Có tab, cả web | Có | 7d (pdfcraft `ec74f0d3`): web chỉ đánh dấu đã lưu khi trình duyệt ghi xong; Lưu thành đổi tên qua hộp thoại lưu, trình duyệt không có hộp thoại thì hỏi tên trong app |
 | Shell | — | — | `host-bridge.js` (nhúng ERP) nhận diện tài liệu theo tên, một `originalName`, một cờ `dirty`; `open-file.js` timer dùng chung |
 
 Hướng đã chốt: tab trong từng editor, tối đa 10 tài liệu; Văn bản dùng cách "cất/hoán đổi" Session.
 
-## Định dạng số và ngày Việt Nam (Bảng tính) — Wave 6
+## Định dạng số và ngày Việt Nam (Bảng tính) — Wave 6: xong trong code, chờ deploy
 
-Chỉ có `FormulaLocale { En, Es }` (`formula/src/input.rs:8`), gắn cứng theo ngôn ngữ giao diện
-(`ui-egui/src/i18n.rs:117`). Nhập liệu (`core/src/parse.rs:19`) và hiển thị (`numfmt/src/lib.rs:308`) cố
-định en-US: chưa có thập phân phẩy, `dd/mm/yyyy`, `₫`. XLSX lưu chuẩn quốc tế — không cần đổi định dạng file.
+"Định dạng vùng" (Tùy chọn ▸ Chung) tách khỏi ngôn ngữ giao diện, mặc định theo ngôn ngữ. Ở vi-VN:
+- công thức dùng `;` và thập phân phẩy;
+- nhập `1.234,5`, `19/10/2026`, `1.000.000 ₫`;
+- ô, thanh trạng thái, biểu đồ, in/PDF, mẫu Định dạng Ô, sao chép/dán và Tìm hiển thị `1.234,50`,
+  `19/10/2026`, "tháng 10", "Thứ Hai".
+
+XLSX, CSV, `cell.get` và `TEXT()` giữ chuẩn quốc tế. Commit gridcraft `936a900` (nhập, công thức, ₫) và
+`9b82237` (hiển thị); hai commit phải deploy cùng nhau. Còn:
+- nhãn nhóm ngày trong pivot ("Qtr1", "Jan");
+- phương trình trendline;
+- AM/PM chưa thành SA/CH;
+- mã tiền tệ dựng sẵn 5–8 và 41–44;
+- `TEXT()`/`VALUE()` theo vùng;
+- tooltip độ rộng cột ("Độ rộng: 35.39") còn dấu chấm.
 
 ## Bảo mật, fidelity, pháp lý — Wave 8
 
