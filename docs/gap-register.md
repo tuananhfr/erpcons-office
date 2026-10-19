@@ -72,8 +72,8 @@ XLSX, CSV, `cell.get` và `TEXT()` giữ chuẩn quốc tế. Commit gridcraft `
 
 | Spec | Nội dung | Trạng thái |
 |---|---|---|
-| OF-14 | Cảnh báo trước khi lưu chỉnh sửa PDF đã ký | Partial: phát hiện chữ ký, lưu incremental, chặn ghi lại toàn bộ, đọc được DocMDP (`sign/src/pdf.rs:697`); chưa kiểm DocMDP trước khi lưu; FieldMDP không đọc |
-| OF-11 | Chặn zip bomb, file độc | Partial: 3 fork Office có trần kích thước/số mục/độ sâu XML, PDF có trần giải nén và fuzz; thiếu kiểm tỉ lệ nén, trần 512 MB–2 GB quá lớn cho wasm |
+| OF-14 | Cảnh báo trước khi lưu chỉnh sửa PDF đã ký | Existing (8a, pdfcraft `ff91b239`): lưu vi phạm DocMDP/FieldMDP bị giữ lại, chỉ cho "Lưu Bản sao…" hoặc Hủy; P=1 hiện thanh khóa và từ chối chỉnh sửa. Còn: FieldMDP chưa khóa trường chỉ-đọc, P=2 chưa làm xám công cụ bình luận |
+| OF-11 | Chặn zip bomb, file độc | Existing (8b): 3 fork Office giải nén mọi entry qua một helper đếm byte thật, chặn theo trần entry/tổng/số mục và tỉ lệ >200:1 (entry >4 MiB), trần web nhỏ hơn desktop; PDF có trần giải nén và fuzz. Còn: câu báo tệp hỏng của Bảng tính chưa dịch ("We can't open … not a valid spreadsheet") |
 | OF-13 | Golden corpus round-trip | Partial: test round-trip sinh file bằng code; chưa có file docx/xlsx/pptx thật |
 | OF-19 | File lớn, nhiều tab | Missing |
 | §10 | CSP, SBOM | Missing: Apache 2.4 (`/etc/apache2/office.erpcons.vn.inc`) chỉ đặt cache và nén, không có header bảo mật; `cargo-deny` chỉ có ở pdfcraft; chưa sinh SBOM |
