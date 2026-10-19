@@ -152,15 +152,18 @@
     return nativeClick.apply(this, arguments)
   }
 
+  // Keyed by draft: with several documents open, one being saved must not clear the others.
+  var unsaved = {}
   var dirty = false
-  function setDirty(next) {
+  function report() {
+    var next = Object.keys(unsaved).length > 0
     if (dirty === next) return
     dirty = next
     post('dirty', { dirty: next })
   }
   window.erpDrafts = {
-    put: function () { setDirty(true) },
-    remove: function () { setDirty(false) },
+    put: function (key) { unsaved[key] = true; report() },
+    remove: function (key) { delete unsaved[key]; report() },
     ready: function () {},
   }
 

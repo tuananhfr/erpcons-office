@@ -288,4 +288,17 @@ describe('reporting unsaved work', () => {
     const dirty = page.posted.filter(entry => entry.data.type === 'dirty').map(entry => entry.data.dirty)
     expect(dirty).toEqual([true, false])
   })
+
+  it('stays dirty until every open document is saved', () => {
+    const page = harness()
+    const drafts = page.context.erpDrafts as { put: (...args: unknown[]) => void; remove: (key: string) => void }
+    drafts.put('tab|doc-1', 'a.docx', 'docx', new Uint8Array(1))
+    drafts.put('tab|doc-2', 'b.docx', 'docx', new Uint8Array(1))
+    drafts.remove('tab|doc-2')
+    drafts.remove('tab|doc-3')
+    const dirty = () => page.posted.filter(entry => entry.data.type === 'dirty').map(entry => entry.data.dirty)
+    expect(dirty()).toEqual([true])
+    drafts.remove('tab|doc-1')
+    expect(dirty()).toEqual([true, false])
+  })
 })
