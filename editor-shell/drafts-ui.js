@@ -30,8 +30,6 @@
   }
 
   var SAVE_KEY = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘S' : 'Ctrl+S'
-  // Văn bản holds one document per page, so restoring several would leave only the last one open.
-  var ONE_DOCUMENT = location.pathname === '/van-ban/'
 
   var STATUS = {
     saved: { text: function (s) { return 'Đã lưu bản nháp trên thiết bị · ' + time(s.at) }, short: 'Đã lưu nháp', tone: 'ok' },
@@ -102,7 +100,7 @@
     }
     var actions = el('div', 'erp-drafts__actions')
     var restorable = items.filter(function (item) { return !item.corrupt })
-    if (restorable.length > 1 && !ONE_DOCUMENT) actions.appendChild(button('Khôi phục tất cả', 'primary', function () { restoreAll(restorable, items) }))
+    if (restorable.length > 1) actions.appendChild(button('Khôi phục tất cả', 'primary', function () { restoreAll(restorable, items) }))
     actions.appendChild(button(items.length ? 'Để sau' : 'Đóng', 'quiet', closePanel))
     panel.appendChild(actions)
   }

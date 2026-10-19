@@ -43,7 +43,7 @@ không bôi chọn. Danh sách Phím tắt Văn bản chưa có phím theo ngữ
 
 | Editor | Engine | UI | Ghi chú |
 |---|---|---|---|
-| Văn bản | 1 tài liệu / `Session` | Không | `document_id` bắt đầu từ 1 mỗi Session → trùng khóa nháp `doc-1`; bộ lưu nháp chỉ theo 1 tài liệu |
+| Văn bản | 1 tài liệu / `Session`, cất/hoán đổi, tối đa 10 | Thanh tab khi ≥2 tài liệu (7e) | `document_id` duy nhất toàn trang, mỗi tài liệu một bản nháp, "Khôi phục tất cả" mở mỗi bản một tab. Còn: Ctrl+Tab; trộn thư vẫn thay tài liệu đang xem; AutoSave chỉ ghi tài liệu đang xem |
 | Bảng tính | `Vec<DocState>`, tối đa 10 | Thanh tab khi ≥2 sổ (7a, gridcraft `f01be07`) | Cửa sổ ẩn theo uid. Chế độ `?host=parent` đánh dấu đúng sổ vừa lưu (7c, `0cfd10e`). Còn dùng chung: thanh notice, pane, tab ribbon |
 | Trình chiếu | `Vec<DocState>`, tối đa 10 | Thanh tab khi ≥2 bản (7a, deckcraft `a6a71ff`) | Zoom, cuộn, Slide Sorter riêng từng tài liệu. Còn dùng chung: chế độ xem, task pane, Selection pane |
 | PDF | Có tab, cả web | Có | 7d (pdfcraft `ec74f0d3`): web chỉ đánh dấu đã lưu khi trình duyệt ghi xong; Lưu thành đổi tên qua hộp thoại lưu, trình duyệt không có hộp thoại thì hỏi tên trong app |
