@@ -10,4 +10,12 @@ describe('loadShellAssets', () => {
     const keys = fs.readFileSync(`${shellDir}keys.js`, 'utf8').trim()
     expect(loadShellAssets(shellDir).script).toContain(keys)
   })
+
+  it('installs the draft store before the panel that reads it', () => {
+    const script = loadShellAssets(shellDir).script
+    const store = script.indexOf(fs.readFileSync(`${shellDir}drafts.js`, 'utf8').trim())
+    const panel = script.indexOf(fs.readFileSync(`${shellDir}drafts-ui.js`, 'utf8').trim())
+    expect(store).toBeGreaterThan(-1)
+    expect(panel).toBeGreaterThan(store)
+  })
 })

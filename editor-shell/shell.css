@@ -51,3 +51,54 @@
 
 .erp-shell__transfer { position: fixed; z-index: 100; bottom: 20px; left: 20px; right: 20px; max-width: 600px; margin: auto; padding: 14px 20px; border: 1px solid #b8d1ed; border-radius: 10px; background: #fff; color: #082674; font: 14px/1.6 system-ui, sans-serif; box-shadow: 0 6px 24px #08267418; }
 .erp-shell__transfer a { color: #0960ea; }
+
+.erp-shell { --erp-ok: #1d6b45; --erp-warn: #8a5300; --erp-danger: #b42318; }
+.erp-shell__draft { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; font-size: 12px; font-weight: 500; color: var(--erp-text-2); white-space: nowrap; cursor: default; }
+.erp-shell__draft[hidden] { display: none; }
+.erp-shell__draft::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--erp-ok); }
+.erp-shell__draft-full { overflow: hidden; text-overflow: ellipsis; }
+.erp-shell__draft-short { display: none; }
+.erp-shell__draft--warn { color: var(--erp-warn); }
+.erp-shell__draft--warn::before { background: var(--erp-warn); }
+.erp-shell__draft--alert { color: var(--erp-danger); font-weight: 600; }
+.erp-shell__draft--alert::before { background: var(--erp-danger); border-radius: 1px; transform: rotate(45deg); }
+@media (max-width: 767px) {
+  .erp-shell__draft-full { display: none; }
+  .erp-shell__draft-short { display: inline; }
+}
+
+.erp-drafts {
+  --erp-ok: #1d6b45; --erp-danger: #b42318;
+  position: fixed; z-index: 50; top: calc(var(--erp-shell-h) + 12px); right: 12px; box-sizing: border-box;
+  width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - var(--erp-shell-h) - 24px); overflow: auto;
+  padding: 16px; border: 1px solid var(--erp-border); border-radius: 10px; background: var(--erp-surface); color: var(--erp-ink);
+  font: 400 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; box-shadow: 0 8px 28px #10182024;
+}
+.erp-drafts__title { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.erp-drafts__intro { margin: 0 0 12px; color: var(--erp-text-2); font-size: 13px; }
+.erp-drafts__notice { margin: 8px 0 12px; padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+.erp-drafts__notice--ok { background: #e8f3ed; color: var(--erp-ok); }
+.erp-drafts__notice--alert { background: #fdecea; color: var(--erp-danger); }
+.erp-drafts__list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--erp-border); }
+.erp-drafts__item, .erp-drafts__confirm { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--erp-border); }
+.erp-drafts__confirm { flex-wrap: wrap; color: var(--erp-danger); font-weight: 500; }
+.erp-drafts__confirm span { flex: 1 1 180px; }
+.erp-drafts__info { display: grid; flex: 1; min-width: 0; }
+.erp-drafts__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.erp-drafts__meta { color: var(--erp-text-2); font-size: 12px; }
+.erp-drafts__row-actions { display: flex; flex: none; gap: 6px; }
+.erp-drafts__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.erp-drafts__button { min-height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; font: 600 13px/1 inherit; font-family: inherit; white-space: nowrap; cursor: pointer; }
+.erp-drafts__button:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
+.erp-drafts__button:active { transform: translateY(1px); }
+.erp-drafts__button:disabled { opacity: 0.6; cursor: progress; transform: none; }
+/* Darker than the brand crimson: white text on #da3548 falls short of 4.5:1. */
+.erp-drafts__button--primary { background: #c22a3d; color: #fff; }
+.erp-drafts__button--primary:hover { background: #a8233a; }
+.erp-drafts__button--quiet { background: var(--erp-surface); border-color: var(--erp-border); color: var(--erp-ink); }
+.erp-drafts__button--quiet:hover { background: var(--erp-surface-2); }
+.erp-drafts__button--danger { background: var(--erp-danger); color: #fff; }
+@media (max-width: 479px) {
+  .erp-drafts__item { flex-wrap: wrap; }
+  .erp-drafts__row-actions { width: 100%; justify-content: flex-end; }
+}

@@ -6,6 +6,6 @@ export function loadShellAssets(directory: string): ShellAssets {
   return {
     css: fs.readFileSync(path.join(directory, 'shell.css'), 'utf8'),
     // Each file is an IIFE; a newline alone would chain them as one expression.
-    script: ['shell.js', 'open-file.js', 'keys.js'].map(name => fs.readFileSync(path.join(directory, name), 'utf8')).join(';\n'),
+    script: ['shell.js', 'open-file.js', 'keys.js', 'drafts.js', 'drafts-ui.js'].map(name => fs.readFileSync(path.join(directory, name), 'utf8')).join(';\n'),
   }
 }

@@ -1,9 +1,10 @@
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { loadShellAssets } from '../src/lib/editor-shell/assets.ts'
 import vm from 'node:vm'
 import { describe, expect, it } from 'vitest'
 
-const script = loadShellAssets(fileURLToPath(new URL('.', import.meta.url))).script
+// Only this script: the draft store also opens IndexedDB and would take over the fake request.
+const script = fs.readFileSync(fileURLToPath(new URL('open-file.js', import.meta.url)), 'utf8')
 function run({ path = '/van-ban/', expires = Date.now() + 10000, missing = false, denied = false } = {}) {
   let read: { onsuccess?: () => void; result?: unknown } = {}
   let tick = () => {}
