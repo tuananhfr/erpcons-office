@@ -44,8 +44,8 @@ không bôi chọn. Danh sách Phím tắt Văn bản chưa có phím theo ngữ
 | Editor | Engine | UI | Ghi chú |
 |---|---|---|---|
 | Văn bản | 1 tài liệu / `Session` | Không | `document_id` bắt đầu từ 1 mỗi Session → trùng khóa nháp `doc-1`; bộ lưu nháp chỉ theo 1 tài liệu |
-| Bảng tính | `Vec<DocState>` có sẵn | Không có tab | **Lỗi hiện tại:** mở file thứ hai tạo tài liệu ẩn, không chuyển tới được. `hidden_windows` lưu theo chỉ số (`extra.rs:790`); `host.rs:88` đánh dấu đã lưu theo tài liệu active |
-| Trình chiếu | `Vec<DocState>` có sẵn | Không có tab | **Lỗi hiện tại:** như Bảng tính. Zoom, vị trí cuộn dùng chung mọi tài liệu |
+| Bảng tính | `Vec<DocState>`, tối đa 10 | Thanh tab khi ≥2 sổ (7a, gridcraft `f01be07`) | Cửa sổ ẩn theo uid. Còn: `host.rs` `Bridge::sync` đánh dấu đã lưu cho tài liệu active, không phải tài liệu vừa lưu (7f); thanh notice, pane, tab ribbon dùng chung |
+| Trình chiếu | `Vec<DocState>`, tối đa 10 | Thanh tab khi ≥2 bản (7a, deckcraft `a6a71ff`) | Zoom, cuộn, Slide Sorter riêng từng tài liệu. Còn dùng chung: chế độ xem, task pane, Selection pane |
 | PDF | Có tab, cả web | Có | Web đánh dấu đã lưu ngay khi tải xuống (`editing.rs:636`) |
 | Shell | — | — | `host-bridge.js` (nhúng ERP) nhận diện tài liệu theo tên, một `originalName`, một cờ `dirty`; `open-file.js` timer dùng chung |
 
