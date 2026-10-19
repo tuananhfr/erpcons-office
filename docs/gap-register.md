@@ -76,7 +76,7 @@ XLSX, CSV, `cell.get` và `TEXT()` giữ chuẩn quốc tế. Commit gridcraft `
 | OF-11 | Chặn zip bomb, file độc | Existing (8b): 3 fork Office giải nén mọi entry qua một helper đếm byte thật, chặn theo trần entry/tổng/số mục và tỉ lệ >200:1 (entry >4 MiB), trần web nhỏ hơn desktop; PDF có trần giải nén và fuzz. Còn: câu báo tệp hỏng của Bảng tính chưa dịch ("We can't open … not a valid spreadsheet") |
 | OF-13 | Golden corpus round-trip | Partial: test round-trip sinh file bằng code; chưa có file docx/xlsx/pptx thật |
 | OF-19 | File lớn, nhiều tab | Missing |
-| §10 | CSP, SBOM | Missing: Apache 2.4 (`/etc/apache2/office.erpcons.vn.inc`) chỉ đặt cache và nén, không có header bảo mật; `cargo-deny` chỉ có ở pdfcraft; chưa sinh SBOM |
+| §10 | CSP, SBOM | Missing: Apache 2.4 (`/etc/apache2/office.erpcons.vn.inc`) chỉ đặt cache và nén, không có header bảo mật; `cargo-deny` có ở cả 4 fork (8d), Trình chiếu còn trượt licenses vì symphonia MPL-2.0 chờ quyết; SBOM CycloneDX qua `npm run sbom` (không public) |
 | §11, V4.10 | Audit license fork, font, icon; không dùng nhận diện Microsoft | Partial: 4 fork có NOTICE/ATTRIBUTION/credits; icon landing và logo chính còn hình Word/Excel/PowerPoint/Acrobat — chủ sản phẩm đang làm bộ mới |
 
 ## Mobile và trợ năng (§07 · OF-09, OF-15, KB-12) — Wave 9
