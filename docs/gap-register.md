@@ -1,6 +1,6 @@
 # GAP register — ERPCons Văn phòng so với spec FULL V4
 
-Cập nhật: 19/10/2026 (sau Wave 3) · Spec: *ERPCons Office FULL V4 — Keyboard, i18n, Multifile* (15/10/2026).
+Cập nhật: 19/10/2026 (sau Wave 5) · Spec: *ERPCons Office FULL V4 — Keyboard, i18n, Multifile* (15/10/2026).
 Bằng chứng audit: đọc code nhánh `tuananhfr` của 4 fork, 19/10/2026.
 
 Trạng thái: **Existing** có và đã kiểm · **Partial** có một phần · **Missing** chưa có ·
@@ -16,23 +16,28 @@ Trạng thái: **Existing** có và đã kiểm · **Partial** có một phần 
 | V4.06 · KB-07 | Telex/VNI không lỗi chữ (Văn bản, Trình chiếu) | Existing | Wave 1, `DeleteSurrounding`; kiểm lại trên production sau Wave 3 |
 | V4.07 · KB-10, KB-14 | Giao diện tiếng Việt cả 4 editor, mặc định `vi` kể cả trình duyệt tiếng Anh, lựa chọn lưu chung `localStorage` `erpcons-ui-language` | Existing | Wave 3, release 20261019-171431 |
 | §07 · OF-10 | PWA "Mở bằng" (`file_handlers`, `launchQueue`) | Partial | Kiểm bằng giả lập; chưa kiểm trên Windows thật (Wave 4) |
-| OF-20 | Release theo thư mục, rollback bằng symlink | Partial | `~/deploy-office.sh`, giữ 3 bản; chưa diễn tập rollback (Wave 4) |
+| OF-20 | Release theo thư mục, rollback bằng symlink | Existing | `~/deploy-office.sh` giữ 3 bản; `~/rollback-office.sh` đã diễn tập (Wave 4) |
 
 Việt hoá còn lại: lỗi chi tiết từ engine, tên kiểu ô/undo của engine Bảng tính vẫn tiếng Anh. Ở 320 px
 cả 4 editor vỡ bố cục, ở 768 px thanh trạng thái Trình chiếu và tab PDF chồng chữ — bản tiếng Anh y hệt (Wave 9).
 
-## Phím tắt (V4.01–V4.06) — Wave 5
+## Phím tắt (V4.01–V4.06) — Wave 5: xong trong code, chờ deploy
 
-| Editor | Thiếu / sai | Chỗ sửa |
+| Editor | Đã làm | Commit |
 |---|---|---|
-| Văn bản | F1. Ctrl+Shift+S giữ là Áp dụng Kiểu (giống Word); Lưu Như F12 có sẵn nhưng trình duyệt mở DevTools | `ui-egui/src/keys.rs:110` |
-| Bảng tính | F1; F4 chưa lặp thao tác trong lưới (chưa có "lặp lệnh cuối") | `ui-egui/src/keymap.rs:60`, `grid.rs:2695` |
-| Trình chiếu | Ctrl+M, F1, F12; chưa có Tìm/Thay thế nên Ctrl+F mở bảng lệnh, Ctrl+H trống | `ui-egui/src/menus.rs:11` |
-| PDF | Ctrl+Y, F1, F12, +/- trơn; `Shortcut` chỉ có dạng Ctrl/Ctrl+Shift | `engine/src/commands.rs:58` |
+| Cả 4 | F1 mở "Phím tắt" có ô tìm (nhãn Việt/Anh hoặc phím), danh sách sinh từ chính bảng dispatch và có test bấm thử từng dòng; F12 Lưu Như | — |
+| Văn bản | Giữ Ctrl+Shift+S = Áp dụng Kiểu (giống Word); danh sách gồm cả phím người dùng tự gán | wordcraft `38fd9f3` |
+| Bảng tính | F4 lặp thao tác cuối trên vùng chọn (allowlist định dạng, viền, tô, định dạng số, chèn/xoá, xoá nội dung); Ctrl+Y = Làm lại, hết thì Lặp lại | gridcraft `540f60c` |
+| Trình chiếu | Tìm/Thay thế mới (Ctrl+F/H: hình, ô bảng, ghi chú; khớp hoa/thường, toàn bộ từ); Ctrl+M Trang chiếu Mới; bảng lệnh chuyển sang Alt+Q | deckcraft `7cf0a27` |
+| PDF | Ctrl+Y = Làm lại, `+`/`-` trơn để zoom khi không gõ chữ | pdfcraft `8ce8d098` |
+| Shell | `keys.js` chặn mặc định trình duyệt cho Ctrl+M, Ctrl+Y, F12 khi đang ở vùng soạn thảo | erpcons-office `d54854f` |
 
-Chrome giữ Ctrl+N, Ctrl+Shift+N, Ctrl+T, Ctrl+W: trang không nhận được (trừ cửa sổ PWA). Hệ quả: Trang
-chiếu Mới (Ctrl+Shift+N) của Trình chiếu và Đi tới trang của PDF không chạy trong tab trình duyệt.
-`keys.js` chưa chặn Ctrl+M, Ctrl+Y, F12.
+Kiểm trên Chrome (build cục bộ): Ctrl+M, Ctrl+F/H, Alt+Q, F4, F1 + tìm tiếng Việt, F12 gọi hộp lưu ở Văn
+bản/Bảng tính/Trình chiếu. F12 và `+`/`-` của PDF mới kiểm bằng test (cần mở tệp).
+
+Còn lại: Chrome giữ Ctrl+N, Ctrl+Shift+N, Ctrl+T, Ctrl+W nên Đi tới trang của PDF không chạy trong tab
+trình duyệt (trừ cửa sổ PWA). Kết quả tìm nằm trong ghi chú Trình chiếu chỉ mở khung ghi chú kèm thông báo,
+không bôi chọn. Danh sách Phím tắt Văn bản chưa có phím theo ngữ cảnh (F10/Alt keytips, Shift+F10).
 
 ## Nhiều tài liệu (§04, §06, V4.08 · OF-01→05, KB-09, KB-15) — Wave 7
 
@@ -76,6 +81,8 @@ nhấn giữ = menu ngữ cảnh, Files picker iPhone, trình đọc màn hình,
 | Văn bản | Test `clicks_on_ribbon_and_status_bar_chrome_keep_typing_in_the_document` hỏng sẵn từ upstream |
 | Văn bản, Bảng tính, PDF | `cargo clippy` bản web lỗi sẵn từ upstream (`wordcraft-fonts`, `backstage.rs` Modified, `pdfcraft-render`) |
 | Wave 2 minor | Grid/Deck không thử ghi lại khi lưu nháp lỗi; `getAll` nạp hết bytes |
+| Trình chiếu | Theme sáng vẽ ô nhập không viền và hộp kiểm không có ô (cả hộp Tùy chọn, Tìm/Thay thế); chữ giữ chỗ "Click to add title" chưa dịch |
+| Văn bản, PDF | Chạy test native trên Windows hỏng sẵn (WSL xanh): Văn bản `commands_do_not_touch_the_file_system_themselves`, PDF `a_gotor_link_to_a_directory_or_device_is_refused_without_reading_it` (chập chờn) |
 
 ## Ngoài phạm vi
 
