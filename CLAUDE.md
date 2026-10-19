@@ -22,6 +22,7 @@ Workspace layout (resolved by `src/lib/build/workspace.ts`, override with `ERPCO
 - `npm run build` — `trunk build --release` in all 4 forks → `next build` → `scripts/assemble.mts`.
 - `npm run build:site` — same, reusing existing `<fork>/dist/web` (no Rust rebuild).
 - `npm run preview` — serves `out/` like the Apache target (br/gz, wasm MIME, cache headers), port 3011.
+- `npm run sbom` — CycloneDX SBOMs of the 4 editors' web crates (wasm32, `cargo cyclonedx`) and the site's npm production deps into `sbom/` (gitignored, never deployed), named `<name>-<sha>.cdx.json` and listed in `sbom/index.json`.
 - `npm test` · `npm run lint` · `npm run typecheck`
 - Single test: `npx vitest run src/lib/build/fork-guard.test.ts` (or add `-t "<name>"`).
 

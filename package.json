@@ -8,6 +8,7 @@
     "build": "node scripts/build-editors.mts && next build && node scripts/assemble.mts",
     "build:site": "node scripts/build-editors.mts --skip-rust && next build && node scripts/assemble.mts",
     "preview": "node scripts/preview.mts",
+    "sbom": "node scripts/sbom.mts",
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
