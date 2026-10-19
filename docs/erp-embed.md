@@ -52,11 +52,12 @@ sai `v`, khác origin, hoặc không đến từ đúng cửa sổ (`parent` / `
 
 Mỗi editor lưu theo một cách, nên bridge bắt ở hai chỗ:
 
-- **Word, Excel, PowerPoint** lưu qua `window.showSaveFilePicker` (tra lúc bấm lưu). Bridge thay hàm này
-  bằng một handle giả `createWritable → write → close`. Lời gọi `close()` chỉ resolve khi ERP trả `saved`,
-  và reject khi ERP trả `save-failed` hoặc quá 120 giây. Vì vậy editor hiện đúng "đã lưu" hoặc "lỗi".
-- **PDF** lưu bằng cách bấm một thẻ `<a download>` trỏ tới `blob:` rồi thu hồi URL ngay. Bridge giữ blob theo
-  URL tới lúc bị thu hồi, chặn cú bấm và gửi `save` với `ack: false`.
+- **Cả bốn editor** lưu qua `window.showSaveFilePicker` (tra lúc bấm lưu; PdfCraft từ Wave 7d). Bridge thay
+  hàm này bằng một handle giả `createWritable → write → close`. Lời gọi `close()` chỉ resolve khi ERP trả
+  `saved`, và reject khi ERP trả `save-failed` hoặc quá 120 giây. Vì vậy editor hiện đúng "đã lưu" hoặc "lỗi".
+- **Thẻ `<a download>`** trỏ tới `blob:` rồi thu hồi URL ngay: PdfCraft vẫn dùng cho bản in và khi
+  `showSaveFilePicker` lỗi trước khi mở. Bridge giữ blob theo URL tới lúc bị thu hồi, chặn cú bấm và gửi
+  `save` với `ack: false`.
 
 Chỉ lần lưu **trùng tên** tệp đang mở (không phân biệt hoa thường) mới thành phiên bản mới. Mọi thứ khác đều
 tải về máy, kể cả lưu cùng định dạng dưới tên khác, xuất sang định dạng khác (`.docx → .pdf`) hay bản in của
@@ -78,7 +79,7 @@ cú tải đó đi qua (trong 5 giây, cùng tên) thay vì bắt lại thành m
 
 ## Giới hạn đã biết
 
-- **PDF không có ack.** Editor PDF không chờ ERP, nên lỗi lưu chỉ hiện ở phía ERP.
+- **Lưu qua `<a download>` không có ack.** Editor không chờ ERP ở đường này, nên lỗi lưu chỉ hiện ở phía ERP.
 - **Tín hiệu `dirty` chậm.** Tín hiệu này đi theo nhịp tự lưu nháp của editor (gọi `erpDrafts.put/remove`),
   không theo từng phím gõ. PdfCraft chỉ có cầu nối nháp từ commit `d61177f0` của fork; bản build cũ hơn không
   bao giờ báo `dirty`.
