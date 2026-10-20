@@ -92,6 +92,11 @@
     head.id = 'erp-drafts-title'
     panel.appendChild(head)
     if (notice) panel.appendChild(el('p', 'erp-drafts__notice erp-drafts__notice--' + notice.tone, notice.text))
+    if (items.some(function (item) { return item.corrupt })) {
+      var incompatible = el('p', 'erp-drafts__notice erp-drafts__notice--alert', 'Không khôi phục được bản nháp (định dạng không tương thích).')
+      incompatible.setAttribute('role', 'alert')
+      panel.appendChild(incompatible)
+    }
     if (items.length) {
       panel.appendChild(el('p', 'erp-drafts__intro', 'Các bản nháp này chỉ nằm trong trình duyệt trên thiết bị này và tự xoá sau 30 ngày.'))
       var list = el('ul', 'erp-drafts__list')
@@ -108,14 +113,14 @@
   function row(item, items) {
     var li = el('li', 'erp-drafts__item')
     var info = el('div', 'erp-drafts__info')
-    info.appendChild(el('span', 'erp-drafts__name', item.name))
+    info.appendChild(el('span', 'erp-drafts__name', item.name || 'Bản nháp'))
     info.appendChild(el('span', 'erp-drafts__meta', item.corrupt
       ? 'Bản nháp bị hỏng, không khôi phục được'
       : 'Lưu ' + when(item.savedAt) + ' · ' + size(item.size)))
     li.appendChild(info)
     var buttons = el('div', 'erp-drafts__row-actions')
     if (!item.corrupt) buttons.appendChild(button('Khôi phục', 'primary', function () { restoreOne(item, items) }))
-    buttons.appendChild(button(item.corrupt ? 'Xoá' : 'Bỏ', 'quiet', function () { confirmDiscard(li, item, items) }))
+    if (item.id) buttons.appendChild(button(item.corrupt ? 'Xoá' : 'Bỏ', 'quiet', function () { confirmDiscard(li, item, items) }))
     li.appendChild(buttons)
     return li
   }

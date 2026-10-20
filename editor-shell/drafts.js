@@ -7,6 +7,7 @@
   if (embedding.get('host') === 'parent' || embedding.get('embed') === 'erpcons') return
 
   var STORE = 'drafts'
+  var VERSION = 1
   var LOCK_PREFIX = 'erpcons-draft-tab:'
   var MAX_AGE = 30 * 24 * 3600 * 1000
   var tab = Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
@@ -55,8 +56,25 @@
     for (; i < bytes.length; i++) crc = t[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8)
     return (crc ^ 0xffffffff) >>> 0
   }
+  function integer(value, max) {
+    return typeof value === 'number' && value >= 0 && value <= max && Math.floor(value) === value
+  }
   function intact(record) {
-    return Boolean(record.bytes) && record.bytes.length === record.size && crc32(record.bytes) === record.crc
+    return Boolean(record) && typeof record === 'object'
+      && (typeof record.v === 'undefined' || record.v === VERSION)
+      && typeof record.id === 'string' && record.id.length > 0
+      && EDITORS.indexOf(record.editor) !== -1
+      && typeof record.tab === 'string' && record.tab.length > 0
+      && typeof record.name === 'string'
+      && typeof record.format === 'string' && record.format.length > 0
+      && integer(record.savedAt, 8640000000000000)
+      && integer(record.size, 9007199254740991)
+      && integer(record.crc, 0xffffffff)
+      && record.bytes instanceof Uint8Array && record.bytes.length === record.size
+      && crc32(record.bytes) === record.crc
+  }
+  function ownedByLiveTab(record, alive) {
+    return record && typeof record.tab === 'string' && Object.prototype.hasOwnProperty.call(alive, record.tab)
   }
 
   function setStatus(next) {
@@ -114,7 +132,7 @@
   }
   function orphanRecords() {
     return Promise.all([liveTabs(), request(STORE, 'readonly', function (s) { return s.getAll() })]).then(function (both) {
-      return both[1].filter(function (record) { return !both[0][record.tab] })
+      return both[1].filter(function (record) { return !ownedByLiveTab(record, both[0]) })
     })
   }
 
@@ -136,7 +154,7 @@
     if (!bytes || typeof bytes.length !== 'number') return
     var id = adopted[key] ? key : tab + '|' + key
     var now = Date.now()
-    var record = { v: 1, id: id, editor: editor, tab: tab, name: String(name), format: String(format), size: bytes.length, crc: crc32(bytes), bytes: bytes, savedAt: now }
+    var record = { v: VERSION, id: id, editor: editor, tab: tab, name: String(name), format: String(format), size: bytes.length, crc: crc32(bytes), bytes: bytes, savedAt: now }
     live[id] = true
     whenOpen(function () {
       // A full quota aborts the transaction, so the previous draft of this document stays as it was.
@@ -167,7 +185,10 @@
   function expire() {
     var cutoff = Date.now() - MAX_AGE
     orphanRecords().then(function (records) {
-      var old = records.filter(function (record) { return record.savedAt < cutoff })
+      // Incompatible records stay available for recovery by a build that understands them.
+      var old = records.filter(function (record) {
+        return record && integer(record.savedAt, 8640000000000000) && record.savedAt < cutoff && intact(record)
+      })
       if (old.length) return request(STORE, 'readwrite', function (s) { old.forEach(function (record) { s.delete(record.id) }) })
     }).catch(noop)
   }
@@ -211,11 +232,20 @@
     },
     orphans: function () {
       return orphanRecords().then(function (records) {
-        return records.filter(function (record) { return record.editor === editor })
-          .sort(function (a, b) { return b.savedAt - a.savedAt })
+        return records.filter(function (record) { return !record || EDITORS.indexOf(record.editor) === -1 || record.editor === editor })
           .map(function (record) {
-            return { id: record.id, name: record.name, format: record.format, size: record.size, savedAt: record.savedAt, corrupt: !intact(record) }
+            var corrupt = !intact(record)
+            record = record || {}
+            return {
+              id: typeof record.id === 'string' ? record.id : '',
+              name: typeof record.name === 'string' ? record.name : '',
+              format: typeof record.format === 'string' ? record.format : '',
+              size: integer(record.size, 9007199254740991) ? record.size : 0,
+              savedAt: integer(record.savedAt, 8640000000000000) ? record.savedAt : 0,
+              corrupt: corrupt,
+            }
           })
+          .sort(function (a, b) { return b.savedAt - a.savedAt })
       })
     },
     // The list may be stale: another tab can have taken the draft over since it was shown.
@@ -224,8 +254,9 @@
       restoring[id] = true
       return liveTabs().then(function (alive) {
         return update(id, function (record, s) {
-          if (!record || alive[record.tab]) return { result: 'missing' }
-          if (!intact(record)) return { result: 'corrupt' }
+          if (typeof record === 'undefined' || ownedByLiveTab(record, alive)) return { result: 'missing' }
+          if (!intact(record) || record.id !== id || record.editor !== editor) return { result: 'corrupt' }
+          record.v = VERSION
           record.tab = tab
           // Expiry counts from when the draft was last in use, not from its last edit.
           record.savedAt = Date.now()
@@ -249,7 +280,7 @@
     discard: function (id) {
       return liveTabs().then(function (alive) {
         return update(id, function (record, s) {
-          if (record && !alive[record.tab]) s.delete(id)
+          if (record && !ownedByLiveTab(record, alive)) s.delete(id)
         })
       })
     },

@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import zlib from 'node:zlib'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeIdb } from './fake-idb.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -298,5 +298,121 @@ describe('recovery', () => {
     seeded(idb, { id: 'alive|old', tab: 'alive', savedAt: old, editor: 'pdf' })
     await opened(idb, { locks: ['erpcons-draft-tab:alive'] })
     await vi.waitFor(() => expect(idb.rows().map(row => row.id).sort()).toEqual(['alive|old', 'gone|new']))
+  })
+})
+
+describe('draft schema recovery', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-21T00:00:00Z'))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  async function settle<T>(operation: Promise<T>) {
+    await vi.runAllTimersAsync()
+    return operation
+  }
+
+  async function recoveryPage(idb: FakeIdb) {
+    const view = page(idb)
+    await vi.runAllTimersAsync()
+    const restore = vi.fn()
+    view.drafts!.ready(restore)
+    return { store: view.store!, restore }
+  }
+
+  it.each(['current', 'legacy'])('restores a valid %s draft as version 1', async version => {
+    const idb = new FakeIdb()
+    seeded(idb, { id: 'gone|doc', tab: 'gone' })
+    if (version === 'legacy') delete idb.stores.get('drafts')!.rows.get('gone|doc')!.v
+    const { store, restore } = await recoveryPage(idb)
+    expect((await settle(store.orphans()))[0].corrupt).toBe(false)
+    expect(await settle(store.restore('gone|doc'))).toBe('ok')
+    expect(restore).toHaveBeenCalledWith('gone|doc', 'Old.docx', 'docx', bytes(1, 2, 3))
+    expect(idb.rows()[0]).toMatchObject({ v: 1, tab: store.tab })
+  })
+
+  it.each([2, 0, -1, 1.5, '1', null])('keeps an unsupported version %s without restoring it', async v => {
+    const idb = new FakeIdb()
+    seeded(idb, { id: 'gone|doc', tab: 'gone', v })
+    const before = idb.rows()
+    const { store, restore } = await recoveryPage(idb)
+    expect((await settle(store.orphans()))[0].corrupt).toBe(true)
+    expect(await settle(store.restore('gone|doc'))).toBe('corrupt')
+    expect(restore).not.toHaveBeenCalled()
+    expect(idb.rows()).toEqual(before)
+  })
+
+  it.each([
+    { id: 42 }, { id: '' }, { tab: undefined }, { tab: 1 }, { editor: 'unknown' },
+    { name: undefined }, { name: { text: 'Old.docx' } }, { format: null }, { format: '' },
+    { savedAt: undefined }, { savedAt: NaN }, { savedAt: Infinity }, { savedAt: -1 },
+    { savedAt: 1.5 }, { savedAt: 8640000000000001 },
+    { size: '3' }, { size: -1 }, { size: 1.5 }, { size: Infinity }, { size: 4 },
+    { crc: undefined }, { crc: '1438416925' }, { crc: -1 }, { crc: 0x100000000 }, { crc: 42 },
+    { bytes: null }, { bytes: [1, 2, 3] }, { bytes: { length: 3 } }, { bytes: '{invalid JSON' },
+  ])('skips malformed fields %j without modifying the record', async invalid => {
+    const idb = new FakeIdb()
+    seeded(idb, { id: 'gone|doc', tab: 'gone', ...invalid })
+    const before = idb.rows()
+    const { store, restore } = await recoveryPage(idb)
+    expect((await settle(store.orphans()))[0].corrupt).toBe(true)
+    expect(await settle(store.restore(String(before[0].id)))).toBe('corrupt')
+    expect(restore).not.toHaveBeenCalled()
+    expect(idb.rows()).toEqual(before)
+  })
+
+  it.each(['{invalid JSON', 'null', null, 42])('does not parse or throw on a corrupt stored value %j', async invalid => {
+    const idb = new FakeIdb()
+    seeded(idb, { id: 'gone|broken', tab: 'gone' })
+    idb.stores.get('drafts')!.rows.set('gone|broken', invalid as unknown as Record<string, unknown>)
+    const before = idb.rows()
+    const { store, restore } = await recoveryPage(idb)
+    expect((await settle(store.orphans()))[0].corrupt).toBe(true)
+    expect(await settle(store.restore('gone|broken'))).toBe('corrupt')
+    expect(restore).not.toHaveBeenCalled()
+    expect(idb.rows()).toEqual(before)
+  })
+
+  it('keeps incompatible and corrupt drafts beyond the expiry cutoff', async () => {
+    const idb = new FakeIdb()
+    const savedAt = Date.now() - 31 * DAY
+    seeded(idb, { id: 'gone|future', tab: 'gone', v: 2, savedAt })
+    seeded(idb, { id: 'gone|broken', tab: 'gone', bytes: null, savedAt })
+    seeded(idb, { id: 'gone|checksum', tab: 'gone', crc: 42, savedAt })
+    seeded(idb, { id: 'gone|expired', tab: 'gone', savedAt })
+    const { store } = await recoveryPage(idb)
+    expect(idb.rows().map(row => row.id).sort()).toEqual(['gone|broken', 'gone|checksum', 'gone|future'])
+    expect((await settle(store.orphans())).every(item => item.corrupt)).toBe(true)
+  })
+
+  it('continues restoring valid drafts after incompatible and corrupt ones', async () => {
+    const idb = new FakeIdb()
+    seeded(idb, { id: 'gone|future', tab: 'gone', v: 2 })
+    seeded(idb, { id: 'gone|current', tab: 'gone' })
+    seeded(idb, { id: 'gone|broken', tab: 'gone', bytes: '{invalid JSON' })
+    seeded(idb, { id: 'gone|legacy', tab: 'gone', v: undefined })
+    const { store, restore } = await recoveryPage(idb)
+    const results = []
+    for (const id of ['gone|future', 'gone|current', 'gone|broken', 'gone|legacy']) {
+      results.push(await settle(store.restore(id)))
+    }
+    expect(results).toEqual(['corrupt', 'ok', 'corrupt', 'ok'])
+    expect(restore.mock.calls.map(call => call[0])).toEqual(['gone|current', 'gone|legacy'])
+    expect((await settle(store.orphans())).map(item => item.id)).toEqual(['gone|future', 'gone|broken'])
+    expect(idb.rows()).toHaveLength(4)
+  })
+
+  it('does not hand another editor or mismatched record id to the current editor', async () => {
+    const idb = new FakeIdb()
+    seeded(idb, { id: 'gone|other', tab: 'gone', editor: 'pdf' })
+    seeded(idb, { id: 'gone|mismatch', tab: 'gone' })
+    idb.stores.get('drafts')!.rows.get('gone|mismatch')!.id = 'gone|different'
+    const before = idb.rows()
+    const { store, restore } = await recoveryPage(idb)
+    expect(await settle(store.restore('gone|other'))).toBe('corrupt')
+    expect(await settle(store.restore('gone|mismatch'))).toBe('corrupt')
+    expect(restore).not.toHaveBeenCalled()
+    expect(idb.rows()).toEqual(before)
   })
 })
