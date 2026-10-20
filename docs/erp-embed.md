@@ -36,10 +36,13 @@ sai `v`, khác origin, hoặc không đến từ đúng cửa sổ (`parent` / `
 |---|---|---|
 | `ready` | `editor` (slug: `van-ban`, `bang-tinh`, `trinh-chieu`, `pdf`) | bridge đã sẵn sàng nhận tệp |
 | `opened` | `name` | editor đã nhận tệp |
+| `closed` | (không có) | người dùng đã đóng tài liệu cuối cùng trong editor; ERP có thể đóng iframe/panel hoặc hiển thị trạng thái bắt đầu của mình |
 | `open-failed` | `reason` (tiếng Việt, hiển thị được) | editor từ chối tệp |
 | `save` | `id`, `name`, `bytes` (ArrayBuffer, transfer), `ack` (boolean) | người dùng lưu đúng tên tệp đang mở |
 | `dirty` | `dirty` (boolean) | trạng thái chưa lưu thay đổi |
 | `crashed` | (không có) | editor đã dừng (Rust panic, wasm trap, hết bộ nhớ); iframe hiện hộp "Công cụ gặp sự cố và đã dừng" với nút "Tải lại trang". ERP có thể bỏ qua |
+
+`closed` không thay thế `dirty`: ERP vẫn phải xử lý `dirty` để theo dõi thay đổi chưa lưu.
 
 `crashed` do `editor-shell/crash-guard.js` gửi, tối đa một lần cho mỗi lần tải trang. Thay đổi chưa lưu kể từ lần
 `save` gần nhất coi như mất. Khi người dùng bấm "Tải lại trang", iframe tải lại cùng URL và gửi lại `ready`;

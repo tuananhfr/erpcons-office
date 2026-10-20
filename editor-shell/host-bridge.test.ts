@@ -74,6 +74,7 @@ describe('host bridge activation', () => {
     expect(page.context.erpEmbed).toBeUndefined()
     expect(page.posted).toHaveLength(0)
     expect(page.classes.has('erp-embedded')).toBe(false)
+    expect(page.context.erpEditorClosed).toBeUndefined()
   })
 
   it('stays inert when the parent origin is not allowed', () => {
@@ -94,6 +95,36 @@ describe('host bridge activation', () => {
     expect(page.posted[0].data).toEqual(msg('ready', { editor: 'bang-tinh' }))
     expect(page.posted[0].origin).toBe(ERP)
     expect(page.classes.has('erp-embedded')).toBe(true)
+  })
+})
+
+describe('reporting the last document closed', () => {
+  it('posts closed once to the allowed parent with protocol v1', () => {
+    const page = harness()
+    page.openAccepted('a.xlsx')
+    const before = page.posted.length
+    const close = page.context.erpEditorClosed as () => void
+    close()
+    expect(page.posted.slice(before)).toEqual([
+      { data: msg('closed'), origin: ERP, transfer: [] },
+    ])
+  })
+
+  it('clears the original name so a later same-name save downloads', () => {
+    const page = harness({ path: '/pdf/' })
+    page.openAccepted('b.pdf')
+    const bridge = page.context.erpEmbed as { originalName: () => string | null }
+    expect(bridge.originalName()).toBe('b.pdf')
+    const close = page.context.erpEditorClosed as () => void
+    close()
+    expect(bridge.originalName()).toBeNull()
+    const URLs = page.context.URL as { createObjectURL: (blob: Blob) => string }
+    const anchor = new page.Anchor()
+    anchor.download = 'b.pdf'
+    anchor.href = URLs.createObjectURL(new Blob(['x']))
+    anchor.click()
+    expect(page.nativeClicks).toEqual([anchor])
+    expect(page.types()).not.toContain('save')
   })
 })
 

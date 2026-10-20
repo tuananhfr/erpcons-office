@@ -18,6 +18,11 @@
     window.parent.postMessage(message, origin, transfer || [])
   }
 
+  window.erpEditorClosed = function () {
+    originalName = null
+    post('closed', {})
+  }
+
   function onOpen(data) {
     if (typeof data.name !== 'string' || !(data.bytes instanceof ArrayBuffer)) return
     var name = data.name
