@@ -77,11 +77,14 @@ function headTags(editor: EditorEntry, assets: ShellAssets): string {
     `#${id}{position:absolute!important;top:var(--erp-top)!important;left:var(--erp-inset-left)!important;right:var(--erp-inset-right)!important;bottom:var(--erp-bottom)!important;`
     + `width:calc(100% - var(--erp-inset-left) - var(--erp-inset-right))!important;height:calc(100% - var(--erp-top) - var(--erp-bottom))!important}`
   const placement = [editor.canvasId, editor.loadingId].filter((id): id is string => Boolean(id)).map(below).join('')
+  // The editors pan and pinch themselves; without this the browser may still claim the gesture (scroll, zoom)
+  // and Chrome warns about eframe's non-passive document touch listeners.
+  const gestures = `#${editor.canvasId}{touch-action:none}`
   return [
     ...editorSeoTags(editor),
     '<link rel="manifest" href="/manifest.webmanifest">',
     `<meta name="theme-color" content="${PWA_THEME_COLOR}">`,
-    `<style ${SHELL_MARKER}>${assets.css}${placement}</style>`,
+    `<style ${SHELL_MARKER}>${assets.css}${placement}${gestures}</style>`,
   ].join('\n')
 }
 

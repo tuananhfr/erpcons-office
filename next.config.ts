@@ -5,6 +5,8 @@ const config: NextConfig = {
   trailingSlash: true,
   images: { unoptimized: true },
   poweredByHeader: false,
+  // CLAUDE.md is maintained by hand; `next dev` would otherwise append its own block to it.
+  agentRules: false,
 }
 
 export default config

@@ -93,6 +93,12 @@ describe('injectEditorShell', () => {
     expect(rule).toContain('height:calc(100% - var(--erp-top) - var(--erp-bottom))!important')
   })
 
+  it('leaves touch gestures on the canvas to the editor, not on the loading screen', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    expect(out).toContain('#wordcraft_canvas{touch-action:none}')
+    expect(out.match(/touch-action:none/g)).toHaveLength(1)
+  })
+
   it('lets content reach under the notch and the keyboard resize the layout, keeping the fork\'s zoom choice', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">')
