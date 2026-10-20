@@ -1,6 +1,6 @@
 # GAP register — ERPCons Văn phòng so với spec FULL V4
 
-Cập nhật: 19/10/2026 (sau Wave 5) · Spec: *ERPCons Office FULL V4 — Keyboard, i18n, Multifile* (15/10/2026).
+Cập nhật: 20/10/2026 (Wave 5–9 lên production, release `20261020-091402`) · Spec: *ERPCons Office FULL V4 — Keyboard, i18n, Multifile* (15/10/2026).
 Bằng chứng audit: đọc code nhánh `tuananhfr` của 4 fork, 19/10/2026.
 
 Trạng thái: **Existing** có và đã kiểm · **Partial** có một phần · **Missing** chưa có ·
@@ -19,9 +19,9 @@ Trạng thái: **Existing** có và đã kiểm · **Partial** có một phần 
 | OF-20 | Release theo thư mục, rollback bằng symlink | Existing | `~/deploy-office.sh` giữ 3 bản; `~/rollback-office.sh` đã diễn tập (Wave 4) |
 
 Việt hoá còn lại: lỗi chi tiết từ engine, tên kiểu ô/undo của engine Bảng tính vẫn tiếng Anh. Ở 320 px
-cả 4 editor vỡ bố cục, ở 768 px thanh trạng thái Trình chiếu và tab PDF chồng chữ — bản tiếng Anh y hệt (Wave 9).
+cả 4 editor vỡ bố cục (đã sửa ở Wave 9); ở 768 px thanh trạng thái Trình chiếu và thanh chế độ PDF vẫn chồng chữ.
 
-## Phím tắt (V4.01–V4.06) — Wave 5: xong trong code, chờ deploy
+## Phím tắt (V4.01–V4.06) — Wave 5: trên production 20/10
 
 | Editor | Đã làm | Commit |
 |---|---|---|
@@ -39,7 +39,7 @@ Còn lại: Chrome giữ Ctrl+N, Ctrl+Shift+N, Ctrl+T, Ctrl+W nên Đi tới tra
 trình duyệt (trừ cửa sổ PWA). Kết quả tìm nằm trong ghi chú Trình chiếu chỉ mở khung ghi chú kèm thông báo,
 không bôi chọn. Danh sách Phím tắt Văn bản chưa có phím theo ngữ cảnh (F10/Alt keytips, Shift+F10).
 
-## Nhiều tài liệu (§04, §06, V4.08 · OF-01→05, KB-09, KB-15) — Wave 7
+## Nhiều tài liệu (§04, §06, V4.08 · OF-01→05, KB-09, KB-15) — Wave 7: trên production 20/10
 
 | Editor | Engine | UI | Ghi chú |
 |---|---|---|---|
@@ -51,7 +51,7 @@ không bôi chọn. Danh sách Phím tắt Văn bản chưa có phím theo ngữ
 
 Hướng đã chốt: tab trong từng editor, tối đa 10 tài liệu; Văn bản dùng cách "cất/hoán đổi" Session.
 
-## Định dạng số và ngày Việt Nam (Bảng tính) — Wave 6: xong trong code, chờ deploy
+## Định dạng số và ngày Việt Nam (Bảng tính) — Wave 6: trên production 20/10
 
 "Định dạng vùng" (Tùy chọn ▸ Chung) tách khỏi ngôn ngữ giao diện, mặc định theo ngôn ngữ. Ở vi-VN:
 - công thức dùng `;` và thập phân phẩy;
@@ -68,7 +68,7 @@ XLSX, CSV, `cell.get` và `TEXT()` giữ chuẩn quốc tế. Commit gridcraft `
 - `TEXT()`/`VALUE()` theo vùng;
 - tooltip độ rộng cột ("Độ rộng: 35.39") còn dấu chấm.
 
-## Bảo mật, fidelity, pháp lý — Wave 8
+## Bảo mật, fidelity, pháp lý — Wave 8: trên production 20/10
 
 | Spec | Nội dung | Trạng thái |
 |---|---|---|
@@ -79,11 +79,26 @@ XLSX, CSV, `cell.get` và `TEXT()` giữ chuẩn quốc tế. Commit gridcraft `
 | §10 | CSP, SBOM | Missing: Apache 2.4 (`/etc/apache2/office.erpcons.vn.inc`) chỉ đặt cache và nén, không có header bảo mật; `cargo-deny` có ở cả 4 fork (8d), Trình chiếu còn trượt licenses vì symphonia MPL-2.0 chờ quyết; SBOM CycloneDX qua `npm run sbom` (không public) |
 | §11, V4.10 | Audit license fork, font, icon; không dùng nhận diện Microsoft | Partial: 4 fork có NOTICE/ATTRIBUTION/credits; icon landing và logo chính còn hình Word/Excel/PowerPoint/Acrobat — chủ sản phẩm đang làm bộ mới |
 
-## Mobile và trợ năng (§07 · OF-09, OF-15, KB-12) — Wave 9
+## Mobile và trợ năng (§07 · OF-09, OF-15, KB-12) — Wave 9: trên production 20/10
 
-Mục tiêu đã chốt: xem + sửa nhẹ. Hiện có: viewport meta, pinch-zoom, cờ thu gọn ribbon, AccessKit bật
-trong Cargo (trên web eframe không đưa xuống DOM). Thiếu: thu gọn tự động theo bề rộng, safe-area,
-nhấn giữ = menu ngữ cảnh, Files picker iPhone, trình đọc màn hình, kiểm zoom 200%.
+Mục tiêu đã chốt: xem + sửa nhẹ. Dưới 600pt (điện thoại) mỗi editor gọn lại một lần khi qua ngưỡng, người
+dùng mở lại được; máy tính bảng dọc và desktop giữ nguyên.
+
+| Chỗ | Đã làm | Commit |
+|---|---|---|
+| Shell | `viewport-fit=cover`, `interactive-widget=resizes-content`; thanh, canvas, hộp thoại né safe-area; canvas co trên bàn phím iOS (`viewport.js`); hộp chọn tệp có thêm MIME cho iPhone (`file-picker.js`); canvas `role="application"` + nhãn | erpcons-office `5b8e69e` |
+| Văn bản | Ribbon tự thu, chạm tab mở ribbon nổi, "⋯" cho Chia sẻ/Xem lại/Chú thích, pane nổi, zoom vừa trang + ẩn thước; chạm: kéo cuộn, chạm đặt con trỏ, giữ chọn từ + menu, vuốt trang ở chế độ Đọc | wordcraft `41dd34c`, `9ad518d` |
+| Bảng tính | Ribbon tự thu, pane nổi, thanh tiêu đề/trạng thái bỏ bớt mục thay vì chồng, pivot pane có nút đóng; chạm: lia + quán tính, chạm chọn, chạm đúp sửa, giữ mở menu, núm kéo mở rộng vùng chọn | gridcraft `ff7b7e7` |
+| Trình chiếu | Ribbon và tab cuộn, hình thu nhỏ/pane nổi, tab tài liệu cuộn; chạm: lia vùng trống, chạm chọn, kéo hình đã chọn, giữ mở menu; trình chiếu vuốt đổi trang, giữ mở menu | deckcraft `e68d012` |
+| PDF | Panel bên tự đóng, thanh chế độ gộp thành nút chọn, nút rail cuộn khi thấp; chạm: kéo cuộn, giữ chọn từ rồi kéo mở rộng, vuốt lật trang | pdfcraft `82fe97ee` |
+
+Kiểm: test kittest từng fork; Chrome 390×844 cảm ứng (CDP) trên bản release và production: kéo cuộn/lia
+không bôi chọn, nhấn giữ mở menu ở cả 4 editor. Chưa kiểm trên iPhone/Android thật (inset, bàn phím ảo,
+hộp chọn tệp, VoiceOver). Còn: trình đọc màn hình thật (eframe web không có AccessKit — cần lớp DOM riêng);
+PDF chưa tự vừa bề rộng trang; Văn bản/Trình chiếu/PDF kéo cuộn chưa có quán tính; canvas chưa có
+`touch-action: none` (eframe gắn `touchmove` vào `document` nên Chrome cảnh báo passive; trình duyệt vẫn
+không tự cuộn vì `touchstart` trên canvas đã chặn); kiểm zoom 200%. Lưu ý QA: giả lập `deviceScaleFactor`
+của Playwright làm canvas eframe vẽ sai tỉ lệ — dùng DSF 1 hoặc `--force-device-scale-factor`.
 
 ## Nợ kỹ thuật đã biết
 
