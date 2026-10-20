@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
+import zlib from 'node:zlib'
 import { describe, expect, it, vi } from 'vitest'
 import { FakeIdb } from './fake-idb.ts'
 
@@ -32,7 +33,7 @@ function page(idb: FakeIdb, { pathname = '/van-ban/', search = '', locks = [] as
   const held: string[] = []
   const window: Record<string, unknown> = {}
   const context = {
-    window, location: { pathname, search }, URLSearchParams, Date, Math, Promise, Uint8Array, setTimeout,
+    window, location: { pathname, search }, URLSearchParams, Date, Math, Promise, Uint8Array, Uint32Array, setTimeout,
     indexedDB: idb,
     navigator: {
       storage,
@@ -89,6 +90,18 @@ describe('draft store', () => {
     const [row] = idb.rows()
     expect(row).toMatchObject({ v: 1, id: store!.tab + '|doc-1', editor: 'van-ban', tab: store!.tab, name: 'Report.docx', format: 'docx', size: 3, crc: 1438416925 })
     expect([...(row.bytes as Uint8Array)]).toEqual([1, 2, 3])
+  })
+
+  it('checksums long drafts the same as zlib, whatever their length past a multiple of 8', async () => {
+    const { drafts, idb } = await opened()
+    const long = new Uint8Array(100_003)
+    for (let i = 0; i < long.length; i++) long[i] = (i * 2654435761) >>> 24
+    for (const length of [8, 13, 100_003]) {
+      drafts!.put('doc-' + length, 'Big.xlsx', 'xlsx', long.subarray(0, length))
+    }
+    await flush()
+    const crcs = Object.fromEntries(idb.rows().map(row => [row.size, row.crc]))
+    for (const length of [8, 13, 100_003]) expect(crcs[length]).toBe(zlib.crc32(long.subarray(0, length)))
   })
 
   it('keeps one record per document and replaces it on every put', async () => {
