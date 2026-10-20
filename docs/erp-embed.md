@@ -88,6 +88,11 @@ cú tải đó đi qua (trong 5 giây, cùng tên) thay vì bắt lại thành m
 - **Tín hiệu `dirty` chậm.** Tín hiệu này đi theo nhịp tự lưu nháp của editor (gọi `erpDrafts.put/remove`),
   không theo từng phím gõ. PdfCraft chỉ có cầu nối nháp từ commit `d61177f0` của fork; bản build cũ hơn không
   bao giờ báo `dirty`.
+- **Nhận diện theo tên tệp, không theo tài liệu.** Editor mở được nhiều tài liệu cùng lúc (tab), nhưng bridge
+  chỉ biết tên tệp ERP gửi vào, không biết tab nào đang lưu. Nếu người dùng mở thêm một tệp trên máy **trùng
+  tên** (ví dụ bản sao `HopDong.docx`) hoặc lưu một tài liệu khác dưới đúng tên đó, Ctrl+S ở tab ấy cũng thành
+  phiên bản mới của tệp ERP. ERP giữ lịch sử phiên bản nên lấy lại được bản trước. Muốn chặn hẳn thì editor phải
+  báo cho bridge tài liệu nào đang lưu (đổi giao tiếp ở cả 4 fork) — chưa làm.
 - Bản desktop (Electron) không dùng cơ chế này.
 
 ## Việc ngoài repo
