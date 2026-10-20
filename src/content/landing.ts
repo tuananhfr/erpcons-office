@@ -9,7 +9,6 @@ export const WHY = [
 
 export const NOTICES = [
   'Đây là bản beta: tệp phức tạp có thể hiển thị khác bản gốc. Hãy giữ một bản sao của tệp ban đầu.',
-  'Giao diện trình soạn thảo hiện bằng tiếng Anh.',
   'Dùng tốt nhất trên máy tính; trên điện thoại một số thanh công cụ có thể bị chật.',
   'Cần trình duyệt có WebGPU hoặc WebGL2 (Chrome, Edge, Firefox, Safari phiên bản mới).',
 ]

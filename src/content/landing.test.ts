@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { EDITORS } from '../config/editors.ts'
 import sizes from '../generated/editor-sizes.json'
-import { FAQ, FORK_REPOS, firstLoadAnswer, formatSize } from './landing.ts'
+import { FAQ, FORK_REPOS, NOTICES, firstLoadAnswer, formatSize } from './landing.ts'
 
 describe('landing content', () => {
+  it('does not describe the default editor interface as English in notices or FAQ', () => {
+    expect([...NOTICES, ...FAQ.map((f) => f.answer)].join(' ')).not.toMatch(/giao diện[^.!?]*tiếng Anh/i)
+    expect(NOTICES).toHaveLength(3)
+  })
+
   it('has the FAQ questions the spec asks for', () => {
     expect(FAQ.map((f) => f.question)).toEqual([
       'Tệp của tôi có bị tải lên máy chủ không?',

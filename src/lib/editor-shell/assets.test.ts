@@ -6,6 +6,15 @@ import { SHELL_SCRIPTS, loadShellAssets } from './assets.ts'
 const shellDir = fileURLToPath(new URL('../../../editor-shell/', import.meta.url))
 
 describe('loadShellAssets', () => {
+  it('disables text selection only in the shell header, including its links and brand', () => {
+    const css = loadShellAssets(shellDir).css
+    const rule = css.match(/([^{}]+)\{([^{}]*-webkit-user-select:\s*none;[^{}]*)\}/)
+    expect(rule).not.toBeNull()
+    expect(rule?.[1].trim().split(/,\s*/)).toEqual(['.erp-shell', '.erp-shell a', '.erp-shell__brand'])
+    expect(rule?.[2]).toMatch(/(?:^|;)\s*user-select:\s*none;/)
+    expect(rule?.[2]).not.toMatch(/pointer-events/)
+  })
+
   it('ships the key guard with every editor page', () => {
     const keys = fs.readFileSync(`${shellDir}keys.js`, 'utf8').trim()
     expect(loadShellAssets(shellDir).script).toContain(keys)

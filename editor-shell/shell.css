@@ -21,6 +21,7 @@
 /* Inside an ERP iframe the host page owns navigation and the device insets, so the editor gets the full frame. */
 html.erp-embedded { --erp-shell-h: 0px; --erp-inset-top: 0px; --erp-inset-right: 0px; --erp-inset-bottom: 0px; --erp-inset-left: 0px; }
 html.erp-embedded .erp-shell { display: none; }
+.erp-shell, .erp-shell a, .erp-shell__brand { -webkit-user-select: none; user-select: none; }
 .erp-shell {
   position: fixed; inset: 0 0 auto 0; z-index: 10; height: var(--erp-top); box-sizing: border-box;
   display: flex; align-items: center; gap: 16px;
