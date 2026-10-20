@@ -10,6 +10,7 @@ const trunkWord = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>WordCraft</title>
   <link rel="icon" href="./wordcraft-45f84b7721cb79a9.ico">
   <script type="module">import init from './wordcraft-web-a4ce.js'; init('./wordcraft-web-a4ce_bg.wasm');</script>
@@ -79,6 +80,49 @@ describe('injectEditorShell', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('#wordcraft_canvas{')
     expect(out).toContain('#wordcraft_loading{')
+  })
+
+  it('keeps the canvas inside the safe area and above the keyboard, with an explicit size', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    const rule = out.match(/#wordcraft_canvas\{[^}]*\}/)![0]
+    expect(rule).toContain('top:var(--erp-top)!important')
+    expect(rule).toContain('left:var(--erp-inset-left)!important')
+    expect(rule).toContain('right:var(--erp-inset-right)!important')
+    expect(rule).toContain('bottom:var(--erp-bottom)!important')
+    expect(rule).toContain('width:calc(100% - var(--erp-inset-left) - var(--erp-inset-right))!important')
+    expect(rule).toContain('height:calc(100% - var(--erp-top) - var(--erp-bottom))!important')
+  })
+
+  it('lets content reach under the notch and the keyboard resize the layout, keeping the fork\'s zoom choice', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    expect(out).toContain('<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">')
+    expect(out.match(/name="viewport"/g)).toHaveLength(1)
+  })
+
+  it('leaves PDF pinch zoom as the fork has it', () => {
+    const html = '<!doctype html>\n<html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1" /><title>PdfCraft</title></head><body><canvas id="pdfcraft"></canvas></body></html>'
+    const out = injectEditorShell(html, pdf, EDITORS, assets)
+    expect(out).toContain('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">')
+    expect(out).not.toContain('user-scalable')
+  })
+
+  it('updates keys a fork already sets instead of repeating them', () => {
+    const html = trunkWord.replace('user-scalable=no', 'viewport-fit=auto, user-scalable=no')
+    const out = injectEditorShell(html, word, EDITORS, assets)
+    expect(out).toContain('content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=resizes-content"')
+  })
+
+  it('adds a viewport meta when a fork drops it, and refuses two', () => {
+    const missing = trunkWord.replace(/<meta name="viewport"[^>]*>/, '')
+    expect(injectEditorShell(missing, word, EDITORS, assets)).toContain('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">')
+    const twice = trunkWord.replace('<title>', '<meta name="viewport" content="width=device-width"><title>')
+    expect(() => injectEditorShell(twice, word, EDITORS, assets)).toThrow('expected at most one viewport meta')
+  })
+
+  it('names the canvas for screen readers after the editor', () => {
+    expect(injectEditorShell(trunkWord, word, EDITORS, assets)).toContain('<canvas role="application" aria-label="Trình soạn thảo Văn bản" id="wordcraft_canvas"></canvas>')
+    const html = '<!doctype html>\n<html lang="en"><head><title>PdfCraft</title></head><body><canvas id="pdfcraft"></canvas></body></html>'
+    expect(injectEditorShell(html, pdf, EDITORS, assets)).toContain('<canvas role="application" aria-label="Trình soạn thảo PDF" id="pdfcraft">')
   })
 
   it('handles the PdfCraft page: flow canvas, no loading element, no title icon', () => {

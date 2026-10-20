@@ -1,5 +1,15 @@
 :root {
   --erp-shell-h: 40px;
+  /* The only place the device insets are read; viewport-fit=cover makes them non-zero on notched phones. */
+  --erp-inset-top: env(safe-area-inset-top, 0px);
+  --erp-inset-right: env(safe-area-inset-right, 0px);
+  --erp-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --erp-inset-left: env(safe-area-inset-left, 0px);
+  /* Set inline by viewport.js while the soft keyboard covers the page. */
+  --erp-keyboard-h: 0px;
+  /* Edges of the editor area: below the bar, above the home indicator or the keyboard (which covers it). */
+  --erp-top: calc(var(--erp-shell-h) + var(--erp-inset-top));
+  --erp-bottom: max(var(--erp-inset-bottom), var(--erp-keyboard-h));
   --erp-crimson: #da3548;
   --erp-ink: #101820;
   --erp-text-2: #344454;
@@ -8,12 +18,13 @@
   --erp-border: #d6e0e6;
   --erp-focus: #3678d4;
 }
-/* Inside an ERP iframe the host page owns navigation, so the editor gets the full frame. */
-html.erp-embedded { --erp-shell-h: 0px; }
+/* Inside an ERP iframe the host page owns navigation and the device insets, so the editor gets the full frame. */
+html.erp-embedded { --erp-shell-h: 0px; --erp-inset-top: 0px; --erp-inset-right: 0px; --erp-inset-bottom: 0px; --erp-inset-left: 0px; }
 html.erp-embedded .erp-shell { display: none; }
 .erp-shell {
-  position: fixed; inset: 0 0 auto 0; z-index: 10; height: var(--erp-shell-h); box-sizing: border-box;
-  display: flex; align-items: center; gap: 16px; padding: 0 12px;
+  position: fixed; inset: 0 0 auto 0; z-index: 10; height: var(--erp-top); box-sizing: border-box;
+  display: flex; align-items: center; gap: 16px;
+  padding: var(--erp-inset-top) calc(12px + var(--erp-inset-right)) 0 calc(12px + var(--erp-inset-left));
   background: var(--erp-surface); border-bottom: 1px solid var(--erp-border); color: var(--erp-ink);
   font: 500 14px/1 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
@@ -35,12 +46,13 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__menu nav a { padding: 12px; }
 .erp-shell__menu nav a[aria-current="page"] { font-weight: 700; box-shadow: inset 2px 0 0 var(--erp-crimson); }
 .erp-shell__unsupported, .erp-shell__noscript {
-  position: fixed; inset: var(--erp-shell-h) 0 0 0; z-index: 9; margin: 0; padding: 32px 16px;
+  position: fixed; inset: var(--erp-top) 0 0 0; z-index: 9; margin: 0;
+  padding: 32px calc(16px + var(--erp-inset-right)) calc(32px + var(--erp-inset-bottom)) calc(16px + var(--erp-inset-left));
   background: var(--erp-surface); color: var(--erp-ink); font: 400 16px/1.6 Inter, system-ui, sans-serif; text-align: center;
 }
 .erp-shell__unsupported { display: none; }
 .erp-shell__loading {
-  position: fixed; inset: var(--erp-shell-h) 0 0 0; display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: var(--erp-top) var(--erp-inset-right) var(--erp-bottom) var(--erp-inset-left); display: flex; align-items: center; justify-content: center;
   color: #555; font: 14px system-ui, sans-serif; pointer-events: none;
 }
 @media (prefers-color-scheme: dark) { .erp-shell__loading { color: #aaa; } }
@@ -52,7 +64,7 @@ html.erp-embedded .erp-shell { display: none; }
   .erp-shell__menu { display: block; }
 }
 
-.erp-shell__transfer { position: fixed; z-index: 100; bottom: 20px; left: 20px; right: 20px; max-width: 600px; margin: auto; padding: 14px 20px; border: 1px solid #b8d1ed; border-radius: 10px; background: #fff; color: #082674; font: 14px/1.6 system-ui, sans-serif; box-shadow: 0 6px 24px #08267418; }
+.erp-shell__transfer { position: fixed; z-index: 100; bottom: calc(20px + var(--erp-bottom)); left: calc(20px + var(--erp-inset-left)); right: calc(20px + var(--erp-inset-right)); max-width: 600px; margin: auto; padding: 14px 20px; border: 1px solid #b8d1ed; border-radius: 10px; background: #fff; color: #082674; font: 14px/1.6 system-ui, sans-serif; box-shadow: 0 6px 24px #08267418; }
 .erp-shell__transfer a { color: #0960ea; }
 
 .erp-shell { --erp-ok: #1d6b45; --erp-warn: #8a5300; --erp-danger: #b42318; }
@@ -72,8 +84,9 @@ html.erp-embedded .erp-shell { display: none; }
 
 .erp-drafts {
   --erp-ok: #1d6b45; --erp-danger: #b42318;
-  position: fixed; z-index: 50; top: calc(var(--erp-shell-h) + 12px); right: 12px; box-sizing: border-box;
-  width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - var(--erp-shell-h) - 24px); overflow: auto;
+  position: fixed; z-index: 50; top: calc(var(--erp-top) + 12px); right: calc(12px + var(--erp-inset-right)); box-sizing: border-box;
+  width: min(440px, calc(100vw - 24px - var(--erp-inset-left) - var(--erp-inset-right)));
+  max-height: calc(100dvh - var(--erp-top) - var(--erp-bottom) - 24px); overflow: auto;
   padding: 16px; border: 1px solid var(--erp-border); border-radius: 10px; background: var(--erp-surface); color: var(--erp-ink);
   font: 400 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; box-shadow: 0 8px 28px #10182024;
 }
@@ -109,7 +122,8 @@ html.erp-embedded .erp-shell { display: none; }
 /* Above every shell layer (drafts panel 50, transfer note 100): the engine under it no longer answers. */
 .erp-crash {
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
-  box-sizing: border-box; padding: 16px; background: #10182073;
+  box-sizing: border-box; background: #10182073;
+  padding: calc(16px + var(--erp-inset-top)) calc(16px + var(--erp-inset-right)) calc(16px + var(--erp-bottom)) calc(16px + var(--erp-inset-left));
   font: 400 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 .erp-crash__box {

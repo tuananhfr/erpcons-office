@@ -51,9 +51,14 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
   `lang="vi"`, SEO tags, manifest, the 40px `.erp-shell` bar, and the canvas pushed below it.
   It is idempotent (`data-erpcons-shell`) and throws if the page shape changes upstream.
 - `editor-shell/*.js` are plain-ES5 IIFEs concatenated in order by `assets.ts`
-  (`shell → open-file → keys → drafts → drafts-ui → host-bridge → crash-guard`) into one inline `<script>`,
-  after `window.erpEmbedHosts` (from `src/config/embed.ts`); no bundler, no TS. Tests run them
+  (`shell → viewport → file-picker → open-file → keys → drafts → drafts-ui → host-bridge → crash-guard`) into one
+  inline `<script>`, after `window.erpEmbedHosts` (from `src/config/embed.ts`) and `window.erpMimeTypes` (from
+  `src/lib/files/mime-types.ts`, shared with the landing picker); no bundler, no TS. Tests run them
   in node against fakes (`fake-idb.ts`).
+  - Phones: inject.ts adds `viewport-fit=cover, interactive-widget=resizes-content` to the fork's viewport meta;
+    shell.css owns the safe-area vars (`--erp-inset-*`, zeroed when embedded) and `--erp-top`/`--erp-bottom`
+    that the bar, canvas and overlays use. `viewport.js` sets `--erp-keyboard-h` from `visualViewport` (iOS
+    keyboard); `file-picker.js` appends MIME types to rfd's extension-only `accept` before the native click (iOS).
   - `open-file.js`: landing → editor file handoff via IndexedDB `erpcons-file-transfer-v1`
     + `?open=<token>`, delivered as a synthetic `drop` on the canvas (see `docs/file-transfer.md`).
     Also handles PWA `launchQueue` ("Open with").

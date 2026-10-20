@@ -2,6 +2,9 @@
 
 import { useRef, useState, type ReactNode, type ChangeEvent } from 'react'
 import { prepareFile, MAX_FILE_SIZE } from '@/lib/files/pending-file.ts'
+import { withMimeTypes } from '@/lib/files/mime-types.ts'
+
+const ACCEPT = withMimeTypes('.docx,.xlsx,.pptx,.pdf')
 
 export function OpenFileButton({ icon }: { icon: ReactNode }) {
   const input = useRef<HTMLInputElement>(null)
@@ -22,7 +25,7 @@ export function OpenFileButton({ icon }: { icon: ReactNode }) {
     }
   }
   return <div className="erp-open-file">
-    <input ref={input} className="erp-sr-only" tabIndex={-1} type="file" accept=".docx,.xlsx,.pptx,.pdf" aria-label="Chọn tệp văn phòng từ máy" onChange={open} />
+    <input ref={input} className="erp-sr-only" tabIndex={-1} type="file" accept={ACCEPT} aria-label="Chọn tệp văn phòng từ máy" onChange={open} />
     <button type="button" className="erp-btn erp-btn--primary" onClick={() => input.current?.click()} disabled={busy}>{icon}{busy ? 'Đang chuẩn bị tệp…' : 'Mở tệp từ máy'}</button>
     <span className="erp-sr-only">Hỗ trợ DOCX, XLSX, PPTX và PDF, tối đa {MAX_FILE_SIZE / 1024 / 1024} MB.</span>
     {error ? <p className="erp-file-error" role="alert">{error}</p> : null}

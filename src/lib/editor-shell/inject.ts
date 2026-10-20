@@ -29,6 +29,37 @@ function replaceLoadingNote(html: string, editor: EditorEntry): string {
   return html.replace(note, (_m, open: string, close: string) => `${open}${LOADING_TEXT}${close}`)
 }
 
+const VIEWPORT_META = /<meta\b(?=[^>]*\bname=["']?viewport["'\s/>])[^>]*>/gi
+const DEFAULT_VIEWPORT = 'width=device-width, initial-scale=1'
+// Notched phones report safe-area insets only with viewport-fit=cover; resizes-content makes Chrome Android
+// shrink the layout for the soft keyboard. Each fork's own keys (user-scalable…) are kept.
+const VIEWPORT_KEYS: Readonly<Record<string, string>> = { 'viewport-fit': 'cover', 'interactive-widget': 'resizes-content' }
+
+function viewportContent(content: string): string {
+  const entries = new Map<string, string>()
+  for (const part of content.split(/[,;]/)) {
+    const [key, ...value] = part.split('=')
+    if (key.trim()) entries.set(key.trim().toLowerCase(), value.join('=').trim())
+  }
+  for (const [key, value] of Object.entries(VIEWPORT_KEYS)) entries.set(key, value)
+  return [...entries].map(([key, value]) => (value ? `${key}=${value}` : key)).join(', ')
+}
+
+function rewriteViewport(html: string, editor: EditorEntry): string {
+  const [meta, ...extra] = html.match(VIEWPORT_META) ?? []
+  if (extra.length) throw new Error(`${editor.slug}: expected at most one viewport meta`)
+  const tag = (content: string) => `<meta name="viewport" content="${escapeHtml(viewportContent(content))}">`
+  if (!meta) return html.replace(/<\/head>/i, () => `${tag(DEFAULT_VIEWPORT)}\n</head>`)
+  const content = /\bcontent=(?:"([^"]*)"|'([^']*)')/i.exec(meta)
+  return html.replace(meta, () => tag(content?.[1] ?? content?.[2] ?? DEFAULT_VIEWPORT))
+}
+
+// eframe drops AccessKit on the web, so the canvas is at least named for screen readers.
+function labelCanvas(html: string, editor: EditorEntry): string {
+  const canvas = new RegExp(String.raw`<canvas\b(?=[^>]*\bid="${editor.canvasId}")`, 'i')
+  return html.replace(canvas, () => `<canvas role="application" aria-label="${escapeHtml(`Trình soạn thảo ${editor.name}`)}"`)
+}
+
 // Other editors open in a new tab: navigating away would drop the unsaved document in this one.
 function navLinks(current: EditorEntry, editors: readonly EditorEntry[]): string {
   return editors
@@ -39,9 +70,12 @@ function navLinks(current: EditorEntry, editors: readonly EditorEntry[]): string
 }
 
 function headTags(editor: EditorEntry, assets: ShellAssets): string {
-  // Upstream styles pin the canvas to the viewport; push it below the bar for both layouts (absolute and flow).
+  // Upstream styles pin the canvas to the viewport; keep it below the bar, inside the safe area and above the
+  // keyboard (shell.css vars) for both layouts (absolute and flow). A canvas is a replaced element: without an
+  // explicit size, left/right/bottom would leave it at its bitmap size.
   const below = (id: string) =>
-    `#${id}{position:absolute!important;top:var(--erp-shell-h)!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:calc(100% - var(--erp-shell-h))!important}`
+    `#${id}{position:absolute!important;top:var(--erp-top)!important;left:var(--erp-inset-left)!important;right:var(--erp-inset-right)!important;bottom:var(--erp-bottom)!important;`
+    + `width:calc(100% - var(--erp-inset-left) - var(--erp-inset-right))!important;height:calc(100% - var(--erp-top) - var(--erp-bottom))!important}`
   const placement = [editor.canvasId, editor.loadingId].filter((id): id is string => Boolean(id)).map(below).join('')
   return [
     ...editorSeoTags(editor),
@@ -75,7 +109,7 @@ export function injectEditorShell(html: string, editor: EditorEntry, editors: re
   if (countMatches(html, /<body\b[^>]*>/gi) !== 1) throw new Error(`${editor.slug}: expected exactly one <body>`)
   if (!html.includes(`id="${editor.canvasId}"`)) throw new Error(`${editor.slug}: canvas #${editor.canvasId} not found`)
 
-  return replaceLoadingNote(html, editor)
+  return labelCanvas(rewriteViewport(replaceLoadingNote(html, editor), editor), editor)
     .replace(/<html\b([^>]*)>/i, (_tag, attrs: string) => `<html${attrs.replace(/\s+lang=("[^"]*"|'[^']*'|\S+)/i, '')} lang="vi">`)
     .replace(/<title>[\s\S]*?<\/title>\s*/gi, '')
     .replace(/<link\b[^>]*\brel=["']?(?:shortcut )?icon["']?[^>]*>\s*/gi, '')
