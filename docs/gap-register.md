@@ -100,6 +100,29 @@ PDF chưa tự vừa bề rộng trang; Văn bản/Trình chiếu/PDF kéo cuộ
 không tự cuộn vì `touchstart` trên canvas đã chặn); kiểm zoom 200%. Lưu ý QA: giả lập `deviceScaleFactor`
 của Playwright làm canvas eframe vẽ sai tỉ lệ — dùng DSF 1 hoặc `--force-device-scale-factor`.
 
+## V2.1 — V2-0 và V2-1 (mất dữ liệu, sao chép/dán): trên production 21/10
+
+V2-0 (bản `20261020-235209`):
+- Bảng tính giữ macro VBA khi Ctrl+S trên `.xlsm`; kiểm file tải về còn `xl/vbaProject.bin`.
+- PDF (Tìm, Che nội dung) và Trình chiếu (Tìm/Thay thế) khớp chữ NFC và NFD như nhau; PDF gợi ý "Làm sạch tài liệu" sau khi che.
+- Trình chiếu: gõ khi đang chọn cả bảng đi vào ô đầu thay vì báo lỗi tiếng Anh.
+- PDF "kẹt Đang khởi tạo" là tải wasm chậm, không phải lỗi (không sửa).
+
+V2-1 (bản `20261021-015717`), ADR `docs/adr/clipboard-web.md`:
+- Cầu clipboard web `apps/<fork>-web/src/clipboard.rs` cho Văn bản, Bảng tính, Trình chiếu: listener `paste` pha capture
+  đọc text/html, text/rtf, text/plain, ảnh; copy ghi `ClipboardItem` (html + text); nút Dán/menu đọc `navigator.clipboard.read()`.
+- Hết dán đôi ở Văn bản và Trình chiếu (bỏ Ctrl/Cmd+C/X/V ở lớp phím trên web); một Ctrl+V = một bước Undo.
+- Văn bản: dán từ Word, Google Docs, LibreOffice giữ kiểu, font, danh sách thật, bảng (gộp ô, viền, nền), liên kết;
+  copy ghi HTML kèm marker để dán sang tài liệu/tab khác giữ style, numbering, ảnh. XSS mẫu không chạy.
+- Bảng tính: dán từ Excel/LibreOffice/Google Sheets giữ gộp ô, định dạng, số `x:num`; Dán đặc biệt cho nguồn ngoài;
+  công thức vi-VN `;` dán đúng; copy ghi HTML bảng.
+- Trình chiếu: copy bảng/hình ghi TSV + HTML (không còn xoá clipboard), bộ đọc HTML mới, TSV/HTML thành bảng thật vừa slide,
+  dán giữa hai tab giữ ô gộp.
+- PDF: nút Copy nổi tôn trọng quyền cấm copy; "Tạo từ bảng tạm" trên web đọc `navigator.clipboard`.
+- Golden test dán → lưu OOXML (CLIP-10) cho Văn bản, Bảng tính, Trình chiếu.
+- Chưa thử được (đưa vào `docs/manual-qa-v2.md`): Word/Excel/LibreOffice/Google Docs thật, iOS/Android, Safari/Firefox
+  (`clipboard.read()` bị hạn chế), quyền clipboard lần đầu.
+
 ## Nợ kỹ thuật đã biết
 
 | Chỗ | Vấn đề |
@@ -109,6 +132,10 @@ của Playwright làm canvas eframe vẽ sai tỉ lệ — dùng DSF 1 hoặc `-
 | Wave 2 minor | Grid/Deck không thử ghi lại khi lưu nháp lỗi; `getAll` nạp hết bytes |
 | Trình chiếu | Theme sáng vẽ ô nhập không viền và hộp kiểm không có ô (cả hộp Tùy chọn, Tìm/Thay thế); chữ giữ chỗ "Click to add title" chưa dịch |
 | Văn bản, PDF | Chạy test native trên Windows hỏng sẵn (WSL xanh): Văn bản `commands_do_not_touch_the_file_system_themselves`, PDF `a_gotor_link_to_a_directory_or_device_is_refused_without_reading_it` (chập chờn) |
+| Bảng tính | Mở `.xlsm` hiện thêm hộp thoại "Đã giữ lại macro" trùng với banner, chặn thao tác tới khi bấm OK; "Lưu bản sao .xlsx" bỏ VBA không báo |
+| PDF | `find_with` (tìm theo mẫu) chưa ghép NFC/NFD; 21 catalog ngôn ngữ ngoài tiếng Việt là bản dịch máy chưa có người bản ngữ duyệt |
+| Trình chiếu | Enter/F2/Sửa chữ trên bảng vào thẳng ô đầu; gõ khi chọn ảnh/biểu đồ vẫn hiện lỗi tiếng Anh `text.edit`; chữ gợi ý của placeholder vẫn hiện dưới bảng vừa dán |
+| Văn bản | Ctrl+Shift+V/C/X giữ khoá phím (có thể thực hiện hai lần); `clipboard` web không đủ thực thể HTML5 (chỉ phổ biến) |
 
 ## Ngoài phạm vi
 
