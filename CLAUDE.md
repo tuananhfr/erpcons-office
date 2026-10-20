@@ -63,6 +63,10 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
     + `?open=<token>`, delivered as a synthetic `drop` on the canvas (see `docs/file-transfer.md`).
     Also handles PWA `launchQueue` ("Open with").
   - `keys.js`: blocks browser defaults (Ctrl+R/L/D, F5…) eframe doesn't cancel; never clipboard keys.
+  - Clipboard (web): no shell JS. Each `apps/<fork>-web/src/clipboard.rs` (Word, Grid, Deck) listens for `paste`
+    in the capture phase (text/html, text/rtf, text/plain, images) and writes `ClipboardItem` on copy; the
+    Paste button/menu uses `navigator.clipboard.read()`. The Ctrl/Cmd+C/X/V key layer is off on web to avoid
+    double paste. PDF only has a Copy float (honours no-copy) and "from clipboard" create. Rationale: `docs/adr/clipboard-web.md`.
   - `drafts.js`: exposes `window.erpDrafts`, the draft store the forks' web builds autosave into
     (see each fork's `ERPCONS-CHANGES.md`); disabled when embedded (`?host=parent` or
     `?embed=erpcons`), where the host page owns recovery.
@@ -83,6 +87,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
   editors in `localStorage` `erpcons-ui-language` (each fork's `language.rs`). Terms follow
   `docs/glossary-vi.md` (Office VN feature names, clean-room sentences).
 - `docs/gap-register.md` tracks what is still missing against the FULL V4 spec, by wave.
+- Manual checks that machines cannot do (real Word/Excel, phones, Safari/Firefox, screen readers) live in
+  `docs/manual-qa-v2.md`; measured timings in `docs/benchmarks.md`.
 - Production is Apache 2.4 (`/etc/apache2/office.erpcons.vn.inc`: compression, MIME, cache).
   Deploy and rollback are WSL scripts outside the repo: `~/deploy-office.sh` (rsync a release
   dir, switch the `current` symlink, keep 3) and `~/rollback-office.sh [RELEASE|--list]`.
@@ -92,3 +98,14 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
 - Never reintroduce ArtCraft names/logos/links (brand terms); the build gate enforces it.
 - Design spec and history: `docs/superpowers/specs/` and `docs/superpowers/plans/`.
   UI QA screenshots/reports go to `.qa/` (gitignored).
+
+## Gate and release tree (WSL, outside the repo)
+
+Windows Smart App Control blocks new native binaries, so every cargo and wasm job runs in WSL under one
+flock (`/tmp/erpcons-build.lock`; other sessions may share the machine). Per fork: clippy native, tests native,
+clippy wasm for `ui-egui` + engine (`gate.sh <fork> [--no-wasm]`), plus extra crates via `wsl-extra.sh`. Each
+fork has known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate. Then
+`release.sh` builds the site and the 4 editors from local heads (site vitest/typecheck/lint included),
+`~/deploy-office.sh` publishes, `~/rollback-office.sh` reverts. Production QA runs Playwright against
+`https://office.erpcons.vn` (`QA_ORIGIN` overrides). Playwright quirks: no `deviceScaleFactor` emulation on the
+eframe canvas, typed first uppercase/diacritic char can be dropped (type lowercase), no `insertText`.

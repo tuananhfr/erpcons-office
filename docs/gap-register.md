@@ -1,6 +1,6 @@
 # GAP register — ERPCons Văn phòng so với spec FULL V4
 
-Cập nhật: 20/10/2026 (Wave 5–9 lên production, release `20261020-091402`) · Spec: *ERPCons Office FULL V4 — Keyboard, i18n, Multifile* (15/10/2026).
+Cập nhật: 21/10/2026 (V2.1 lên production, release `20261021-054112`) · Spec: *ERPCons Office FULL V4 — Keyboard, i18n, Multifile* (15/10/2026).
 Bằng chứng audit: đọc code nhánh `tuananhfr` của 4 fork, 19/10/2026.
 
 Trạng thái: **Existing** có và đã kiểm · **Partial** có một phần · **Missing** chưa có ·
@@ -123,6 +123,41 @@ V2-1 (bản `20261021-015717`), ADR `docs/adr/clipboard-web.md`:
 - Chưa thử được (đưa vào `docs/manual-qa-v2.md`): Word/Excel/LibreOffice/Google Docs thật, iOS/Android, Safari/Firefox
   (`clipboard.read()` bị hạn chế), quyền clipboard lần đầu.
 
+## V2.1 — V2-2 đến V2-6 (cảnh báo mất dữ liệu, đóng/trình chiếu, tiếng Việt, nợ, QA): trên production 21/10
+
+Bản cuối `20261021-054112` (lùi được về `20261021-045255`). Commit đầu mỗi fork: wordcraft `82a9109`,
+gridcraft `4944395`, deckcraft `6c50fc4`, pdfcraft `abee5df2`, erpcons-office `9d7de69`.
+
+V2-2 — cảnh báo mất nội dung:
+- Văn bản, Trình chiếu, PDF: hộp "Lưu sẽ mất một số nội dung" liệt kê điều bị mất (OLE, macro, chữ ký…) với Vẫn lưu / Lưu bản sao / Hủy.
+- Bảng tính: CSV chống công thức (`=`, `+`, `-`, `@` thêm `'`) và có BOM; nháp cũ khác phiên bản được giữ, không xoá.
+
+V2-3 — đóng, thoát, trình chiếu:
+- Đóng tài liệu chờ ghi xong; nút × có ở màn hẹp; Văn bản có chế độ Tập trung.
+- Trình chiếu: toàn màn hình thật, không tự mở Presenter View, "End" dịch, nút ✕. PDF: hết thời gian lưu 60 s thì tải bản dự phòng.
+- `window.erpEditorClosed()` → bridge gửi `closed` (protocol v1, thêm không phá).
+
+V2-4 — tiếng Việt và định dạng:
+- PDF: chữ Việt trong biểu mẫu, hộp văn bản, Thêm chữ qua font Inter nhúng (Type0 Identity-H, ToUnicode). Dùng Inter vì Be Vietnam Pro không có trong craft-fonts.
+- PDF → DOCX xuống dòng `<w:br/>` và `w:rFonts`; OCR ẩn trên web.
+- Mở `.doc/.xls/.ppt/.odp/.pptm`: hộp thoại giải thích. Thanh báo font thay thế ở Văn bản, Bảng tính, Trình chiếu.
+- Văn bản: 3 lệnh TCVN3/VNI → Unicode (Xem lại ▸ Ngôn ngữ). Kiểm trên production với `tcvn3.docx`.
+
+V2-5 — nợ cũ: tên sản phẩm tiếng Việt (Bảng tính, Trình chiếu — Bảng tính vượt chữ trong plan, vốn chỉ nêu Văn bản/Trình chiếu); Đóng tất cả;
+Ctrl+Tab/Ctrl+Shift+Tab; F10/Shift+F10 liệt kê; thông báo #CIRC! tiếng Việt; nhãn pivot hiển thị tiếng Việt (file giữ tiếng Anh);
+Trình chiếu gõ vào bảng/ảnh đang chọn và ô nhập theme sáng; PDF thanh công cụ và hộp lưu ở 390 px; site CSS/FAQ.
+Bỏ qua: Ctrl+PageDown/PageUp (đã gán Tìm tiếp/Tìm trước).
+
+V2-6 — QA production:
+- T05 đóng tab rồi mở lại: đề nghị khôi phục và khôi phục đúng nội dung ở cả 4 editor (context sạch). Thoát hẳn trình duyệt: chưa kiểm.
+- Cửa sổ ẩn danh: dùng được; mất nháp khi đóng là đúng.
+- Văn bản mở tệp Việt/Nhật/Trung phồn thể đúng. **Lỗi mới**: chữ Hàn, Ả Rập, Do Thái và nhiều chữ Hán giản thể hiện ô vuông (Văn bản); Bảng tính hiện ô vuông cho mọi chữ ngoài Latin (kể cả Nhật/Trung) — web chưa có font dự phòng cho các chữ này. Thanh báo font không cảnh báo trường hợp này.
+- Đo hiệu năng 20 lượt: `docs/benchmarks.md`. Dán: SKIPPED (xem tài liệu đó).
+- Phần cần người kiểm: `docs/manual-qa-v2.md`.
+
+Chưa kiểm trên trình duyệt thật (chỉ kittest/unit): hộp .doc (Văn bản), .xls (Bảng tính), chuyển VNI, PDF → Word `<w:br/>`, thanh font Bảng tính,
+độ tương phản theme sáng Trình chiếu, PDF hết hạn 60 s, `closed` trong iframe ERP (chỉ vitest và tài liệu).
+
 ## Nợ kỹ thuật đã biết
 
 | Chỗ | Vấn đề |
@@ -130,12 +165,18 @@ V2-1 (bản `20261021-015717`), ADR `docs/adr/clipboard-web.md`:
 | Văn bản | Test `clicks_on_ribbon_and_status_bar_chrome_keep_typing_in_the_document` hỏng sẵn từ upstream |
 | Văn bản, Bảng tính, PDF | `cargo clippy` bản web lỗi sẵn từ upstream (`wordcraft-fonts`, `backstage.rs` Modified, `pdfcraft-render`) |
 | Wave 2 minor | Grid/Deck không thử ghi lại khi lưu nháp lỗi; `getAll` nạp hết bytes |
-| Trình chiếu | Theme sáng vẽ ô nhập không viền và hộp kiểm không có ô (cả hộp Tùy chọn, Tìm/Thay thế); chữ giữ chỗ "Click to add title" chưa dịch |
+| Trình chiếu | Chữ giữ chỗ "Click to add title" chưa dịch |
 | Văn bản, PDF | Chạy test native trên Windows hỏng sẵn (WSL xanh): Văn bản `commands_do_not_touch_the_file_system_themselves`, PDF `a_gotor_link_to_a_directory_or_device_is_refused_without_reading_it` (chập chờn) |
 | Bảng tính | Mở `.xlsm` hiện thêm hộp thoại "Đã giữ lại macro" trùng với banner, chặn thao tác tới khi bấm OK; "Lưu bản sao .xlsx" bỏ VBA không báo |
 | PDF | `find_with` (tìm theo mẫu) chưa ghép NFC/NFD; 21 catalog ngôn ngữ ngoài tiếng Việt là bản dịch máy chưa có người bản ngữ duyệt |
-| Trình chiếu | Enter/F2/Sửa chữ trên bảng vào thẳng ô đầu; gõ khi chọn ảnh/biểu đồ vẫn hiện lỗi tiếng Anh `text.edit`; chữ gợi ý của placeholder vẫn hiện dưới bảng vừa dán |
+| Trình chiếu | Enter/F2/Sửa chữ trên bảng vào thẳng ô đầu; chữ gợi ý của placeholder vẫn hiện dưới bảng vừa dán |
 | Văn bản | Ctrl+Shift+V/C/X giữ khoá phím (có thể thực hiện hai lần); `clipboard` web không đủ thực thể HTML5 (chỉ phổ biến) |
+| Mọi editor (web) | Không có font dự phòng cho Hàn, Ả Rập, Do Thái, một phần Hán giản thể (Văn bản) và mọi chữ ngoài Latin trong Bảng tính: hiện ô vuông; thanh báo font không báo |
+| Văn bản, Bảng tính | Chuyển TCVN3/VNI xử lý từng run riêng (VNI tách nền + dấu qua hai run không ghép); nhập CSV giữ dấu `'` đầu ô (kể cả `'007`); Văn bản web `file.exportPng` bỏ qua page/scale |
+| Bảng tính | Thanh báo font nối thêm vào thông báo hiện có; nhãn pivot động ("Total …", "Sum of …") chưa dịch |
+| Cả 4 | Lưu qua thẻ `<a download>` không có xác nhận ghi (Đóng→Lưu chỉ chờ khi có `showSaveFilePicker`; picker của ERP embed có ack); PDF quá 60 s nhưng ghi muộn vẫn có thể xong, bản tải dự phòng dùng ảnh chụp lúc bắt đầu lưu |
+| Trình chiếu | Toàn màn hình chưa thử trên Safari/iOS |
+| Landing, panel nháp | Còn chữ "nháp tự xoá sau 30 ngày" dù nháp khác phiên bản nay được giữ |
 
 ## Ngoài phạm vi
 
