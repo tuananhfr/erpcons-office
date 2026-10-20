@@ -36,6 +36,12 @@ export const EXPLORE_SEO = createPageSeo(
   'Khám phá hệ sinh thái ERPCons: công cụ văn phòng trực tuyến và các giải pháp dành cho công việc, gia đình, cuộc sống và doanh nghiệp.',
 )
 
+export const GUIDE_SEO = createPageSeo(
+  '/huong-dan/',
+  'Cài ứng dụng và mở tệp',
+  'Hướng dẫn cài Văn phòng by ERPCons trên máy tính, Android, iPhone và iPad, mở tệp DOCX, XLSX, PPTX, PDF bằng "Mở bằng" hoặc nút Chia sẻ, và nơi lưu tệp.',
+)
+
 export function editorSeo(editor: EditorEntry): PageSeo {
   return createPageSeo(`/${editor.slug}/`, editor.seoTitle, editor.seoDescription)
 }

@@ -41,6 +41,7 @@ export function sitemapEntries(): { url: string; priority: number }[] {
   return [
     { url: HOME_SEO.url, priority: 1 },
     { url: `${SITE.origin}/kham-pha/`, priority: 0.7 },
+    { url: `${SITE.origin}/huong-dan/`, priority: 0.6 },
     ...EDITORS.map(editor => ({ url: SITE.origin + editorPath(editor.slug), priority: 0.8 })),
   ]
 }

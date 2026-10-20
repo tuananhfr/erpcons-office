@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { EDITORS, SITE } from '../../config/editors.ts'
-import { HOME_SEO, EXPLORE_SEO, SEO_ASSETS, SEO_BRAND, editorSeo } from './page-seo.ts'
+import { HOME_SEO, EXPLORE_SEO, GUIDE_SEO, SEO_ASSETS, SEO_BRAND, editorSeo } from './page-seo.ts'
 import { brandIcons, pageMetadata } from './metadata.ts'
 
 describe('page SEO', () => {
   it('gives every indexable page its own absolute canonical and title', () => {
-    const pages = [HOME_SEO, EXPLORE_SEO, ...EDITORS.map(editorSeo)]
-    expect(new Set(pages.map(page => page.url)).size).toBe(6)
-    expect(new Set(pages.map(page => page.title)).size).toBe(6)
+    const pages = [HOME_SEO, EXPLORE_SEO, GUIDE_SEO, ...EDITORS.map(editorSeo)]
+    expect(new Set(pages.map(page => page.url)).size).toBe(7)
+    expect(new Set(pages.map(page => page.title)).size).toBe(7)
     for (const page of pages) {
       expect(page.url).toMatch(/^https:\/\/office\.erpcons\.vn\//)
       expect(page.title).toContain(SEO_BRAND)

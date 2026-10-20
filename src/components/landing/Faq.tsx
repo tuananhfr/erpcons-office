@@ -13,6 +13,7 @@ export function Faq() {
             </details>
           ))}
         </div>
+        <p className="erp-faq__more"><a href="/huong-dan/">Hướng dẫn cài ứng dụng và mở tệp trên từng thiết bị</a></p>
       </div>
     </section>
   )
