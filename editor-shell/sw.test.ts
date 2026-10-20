@@ -3,6 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import { describe, expect, it } from 'vitest'
+import { EDITORS } from '../src/config/editors.ts'
+import { FakeIdb } from './fake-idb.ts'
 
 type Strategy = 'bypass' | 'network-first' | 'cache-first'
 type FakeResponse = { status: number; type: string; body: string; clone: () => FakeResponse }
@@ -44,6 +46,7 @@ interface WorkerOptions {
   network?: (url: string) => FakeResponse | 'offline'
   // Other windows already open on the site (the page being fetched is not among them).
   windows?: string[]
+  idb?: FakeIdb
 }
 
 function loadWorker(options: WorkerOptions = {}) {
@@ -60,6 +63,8 @@ function loadWorker(options: WorkerOptions = {}) {
   const context = {
     URL,
     Promise,
+    Response,
+    indexedDB: options.idb ?? new FakeIdb(),
     caches: {
       open: async (name: string) => { if (!store.has(name)) store.set(name, new FakeCache()); return store.get(name) },
       keys: async () => [...store.keys()],
@@ -75,6 +80,7 @@ function loadWorker(options: WorkerOptions = {}) {
     self: {
       addEventListener: (type: string, fn: unknown) => { listeners[type] = fn },
       location: { origin },
+      crypto: { randomUUID: () => 'shared-1' },
       skipWaiting: () => {},
       clients: {
         claim: async () => {},
@@ -112,6 +118,13 @@ function loadWorker(options: WorkerOptions = {}) {
     message: (data: unknown) => dispatch('message', { data }),
     activate: () => dispatch('activate', {}),
     fetchPage: (p: string) => dispatch('fetch', { request: { url: u(p), method: 'GET', mode: 'navigate' }, resultingClientId: 'fetching' }) as Promise<Promise<FakeResponse>>,
+    share: (form: FormData | 'broken', referrer = '') => dispatch('fetch', {
+      request: {
+        url: u('/share-target/'), method: 'POST', mode: 'navigate', referrer,
+        formData: async () => { if (form === 'broken') throw new TypeError('bad body'); return form },
+      },
+    }) as Promise<Promise<Response>>,
+    dispatchRaw: (event: Record<string, unknown>) => dispatch('fetch', event),
     fetchAsset: (p: string) => dispatch('fetch', { request: { url: u(p), method: 'GET', mode: 'cors' } }) as Promise<Promise<FakeResponse>>,
   }
 }
@@ -243,5 +256,66 @@ describe('sw across deploys', () => {
     const w = loadWorker({ manifest: null, caches: { [CURRENT]: { '/van-ban/': 'old', '/van-ban/old_bg.wasm': 'o' } } })
     await (await w.fetchPage('/van-ban/'))
     expect(w.paths()).toEqual(['/van-ban/', '/van-ban/old_bg.wasm'])
+  })
+})
+
+describe('sw share target', () => {
+  const shared = (name: string, size = 10) => ({ name, size })
+  const form = (...files: unknown[]) => ({ getAll: (key: string) => (key === 'file' ? files : []) }) as unknown as FormData
+
+  it('queues a shared file for its editor and opens it with ?open=', async () => {
+    const idb = new FakeIdb()
+    const res = await (await loadWorker({ idb }).share(form(shared('Báo cáo.DOCX'))))!
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe(u('/van-ban/?open=shared-1'))
+    expect(idb.rows('pending')).toMatchObject([{ id: 'shared-1', name: 'Báo cáo.DOCX', editor: 'van-ban', file: { size: 10 } }])
+    expect(idb.rows('pending')[0].expiresAt).toBeGreaterThan(Date.now())
+  })
+
+  it('routes every editor extension the site knows to that editor', async () => {
+    for (const e of EDITORS) {
+      const res = await (await loadWorker().share(form(shared(`a${e.extension}`))))!
+      expect(res.headers.get('location')).toBe(u(`/${e.slug}/?open=shared-1`))
+    }
+  })
+
+  it('takes the first supported file when several are shared', async () => {
+    const res = await (await loadWorker().share(form(shared('anh.jpg'), shared('so.xlsx'))))!
+    expect(res.headers.get('location')).toBe(u('/bang-tinh/?open=shared-1'))
+  })
+
+  it('explains unsupported, empty, oversized and unreadable shares in Vietnamese', async () => {
+    const w = loadWorker()
+    const cases: [FormData | 'broken', number, string][] = [
+      [form(shared('anh.jpg')), 415, 'DOCX, XLSX, PPTX hoặc PDF'],
+      [form(shared('a.pdf', 0)), 422, 'đang trống'],
+      [form(shared('a.pdf', 101 * 1024 * 1024)), 413, '100 MB'],
+      ['broken', 400, 'Không đọc được'],
+    ]
+    for (const [body, status, text] of cases) {
+      const res = await (await w.share(body))!
+      expect(res.status).toBe(status)
+      expect(await res.text()).toContain(text)
+    }
+  })
+
+  it('refuses a share posted from another site', async () => {
+    const idb = new FakeIdb()
+    const res = await (await loadWorker({ idb }).share(form(shared('a.pdf')), 'https://evil.example/x'))!
+    expect(res.status).toBe(403)
+    expect(idb.rows('pending')).toEqual([])
+  })
+
+  it('says so when the device cannot hold the file', async () => {
+    const idb = new FakeIdb()
+    idb.failWrites = 'QuotaExceededError'
+    const res = await (await loadWorker({ idb }).share(form(shared('a.pdf'))))!
+    expect(res.status).toBe(507)
+  })
+
+  it('leaves other POSTs to the network', async () => {
+    const w = loadWorker()
+    const responded = await w.dispatchRaw({ request: { url: u('/van-ban/'), method: 'POST', mode: 'navigate' } })
+    expect(responded).toBeUndefined()
   })
 })

@@ -40,6 +40,13 @@ export function webManifest(): MetadataRoute.Manifest {
       accept: { [mimeTypeOf(e.extension)]: [e.extension] },
       icons: [{ src: `/brand/office/${e.slug}-256.png`, sizes: '256x256', type: 'image/png' }],
     })),
+    // Android "Share" to the installed app; editor-shell/sw.js receives the POST and opens the right editor.
+    share_target: {
+      action: '/share-target/',
+      method: 'post',
+      enctype: 'multipart/form-data',
+      params: { files: [{ name: 'file', accept: EDITORS.flatMap((e) => [mimeTypeOf(e.extension), e.extension]) }] },
+    },
     shortcuts: EDITORS.map((e) => ({ name: e.name, url: editorPath(e.slug), icons: [{ src: SEO_ASSETS.icon192, sizes: '192x192' }] })),
   }
 }

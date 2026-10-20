@@ -114,6 +114,59 @@ async function carryOver(oldName) {
   await caches.delete(oldName)
 }
 
+// Android "Share" to the installed app (manifest share_target). Same handoff as the landing page's Open
+// button (src/lib/files/pending-file.ts): queue the file on the device, then open its editor with ?open=<id>.
+var SHARE_PATH = '/share-target/'
+var SHARE_EDITORS = { docx: 'van-ban', xlsx: 'bang-tinh', pptx: 'trinh-chieu', pdf: 'pdf' }
+var SHARE_MAX_BYTES = 100 * 1024 * 1024
+
+function sharePage(status, message) {
+  var html = '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+    + '<title>Văn phòng by ERPCons</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5">'
+    + '<p>' + message + '</p><p><a href="/">Về trang chủ để chọn tệp</a></p></body></html>'
+  return new Response(html, { status: status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+}
+
+function sharedEditor(file) {
+  return SHARE_EDITORS[String(file.name).split('.').pop().toLowerCase()]
+}
+
+function queueShared(file, editor) {
+  var id = self.crypto.randomUUID()
+  return new Promise(function (resolve, reject) {
+    var request = indexedDB.open('erpcons-file-transfer-v1', 1)
+    request.onupgradeneeded = function () { request.result.createObjectStore('pending', { keyPath: 'id' }) }
+    request.onerror = function () { reject(request.error) }
+    request.onsuccess = function () {
+      var db = request.result
+      var transaction = db.transaction('pending', 'readwrite')
+      transaction.objectStore('pending').put({ id: id, name: file.name, file: file, editor: editor, expiresAt: Date.now() + 60 * 60 * 1000 })
+      transaction.oncomplete = function () { db.close(); resolve(id) }
+      transaction.onabort = function () { db.close(); reject(transaction.error) }
+    }
+  })
+}
+
+async function receiveShare(request) {
+  // The OS share sheet sends no referrer; a cross-site form posting here could push its file into the editor.
+  if (request.referrer && new URL(request.referrer).origin !== self.location.origin) {
+    return sharePage(403, 'Chỉ nhận tệp được chia sẻ từ thiết bị của bạn.')
+  }
+  var form
+  try { form = await request.formData() } catch (error) { return sharePage(400, 'Không đọc được tệp được chia sẻ.') }
+  var file = form.getAll('file').filter(function (f) { return f && typeof f.name === 'string' && sharedEditor(f) })[0]
+  if (!file) return sharePage(415, 'Văn phòng mở được tệp DOCX, XLSX, PPTX hoặc PDF. Tệp được chia sẻ không thuộc các loại này.')
+  if (!file.size) return sharePage(422, 'Tệp được chia sẻ đang trống.')
+  if (file.size > SHARE_MAX_BYTES) return sharePage(413, 'Tệp vượt quá 100 MB. Hãy mở trực tiếp từ menu Tệp của công cụ.')
+  var editor = sharedEditor(file)
+  try {
+    var id = await queueShared(file, editor)
+    return Response.redirect(self.location.origin + '/' + editor + '/?open=' + encodeURIComponent(id), 303)
+  } catch (error) {
+    return sharePage(507, 'Không lưu tạm được tệp trên thiết bị. Kiểm tra bộ nhớ hoặc quyền lưu trữ của trình duyệt.')
+  }
+}
+
 self.addEventListener('install', function () { self.skipWaiting() })
 
 self.addEventListener('activate', function (event) {
@@ -125,6 +178,10 @@ self.addEventListener('activate', function (event) {
 })
 
 self.addEventListener('fetch', function (event) {
+  if (event.request.method === 'POST' && new URL(event.request.url).pathname === SHARE_PATH) {
+    event.respondWith(receiveShare(event.request))
+    return
+  }
   var strategy = classify(new URL(event.request.url), event.request.method, event.request.mode, self.location.origin)
   if (strategy === 'bypass') return
   // A navigation's own window only exists as resultingClientId; clientId is the tab that started it.

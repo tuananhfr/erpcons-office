@@ -55,6 +55,15 @@ describe('webManifest', () => {
     })
     expect(new Set(imageBytes).size).toBe(4)
   })
+  it('accepts every editor file type from the Android share sheet as one multipart "file" field', () => {
+    const target = (manifest as { share_target?: { action: string; method: string; enctype: string; params: { files: { name: string; accept: string[] }[] } } }).share_target
+    expect(target).toMatchObject({ action: '/share-target/', method: 'post', enctype: 'multipart/form-data' })
+    expect(target?.params.files).toHaveLength(1)
+    expect(target?.params.files[0].name).toBe('file')
+    for (const e of EDITORS) expect(target?.params.files[0].accept).toContain(e.extension)
+    expect(target?.params.files[0].accept).toContain('application/pdf')
+  })
+
   it('offers a shortcut to every editor', () => {
     expect(manifest.shortcuts?.map((s) => [s.name, s.url])).toEqual(EDITORS.map((e) => [e.name, editorPath(e.slug)]))
   })

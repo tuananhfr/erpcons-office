@@ -72,7 +72,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
-    of that build is open.
+    of that build is open. It also answers the manifest's Android `share_target` (POST `/share-target/`):
+    the shared file joins the same `pending` queue as the landing picker, then a 303 to `/<editor>/?open=<id>`.
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.
 - Links between exported pages are plain `<a>` (static hosting, no RSC rewrites).
 
