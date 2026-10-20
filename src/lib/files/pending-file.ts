@@ -13,7 +13,7 @@ export function validateFile(file: Pick<File, 'name' | 'size'>): EditorSlug {
   const editor = editorForFile(file.name)
   if (!editor) throw new Error('Vui lòng chọn tệp DOCX, XLSX, PPTX hoặc PDF.')
   if (!file.size) throw new Error('Tệp đang trống. Vui lòng chọn tệp khác.')
-  if (file.size > MAX_FILE_SIZE) throw new Error('Tệp vượt quá 100 MB. Hãy mở trực tiếp từ menu File của công cụ.')
+  if (file.size > MAX_FILE_SIZE) throw new Error('Tệp vượt quá 100 MB. Hãy mở trực tiếp từ menu Tệp của công cụ.')
   return editor
 }
 

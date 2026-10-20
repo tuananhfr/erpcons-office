@@ -319,3 +319,19 @@ describe('sw share target', () => {
     expect(responded).toBeUndefined()
   })
 })
+
+describe('sw offline page', () => {
+  it('explains in Vietnamese when a page was never cached and the network is down', async () => {
+    const w = loadWorker({ network: () => 'offline' })
+    const res = (await (await w.fetchPage('/bang-tinh/?open=abc'))!) as unknown as Response
+    expect(res.status).toBe(503)
+    const html = await res.text()
+    expect(html).toContain('kiểm tra kết nối mạng')
+    expect(html).toContain('href="/bang-tinh/?open=abc"')
+  })
+
+  it('still fails non-page requests so the page sees a network error', async () => {
+    const w = loadWorker({ network: () => 'offline' })
+    await expect(w.fetchAsset('/bang-tinh/a_bg.wasm').then(p => p)).rejects.toThrow('Failed to fetch')
+  })
+})

@@ -41,6 +41,16 @@ async function prune(cache, pageDir, requestingId) {
   }))
 }
 
+var OFFLINE_MESSAGE = 'Không tải được trang này. Hãy kiểm tra kết nối mạng rồi thử lại. Khi mất mạng, mỗi công cụ chỉ mở được nếu trước đó đã mở ít nhất một lần lúc có mạng trên thiết bị này.'
+
+function messagePage(status, message, retryUrl) {
+  var retry = retryUrl ? '<a href="' + retryUrl + '">Thử lại</a> · ' : ''
+  var html = '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+    + '<title>Văn phòng by ERPCons</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5">'
+    + '<p>' + message + '</p><p>' + retry + '<a href="/">Về trang chủ</a></p></body></html>'
+  return new Response(html, { status: status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+}
+
 async function networkFirst(request, requestingId) {
   var cache = await caches.open(CACHE)
   try {
@@ -54,6 +64,11 @@ async function networkFirst(request, requestingId) {
   } catch (error) {
     var hit = await cache.match(request, { ignoreSearch: true })
     if (hit) return hit
+    // Without this the browser shows its own English offline page, which says nothing about why.
+    if (request.mode === 'navigate') {
+      var url = new URL(request.url)
+      return messagePage(503, OFFLINE_MESSAGE, url.pathname + url.search)
+    }
     throw error
   }
 }
@@ -120,13 +135,6 @@ var SHARE_PATH = '/share-target/'
 var SHARE_EDITORS = { docx: 'van-ban', xlsx: 'bang-tinh', pptx: 'trinh-chieu', pdf: 'pdf' }
 var SHARE_MAX_BYTES = 100 * 1024 * 1024
 
-function sharePage(status, message) {
-  var html = '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-    + '<title>Văn phòng by ERPCons</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5">'
-    + '<p>' + message + '</p><p><a href="/">Về trang chủ để chọn tệp</a></p></body></html>'
-  return new Response(html, { status: status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
-}
-
 function sharedEditor(file) {
   return SHARE_EDITORS[String(file.name).split('.').pop().toLowerCase()]
 }
@@ -150,20 +158,20 @@ function queueShared(file, editor) {
 async function receiveShare(request) {
   // The OS share sheet sends no referrer; a cross-site form posting here could push its file into the editor.
   if (request.referrer && new URL(request.referrer).origin !== self.location.origin) {
-    return sharePage(403, 'Chỉ nhận tệp được chia sẻ từ thiết bị của bạn.')
+    return messagePage(403, 'Chỉ nhận tệp được chia sẻ từ thiết bị của bạn.')
   }
   var form
-  try { form = await request.formData() } catch (error) { return sharePage(400, 'Không đọc được tệp được chia sẻ.') }
+  try { form = await request.formData() } catch (error) { return messagePage(400, 'Không đọc được tệp được chia sẻ.') }
   var file = form.getAll('file').filter(function (f) { return f && typeof f.name === 'string' && sharedEditor(f) })[0]
-  if (!file) return sharePage(415, 'Văn phòng mở được tệp DOCX, XLSX, PPTX hoặc PDF. Tệp được chia sẻ không thuộc các loại này.')
-  if (!file.size) return sharePage(422, 'Tệp được chia sẻ đang trống.')
-  if (file.size > SHARE_MAX_BYTES) return sharePage(413, 'Tệp vượt quá 100 MB. Hãy mở trực tiếp từ menu Tệp của công cụ.')
+  if (!file) return messagePage(415, 'Văn phòng mở được tệp DOCX, XLSX, PPTX hoặc PDF. Tệp được chia sẻ không thuộc các loại này.')
+  if (!file.size) return messagePage(422, 'Tệp được chia sẻ đang trống.')
+  if (file.size > SHARE_MAX_BYTES) return messagePage(413, 'Tệp vượt quá 100 MB. Hãy mở trực tiếp từ menu Tệp của công cụ.')
   var editor = sharedEditor(file)
   try {
     var id = await queueShared(file, editor)
     return Response.redirect(self.location.origin + '/' + editor + '/?open=' + encodeURIComponent(id), 303)
   } catch (error) {
-    return sharePage(507, 'Không lưu tạm được tệp trên thiết bị. Kiểm tra bộ nhớ hoặc quyền lưu trữ của trình duyệt.')
+    return messagePage(507, 'Không lưu tạm được tệp trên thiết bị. Kiểm tra bộ nhớ hoặc quyền lưu trữ của trình duyệt.')
   }
 }
 

@@ -35,7 +35,7 @@
     var started = Date.now()
     say('Đang khởi tạo công cụ để nhận “' + name + '”…')
     var timer = setInterval(function () {
-      if (Date.now() - started > 120000) { fail('Công cụ chưa sẵn sàng. Tải lại trang để thử lại hoặc mở tệp từ menu File.', cleanup, timer); return }
+      if (Date.now() - started > 120000) { fail('Công cụ chưa sẵn sàng. Tải lại trang để thử lại hoặc mở tệp từ menu Tệp.', cleanup, timer); return }
       var canvas = document.querySelector('canvas')
       if (!canvas) return
       try {
@@ -48,7 +48,7 @@
         if (done) done()
         say('Đã chuyển “' + name + '” vào công cụ.')
         hideLater()
-      } catch (error) { fail('Không chuyển được tệp. Hãy mở tệp từ menu File của công cụ.', cleanup, timer) }
+      } catch (error) { fail('Không chuyển được tệp. Hãy mở tệp từ menu Tệp của công cụ.', cleanup, timer) }
     }, 300)
   }
   // host-bridge.js opens files sent by an embedding ERP page through the same path.
@@ -60,7 +60,7 @@
       if (!params.files || !params.files.length) return
       Promise.all(params.files.map(function (handle) { return handle.getFile() }))
         .then(function (files) { deliver(files, files[0].name) })
-        .catch(function () { fail('Không đọc được tệp đã chọn. Hãy mở tệp từ menu File của công cụ.') })
+        .catch(function () { fail('Không đọc được tệp đã chọn. Hãy mở tệp từ menu Tệp của công cụ.') })
     })
   }
 
@@ -71,10 +71,10 @@
   function closeDb() { if (db) db.close() }
   var request
   try { request = indexedDB.open('erpcons-file-transfer-v1', 1) }
-  catch (error) { fail('Trình duyệt không cho phép lưu trữ tệp tạm. Hãy mở từ menu File.'); return }
+  catch (error) { fail('Trình duyệt không cho phép lưu trữ tệp tạm. Hãy mở từ menu Tệp.'); return }
   request.onblocked = function () { fail('Bộ nhớ tạm đang bận. Đóng các tab công cụ khác rồi thử lại.') }
   request.onupgradeneeded = function () { request.result.createObjectStore('pending', { keyPath: 'id' }) }
-  request.onerror = function () { fail('Không truy cập được tệp tạm. Hãy mở tệp từ menu File của công cụ.') }
+  request.onerror = function () { fail('Không truy cập được tệp tạm. Hãy mở tệp từ menu Tệp của công cụ.') }
   request.onsuccess = function () {
     db = request.result
     var transaction = db.transaction('pending', 'readonly')

@@ -25,7 +25,7 @@ export function firstLoadAnswer(sizes: Record<string, number | null>): string {
 
 export const FAQ = [
   { question: 'Tệp của tôi có bị tải lên máy chủ không?', answer: 'Không. Tệp được mở và xử lý ngay trong trình duyệt trên máy bạn. Máy chủ chỉ gửi phần mềm trình soạn thảo, không nhận tệp của bạn.' },
-  { question: 'Lưu tệp như thế nào?', answer: 'Dùng lệnh lưu của trình soạn thảo (Ctrl+S hoặc menu File). Tệp được tải về máy bạn.' },
+  { question: 'Lưu tệp như thế nào?', answer: 'Dùng lệnh lưu của trình soạn thảo (Ctrl+S hoặc menu Tệp). Tệp được tải về máy bạn.' },
   { question: 'Vì sao lần mở đầu tiên chậm?', answer: firstLoadAnswer(sizes) },
   { question: 'Có dùng được trên điện thoại không?', answer: 'Mở được, nhưng giao diện được thiết kế cho màn hình lớn. Để làm việc thoải mái, nên dùng máy tính.' },
   { question: 'Có mất phí không?', answer: 'Không. ERPCons Văn phòng miễn phí và không cần tài khoản.' },
