@@ -48,7 +48,6 @@
 .erp-feature__link:active { transform: translateY(1px); }
 .erp-feature__link:focus-visible { outline-offset: 4px; }
 .erp-feature__logo { position: relative; width: 88px; height: 88px; object-fit: contain; flex: none; }
-.erp-feature--pdf .erp-feature__logo { padding: 6px; }
 .erp-feature__preview { position: absolute; z-index: -1; top: 24px; right: 14px; font-size: 120px; color: var(--tool-color); opacity: .12; transform: rotate(-13deg); pointer-events: none; }
 .erp-feature__body { position: relative; display: flex; flex-direction: column; min-width: 0; max-width: calc(100% - 38px); }
 .erp-feature__body strong { font-size: 22px; font-weight: 750; letter-spacing: -.035em; line-height: 1.35; }
@@ -129,7 +128,6 @@
  .erp-features { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
  .erp-feature__link { min-height: 148px; padding: 14px 16px; gap: 8px; }
  .erp-feature__logo { width: 56px; height: 56px; }
- .erp-feature--pdf .erp-feature__logo { padding: 4px; }
  .erp-feature__preview { top: 14px; right: 6px; font-size: 82px; opacity: .09; }
  .erp-feature__body { max-width: 100%; padding-right: 24px; }
  .erp-feature__body strong { font-size: 16px; }

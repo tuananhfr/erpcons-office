@@ -35,7 +35,11 @@ export function webManifest(): MetadataRoute.Manifest {
       { src: SEO_ASSETS.maskable512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     // "Open with" in Windows/macOS for the installed app; the editor page reads the files from launchQueue.
-    file_handlers: EDITORS.map((e) => ({ action: editorPath(e.slug), accept: { [mimeTypeOf(e.extension)]: [e.extension] } })),
+    file_handlers: EDITORS.map((e) => ({
+      action: editorPath(e.slug),
+      accept: { [mimeTypeOf(e.extension)]: [e.extension] },
+      icons: [{ src: `/brand/office/${e.slug}-256.png`, sizes: '256x256', type: 'image/png' }],
+    })),
     shortcuts: EDITORS.map((e) => ({ name: e.name, url: editorPath(e.slug), icons: [{ src: SEO_ASSETS.icon192, sizes: '192x192' }] })),
   }
 }
