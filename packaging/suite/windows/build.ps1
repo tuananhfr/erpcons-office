@@ -34,7 +34,7 @@ try {
     foreach ($entry in $streams) { $writer.Write([byte[]]$entry.Bytes) }
 } finally { $writer.Dispose() }
 New-Item -ItemType Directory -Force artifacts, portable | Out-Null
-wix build packaging/suite/windows/VanPhong.wxs -arch x64 -ext WixToolset.Bal.wixext `
+wix build packaging/suite/windows/VanPhong.wxs -arch x64 -ext WixToolset.BootstrapperApplications.wixext `
     -d "Version=$Version" -d "InputDir=$PWD/inputs" -d "IconPath=$iconPath" `
     -d "LocalizationPath=$PWD/packaging/suite/windows/vi.wxl" `
     -o artifacts/ERPCons-VanPhong-windows-x64-setup.exe

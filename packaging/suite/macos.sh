@@ -14,7 +14,8 @@ for base in VanBan BangTinh TrinhChieu PDF; do
   count=0
   for app in "$mountpoint/"*.app; do
     test -d "$app"
-    ditto "$app" "$stage/$(basename "$app")"
+    # Finder metadata from the mounted DMG makes codesign --strict reject the copy.
+    ditto --norsrc --noextattr --noqtn "$app" "$stage/$(basename "$app")"
     codesign --verify --deep --strict "$stage/$(basename "$app")"
     count=$((count + 1))
   done
