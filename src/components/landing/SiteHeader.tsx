@@ -9,6 +9,7 @@ function Navigation({ active }: { active: Page }) {
   return <>
     <a href="/" aria-current={active === 'home' ? 'page' : undefined}>Trang chủ</a>
     <a href="/#chuc-nang">Công cụ</a>
+    <a href="/#tai-ban-desktop">Tải về</a>
     <a href="/kham-pha/" aria-current={active === 'explore' ? 'page' : undefined}>Khám phá</a>
     <a href="/huong-dan/" aria-current={active === 'guide' ? 'page' : undefined}>Hướng dẫn</a>
   </>

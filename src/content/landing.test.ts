@@ -15,6 +15,7 @@ describe('landing content', () => {
       'Lưu tệp như thế nào?',
       'Vì sao lần mở đầu tiên chậm?',
       'Có dùng được trên điện thoại không?',
+      'Có bản cài trên máy tính không?',
       'Có mất phí không?',
     ])
   })

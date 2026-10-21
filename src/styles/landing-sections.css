@@ -152,3 +152,14 @@
 }
 
 @media (max-width: 359px) { .erp-feature__link { padding-inline: 12px; } .erp-feature__body strong { font-size: 15px; } .erp-feature__arrow { right: 8px; width: 26px; height: 26px; } }
+
+.erp-downloads { margin-block: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.erp-downloads__card { padding: 24px; min-width: 0; }
+.erp-downloads__card h3 { margin: 0 0 16px; font-size: 20px; }
+.erp-downloads__card h3 .erp-icon { color: var(--tool-color); vertical-align: -2px; }
+.erp-downloads__links { display: grid; gap: 12px; list-style: none; margin: 0 0 20px; padding: 0; }
+.erp-downloads__links a { overflow-wrap: anywhere; }
+.erp-downloads__links .erp-btn { width: 100%; text-align: center; }
+.erp-downloads__note { max-width: none; }
+.erp-downloads__note code { overflow-wrap: anywhere; }
+@media (max-width: 767px) { .erp-downloads { grid-template-columns: 1fr; } .erp-downloads__card { padding: 20px; } }
