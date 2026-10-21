@@ -1,5 +1,6 @@
 # ERPCons changes
 
+- Desktop suite: Thêm bộ ERPCons Văn phòng gồm bốn ứng dụng cho Windows, macOS, Linux; kiểm tra SHA-256, thử cài đặt trong CI và ưu tiên tải trọn bộ trên landing.
 - GĐ4 (web): Thêm mục "Tải bản cài trên máy tính" cho cả bốn trình soạn thảo (Windows, macOS, Linux), làm nổi bản cài hợp với hệ điều hành, kèm ghi chú phát hành và hướng dẫn khi máy cảnh báo bộ cài chưa ký mã.
 - S5-debt (web): Ngăn chọn chữ ở header trình soạn thảo bằng Ctrl+A hoặc nhấp ba lần, giữ liên kết có thể bấm và không ảnh hưởng canvas.
 - S5-debt (web): Bỏ thông báo giao diện tiếng Anh đã lỗi thời trên landing vì trình soạn thảo mặc định dùng tiếng Việt.

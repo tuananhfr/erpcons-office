@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="vi-vn" Language="1066" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Caption" Value="Cài đặt [WixBundleName]" />
+  <String Id="Title" Value="[WixBundleName]" />
+  <String Id="CheckingForUpdatesLabel" Value="Đang kiểm tra cập nhật" />
+  <String Id="UpdateButton" Value="&amp;Cập nhật lên [WixStdBAUpdateAvailable]" />
+  <String Id="InstallHeader" Value="Chào mừng" />
+  <String Id="InstallMessage" Value="Cài đặt cả bốn ứng dụng ERPCons Văn phòng trên máy tính. Chọn Cài đặt để tiếp tục hoặc Hủy để thoát." />
+  <String Id="InstallMessageOptions" Value="Cài đặt cả bốn ứng dụng ERPCons Văn phòng trên máy tính." />
+  <String Id="InstallVersion" Value="Phiên bản [WixBundleVersion]" />
+  <String Id="ConfirmCancelMessage" Value="Bạn có muốn hủy cài đặt?" />
+  <String Id="ExecuteUpgradeRelatedBundleMessage" Value="Phiên bản trước" />
+  <String Id="HelpHeader" Value="Trợ giúp cài đặt" />
+  <String Id="HelpText" Value="/install: cài đặt; /repair: sửa chữa; /uninstall: gỡ cài đặt; /layout: sao chép bộ cài. /quiet: chạy ẩn; /passive: hiển thị tiến trình; /norestart: không khởi động lại; /log: ghi nhật ký." />
+  <String Id="HelpCloseButton" Value="&amp;Đóng" />
+  <String Id="InstallLicenseLinkText" Value="Thông tin ERPCons Văn phòng" />
+  <String Id="InstallAcceptCheckbox" Value="Tôi &amp;đồng ý với điều khoản sử dụng" />
+  <String Id="InstallOptionsButton" Value="&amp;Tùy chọn" />
+  <String Id="InstallInstallButton" Value="&amp;Cài đặt" />
+  <String Id="InstallCancelButton" Value="&amp;Hủy" />
+  <String Id="OptionsHeader" Value="Tùy chọn cài đặt" />
+  <String Id="OptionsLocationLabel" Value="Thư mục cài đặt:" />
+  <String Id="OptionsBrowseButton" Value="&amp;Duyệt" />
+  <String Id="OptionsOkButton" Value="Đồ&amp;ng ý" />
+  <String Id="OptionsCancelButton" Value="&amp;Hủy" />
+  <String Id="ProgressHeader" Value="Tiến trình cài đặt" />
+  <String Id="ProgressLabel" Value="Đang xử lý:" />
+  <String Id="OverallProgressPackageText" Value="Đang chuẩn bị…" />
+  <String Id="ProgressCancelButton" Value="&amp;Hủy" />
+  <String Id="ModifyHeader" Value="Thay đổi cài đặt" />
+  <String Id="ModifyRepairButton" Value="&amp;Sửa chữa" />
+  <String Id="ModifyUninstallButton" Value="&amp;Gỡ cài đặt" />
+  <String Id="ModifyCancelButton" Value="&amp;Hủy" />
+  <String Id="SuccessHeader" Value="Hoàn tất" />
+  <String Id="SuccessCacheHeader" Value="Đã lưu bộ cài" />
+  <String Id="SuccessInstallHeader" Value="Đã cài đặt" />
+  <String Id="SuccessLayoutHeader" Value="Đã sao chép bộ cài" />
+  <String Id="SuccessModifyHeader" Value="Đã thay đổi" />
+  <String Id="SuccessRepairHeader" Value="Đã sửa chữa" />
+  <String Id="SuccessUninstallHeader" Value="Đã gỡ cài đặt" />
+  <String Id="SuccessUnsafeUninstallHeader" Value="Đã gỡ cài đặt" />
+  <String Id="SuccessLaunchButton" Value="&amp;Mở" />
+  <String Id="SuccessRestartText" Value="Cần khởi động lại máy tính để sử dụng ứng dụng." />
+  <String Id="SuccessUninstallRestartText" Value="Cần khởi động lại máy tính để hoàn tất gỡ cài đặt." />
+  <String Id="SuccessRestartButton" Value="&amp;Khởi động lại" />
+  <String Id="SuccessCloseButton" Value="&amp;Đóng" />
+  <String Id="FailureHeader" Value="Không thể hoàn tất" />
+  <String Id="FailureCacheHeader" Value="Không thể lưu bộ cài" />
+  <String Id="FailureInstallHeader" Value="Không thể cài đặt" />
+  <String Id="FailureLayoutHeader" Value="Không thể sao chép bộ cài" />
+  <String Id="FailureModifyHeader" Value="Không thể thay đổi" />
+  <String Id="FailureRepairHeader" Value="Không thể sửa chữa" />
+  <String Id="FailureUninstallHeader" Value="Không thể gỡ cài đặt" />
+  <String Id="FailureUnsafeUninstallHeader" Value="Không thể gỡ cài đặt" />
+  <String Id="FailureHyperlinkLogText" Value='Không thể hoàn tất. Xem &lt;a href="#"&gt;nhật ký&lt;/a&gt; để biết thêm thông tin rồi thử lại.' />
+  <String Id="FailureRestartText" Value="Cần khởi động lại máy tính để hoàn tất khôi phục." />
+  <String Id="FailureRestartButton" Value="&amp;Khởi động lại" />
+  <String Id="FailureCloseButton" Value="&amp;Đóng" />
+  <String Id="FilesInUseTitle" Value="Tệp đang được sử dụng" />
+  <String Id="FilesInUseLabel" Value="Các ứng dụng sau đang sử dụng tệp cần cập nhật:" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="Đóng &amp;ứng dụng." />
+  <String Id="FilesInUseCloseRadioButton" Value="Đóng &amp;ứng dụng và thử mở lại." />
+  <String Id="FilesInUseDontCloseRadioButton" Value="&amp;Giữ ứng dụng đang mở. Cần khởi động lại máy tính." />
+  <String Id="FilesInUseRetryButton" Value="&amp;Thử lại" />
+  <String Id="FilesInUseIgnoreButton" Value="&amp;Bỏ qua" />
+  <String Id="FilesInUseExitButton" Value="Th&amp;oát" />
+</WixLocalization>

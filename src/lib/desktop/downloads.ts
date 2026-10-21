@@ -33,3 +33,16 @@ export function desktopDownloads(editor: EditorEntry) {
   ] as const
   return { releaseUrl, assets: assets.map(asset => ({ ...asset, url: `${releaseUrl}/download/${asset.file}` })) }
 }
+
+export function suiteDownloads() {
+  const releaseUrl = 'https://github.com/tuananhfr/erpcons-office/releases/latest'
+  const assets = [
+    { os: 'windows', primary: true, label: 'Windows · Cài trọn bộ (.exe, x64)', file: 'ERPCons-VanPhong-windows-x64-setup.exe' },
+    { os: 'windows', primary: false, label: 'Windows · Bản chạy ngay (.zip, x64)', file: 'ERPCons-VanPhong-windows-x64-portable.zip' },
+    { os: 'macos', primary: true, label: 'macOS · .dmg (Apple Silicon và Intel)', file: 'ERPCons-VanPhong-macos-universal.dmg' },
+    { os: 'linux', primary: true, label: 'Linux · Bộ AppImage (x86_64)', file: 'ERPCons-VanPhong-linux-x86_64-AppImage.tar.gz' },
+    { os: 'linux', primary: false, label: 'Linux · Bộ .deb (amd64)', file: 'erpcons-vanphong_amd64-deb.tar.gz' },
+    { os: 'linux', primary: false, label: 'Linux · Bộ .rpm (x86_64)', file: 'erpcons-vanphong.x86_64-rpm.tar.gz' },
+  ] as const
+  return { releaseUrl, assets: assets.map(asset => ({ ...asset, url: `${releaseUrl}/download/${asset.file}` })) }
+}

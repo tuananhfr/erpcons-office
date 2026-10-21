@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EDITORS } from '../../config/editors.ts'
-import { desktopDownloads, detectDesktopOS } from './downloads.ts'
+import { desktopDownloads, detectDesktopOS, suiteDownloads } from './downloads.ts'
 
 describe('desktopDownloads', () => {
   it.each([
@@ -38,5 +38,21 @@ describe('detectDesktopOS', () => {
     ]) expect(detectDesktopOS(hints)).toBe('mobile')
     expect(detectDesktopOS({})).toBeNull()
     expect(detectDesktopOS({ platform: 'Linux', userAgent: 'CrOS' })).toBeNull()
+  })
+})
+
+describe('suiteDownloads', () => {
+  it('builds all six fixed suite URLs and selects one primary per desktop OS', () => {
+    const { releaseUrl, assets } = suiteDownloads()
+    expect(releaseUrl).toBe('https://github.com/tuananhfr/erpcons-office/releases/latest')
+    const files = [
+      'ERPCons-VanPhong-windows-x64-setup.exe', 'ERPCons-VanPhong-windows-x64-portable.zip',
+      'ERPCons-VanPhong-macos-universal.dmg', 'ERPCons-VanPhong-linux-x86_64-AppImage.tar.gz',
+      'erpcons-vanphong_amd64-deb.tar.gz', 'erpcons-vanphong.x86_64-rpm.tar.gz',
+    ]
+    expect(assets.map(asset => asset.file)).toEqual(files)
+    expect(assets.map(asset => asset.url)).toEqual(files.map(file => `${releaseUrl}/download/${file}`))
+    expect(assets.filter(asset => asset.primary).map(asset => asset.os)).toEqual(['windows', 'macos', 'linux'])
+    expect(assets.find(asset => asset.os === 'windows' && asset.primary)?.file).toBe(files[0])
   })
 })

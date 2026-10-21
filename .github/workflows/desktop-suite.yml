@@ -1,0 +1,149 @@
+name: ERPCons desktop suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Suite version YYYY.MM.DD or YYYY.MM.DD.N (empty = today UTC)'
+        required: false
+        type: string
+  push:
+    branches: ['installers/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-suite-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: version
+        env:
+          SUITE_VERSION: ${{ inputs.version }}
+        run: bash packaging/suite/version.sh
+      - name: Test release verification
+        run: python -m unittest discover -s packaging/suite -p 'test_*.py'
+      - name: Snapshot the four latest public releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python packaging/suite/releases.py snapshot
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: suite-versions
+          path: releases.json
+          if-no-files-found: error
+
+  windows:
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: suite-versions
+      - name: Download and verify released MSIs and portable ZIPs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python packaging/suite/releases.py windows
+      - name: Install WiX 5.0.2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.Bal.wixext/5.0.2
+      - name: Build suite and portable archive
+        shell: pwsh
+        env:
+          SUITE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: ./packaging/suite/windows/build.ps1 -Version $env:SUITE_VERSION
+      - name: Test fresh install and preinstalled VanBan
+        shell: pwsh
+        run: ./packaging/suite/windows/test.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: suite-windows-test-logs
+          path: test-logs/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: suite-assets-windows
+          path: |
+            artifacts/*.exe
+            artifacts/*.zip
+          if-no-files-found: error
+
+  macos:
+    needs: prepare
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: suite-versions
+      - name: Download and verify released DMGs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 packaging/suite/releases.py macos
+      - name: Build DMG and verify mounted signatures
+        run: bash packaging/suite/macos.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: suite-assets-macos
+          path: artifacts/*.dmg
+          if-no-files-found: error
+
+  linux:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: suite-versions
+      - name: Download and verify released Linux packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 packaging/suite/releases.py linux
+      - name: Build and verify three tarballs
+        run: bash packaging/suite/linux.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: suite-assets-linux
+          path: artifacts/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'tuananhfr/erpcons-office'
+    needs: [prepare, windows, macos, linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: suite-assets-*
+          merge-multiple: true
+          path: artifacts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: suite-versions
+      - name: Refuse existing tag, checksum and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SUITE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: python3 packaging/suite/release.py

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+  <!-- UpgradeCode: never change. -->
+  <Bundle Name="ERPCons Văn phòng" Manufacturer="ERPCons" Version="$(var.Version)"
+      UpgradeCode="988A5553-AECB-4F66-AE16-FC9B00D2CF20" IconSourceFile="$(var.IconPath)" Compressed="yes">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl=""
+          LocalizationFile="$(var.LocalizationPath)" SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+    <Chain>
+      <MsiPackage Id="VanBan" SourceFile="$(var.InputDir)\VanBan\ERPCons-VanBan-windows-x64.msi" Vital="yes" Visible="yes" ForcePerMachine="yes" />
+      <MsiPackage Id="BangTinh" SourceFile="$(var.InputDir)\BangTinh\ERPCons-BangTinh-windows-x64.msi" Vital="yes" Visible="yes" ForcePerMachine="yes" />
+      <MsiPackage Id="TrinhChieu" SourceFile="$(var.InputDir)\TrinhChieu\ERPCons-TrinhChieu-windows-x64.msi" Vital="yes" Visible="yes" ForcePerMachine="yes" />
+      <MsiPackage Id="PDF" SourceFile="$(var.InputDir)\PDF\ERPCons-PDF-windows-x64.msi" Vital="yes" Visible="yes" ForcePerMachine="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

@@ -163,3 +163,4 @@
 .erp-downloads__note { max-width: none; }
 .erp-downloads__note code { overflow-wrap: anywhere; }
 @media (max-width: 767px) { .erp-downloads { grid-template-columns: 1fr; } .erp-downloads__card { padding: 20px; } }
+.erp-downloads__suite { margin-block: 24px; border-color: var(--erp-blue); }

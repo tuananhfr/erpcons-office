@@ -109,3 +109,11 @@ fork has known baseline failures (listed in its ERPCONS-CHANGES.md); anything ne
 `~/deploy-office.sh` publishes, `~/rollback-office.sh` reverts. Production QA runs Playwright against
 `https://office.erpcons.vn` (`QA_ORIGIN` overrides). Playwright quirks: no `deviceScaleFactor` emulation on the
 eframe canvas, typed first uppercase/diacritic char can be dropped (type lowercase), no `insertText`.
+
+## Desktop suite
+
+`packaging/suite/` repackages the four forks' released installers without building Rust.
+After all four forks have released, run `.github/workflows/desktop-suite.yml` on `tuananhfr`
+in `tuananhfr/erpcons-office`. Optionally supply a version (`YYYY.MM.DD`, or `YYYY.MM.DD.N` for another release the same day; defaults to today UTC).
+The workflow verifies upstream SHA-256 checksums, tests the packages, and publishes `vanphong-v<version>`;
+existing tags are refused. Pushes to `installers/**` only build, test and upload artifacts.

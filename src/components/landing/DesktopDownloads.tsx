@@ -7,6 +7,12 @@ export function DesktopDownloads() {
     <div className="erp-container">
       <h2 id="tai-ban-desktop-title">Tải bản cài trên máy tính</h2>
       <p>Làm việc ngoại tuyến, mở tệp từ máy tính với các công cụ như bản web.</p>
+      <div className="erp-feature erp-downloads__card erp-downloads__suite">
+        <h3>Tải trọn bộ ERPCons Văn phòng</h3>
+        <p>Văn bản, Bảng tính, Trình chiếu và PDF trong một lần tải.</p>
+        <DesktopDownloadLinks />
+      </div>
+      <h3>Hoặc tải từng ứng dụng</h3>
       <ul className="erp-features erp-downloads">{EDITORS.map(editor => <li key={editor.slug}
         className={`erp-feature erp-feature--${editor.slug} erp-downloads__card`}>
         <h3><Icon name={editor.icon} /> {editor.name} – ERPCons</h3>
