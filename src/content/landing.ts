@@ -1,3 +1,4 @@
+import { DESKTOP_DOWNLOADS_ENABLED } from '../config/desktop.ts'
 import { EDITORS } from '../config/editors.ts'
 import sizes from '../generated/editor-sizes.json'
 
@@ -27,7 +28,9 @@ export const FAQ = [
   { question: 'Lưu tệp như thế nào?', answer: 'Dùng lệnh lưu của trình soạn thảo (Ctrl+S hoặc menu Tệp). Tệp được tải về máy bạn.' },
   { question: 'Vì sao lần mở đầu tiên chậm?', answer: firstLoadAnswer(sizes) },
   { question: 'Có dùng được trên điện thoại không?', answer: 'Mở được, nhưng giao diện được thiết kế cho màn hình lớn. Để làm việc thoải mái, nên dùng máy tính.' },
-  { question: 'Có bản cài trên máy tính không?', answer: 'Có. Tải bản cài Windows, macOS hoặc Linux tại mục Tải bản cài trên máy tính.', href: '/#tai-ban-desktop' },
+  ...(DESKTOP_DOWNLOADS_ENABLED
+    ? [{ question: 'Có bản cài trên máy tính không?', answer: 'Có. Tải bản cài Windows, macOS hoặc Linux tại mục Tải bản cài trên máy tính.', href: '/#tai-ban-desktop' }]
+    : []),
   { question: 'Có mất phí không?', answer: 'Không. ERPCons Văn phòng miễn phí và không cần tài khoản.' },
 ]
 

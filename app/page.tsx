@@ -1,6 +1,7 @@
 import { JsonLd } from '@/components/JsonLd.tsx'
 import { Faq } from '@/components/landing/Faq.tsx'
 import { DesktopDownloads } from '@/components/landing/DesktopDownloads.tsx'
+import { DESKTOP_DOWNLOADS_ENABLED } from '@/config/desktop.ts'
 import { FeatureGrid } from '@/components/landing/FeatureGrid.tsx'
 import { ExploreBanner } from '@/components/landing/ExploreBanner.tsx'
 import { Hero } from '@/components/landing/Hero.tsx'
@@ -18,7 +19,7 @@ export default function HomePage() {
       <main id="noi-dung">
         <Hero />
         <FeatureGrid />
-        <DesktopDownloads />
+        {DESKTOP_DOWNLOADS_ENABLED && <DesktopDownloads />}
         <ExploreBanner />
         <WhyUse />
         <Notices />

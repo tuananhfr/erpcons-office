@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EDITORS } from '../config/editors.ts'
 import sizes from '../generated/editor-sizes.json'
+import { DESKTOP_DOWNLOADS_ENABLED } from '../config/desktop.ts'
 import { FAQ, FORK_REPOS, NOTICES, firstLoadAnswer, formatSize } from './landing.ts'
 
 describe('landing content', () => {
@@ -15,7 +16,7 @@ describe('landing content', () => {
       'Lưu tệp như thế nào?',
       'Vì sao lần mở đầu tiên chậm?',
       'Có dùng được trên điện thoại không?',
-      'Có bản cài trên máy tính không?',
+      ...(DESKTOP_DOWNLOADS_ENABLED ? ['Có bản cài trên máy tính không?'] : []),
       'Có mất phí không?',
     ])
   })
