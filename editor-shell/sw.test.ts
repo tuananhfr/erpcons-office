@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { EDITORS } from '../src/config/editors.ts'
 import { FakeIdb } from './fake-idb.ts'
 
@@ -62,6 +62,7 @@ function loadWorker(options: WorkerOptions = {}) {
   const source = options.manifest === null ? SOURCE : SOURCE.replace('/*__ASSET_MANIFEST__*/[]', JSON.stringify(options.manifest ?? []))
   const context = {
     URL,
+    console: { warn: vi.fn() },
     Promise,
     Response,
     indexedDB: options.idb ?? new FakeIdb(),
@@ -109,6 +110,7 @@ function loadWorker(options: WorkerOptions = {}) {
   }
   const paths = (name = CURRENT) => [...(store.get(name)?.entries.keys() ?? [])].map((k) => k.slice(origin.length)).sort()
   return {
+    warnings: context.console.warn,
     classify: api.classify,
     warmableUrls: api.warmableUrls,
     listeners,
@@ -160,6 +162,41 @@ describe('sw classify', () => {
 })
 
 describe('sw fetch strategies', () => {
+  it.each(['HTML', 'wasm'])('returns fresh %s when put rejects and preserves old cached files', async (kind) => {
+    const page = kind === 'HTML'
+    const oldPath = page ? '/van-ban/' : '/van-ban/old_bg.wasm'
+    const freshPath = page ? oldPath : '/van-ban/new_bg.wasm'
+    const fresh = response(200, 'fresh')
+    const w = loadWorker({
+      caches: { [CURRENT]: { [oldPath]: 'old' } },
+      manifest: ['/van-ban/', '/van-ban/new_bg.wasm'],
+      network: () => fresh,
+    })
+    const cache = w.store.get(CURRENT)!
+    const old = cache.entries.get(u(oldPath))
+    const put = vi.spyOn(cache, 'put').mockRejectedValue(new DOMException('full', 'QuotaExceededError'))
+    const remove = vi.spyOn(cache, 'delete')
+    const result = page ? await w.fetchPage(freshPath) : await w.fetchAsset(freshPath)
+    expect(result).toBe(fresh)
+    expect(put).toHaveBeenCalledOnce()
+    expect(cache.entries.get(u(oldPath))).toBe(old)
+    expect(w.paths()).toEqual([oldPath])
+    expect(remove).not.toHaveBeenCalled()
+    expect(w.warnings).toHaveBeenCalledOnce()
+  })
+
+  it('returns the fresh page when pruning rejects', async () => {
+    const fresh = response(200, 'fresh')
+    const w = loadWorker({
+      caches: { [CURRENT]: { '/van-ban/': 'old' } },
+      manifest: ['/van-ban/'],
+      network: () => fresh,
+    })
+    vi.spyOn(w.store.get(CURRENT)!, 'keys').mockRejectedValue(new Error('cache unavailable'))
+    expect(await w.fetchPage('/van-ban/')).toBe(fresh)
+    expect(w.warnings).toHaveBeenCalledOnce()
+  })
+
   it('does not store a 206 range reply', async () => {
     const w = loadWorker({ network: () => response(206) })
     expect((await (await w.fetchAsset('/van-ban/a_bg.wasm'))!).status).toBe(206)

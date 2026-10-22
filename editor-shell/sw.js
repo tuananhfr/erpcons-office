@@ -56,9 +56,13 @@ async function networkFirst(request, requestingId) {
   try {
     var response = await fetch(request)
     if (storable(response)) {
-      await cache.put(request, response.clone())
-      var pathname = new URL(request.url).pathname
-      if (pathname.slice(-1) === '/') await prune(cache, pathname, requestingId)
+      try {
+        await cache.put(request, response.clone())
+        var pathname = new URL(request.url).pathname
+        if (pathname.slice(-1) === '/') await prune(cache, pathname, requestingId)
+      } catch (error) {
+        console.warn('Offline cache update failed', error)
+      }
     }
     return response
   } catch (error) {
@@ -78,7 +82,13 @@ async function cacheFirst(request) {
   var hit = await cache.match(request)
   if (hit) return hit
   var response = await fetch(request)
-  if (storable(response)) await cache.put(request, response.clone())
+  if (storable(response)) {
+    try {
+      await cache.put(request, response.clone())
+    } catch (error) {
+      console.warn('Offline cache update failed', error)
+    }
+  }
   return response
 }
 
