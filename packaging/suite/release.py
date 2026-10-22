@@ -13,6 +13,8 @@ def run(*args):
 version = os.environ['SUITE_VERSION']
 tag = f'vanphong-v{version}'
 repo = os.environ['GH_REPO']
+# ERPCONS_SKIP_MACOS: hosted Mac runners were unavailable, so the suite ships Windows and Linux only.
+skip_macos = os.environ.get('SKIP_MACOS') == 'true'
 # A missing release does not imply a missing tag (including lightweight tags).
 refs = run('gh', 'api', f'repos/{repo}/git/matching-refs/tags/{tag}')
 if any(ref['ref'] == f'refs/tags/{tag}' for ref in json.loads(refs)):
@@ -23,8 +25,10 @@ expected = {
     'ERPCons-VanPhong-macos-universal.dmg', 'ERPCons-VanPhong-linux-x86_64-AppImage.tar.gz',
     'erpcons-vanphong_amd64-deb.tar.gz', 'erpcons-vanphong.x86_64-rpm.tar.gz',
 }
+if skip_macos:
+    expected.discard('ERPCons-VanPhong-macos-universal.dmg')
 if {path.name for path in root.iterdir()} != expected:
-    raise ValueError('Expected exactly six suite artifacts')
+    raise ValueError(f'Expected exactly {len(expected)} suite artifacts')
 checksums = []
 for name in sorted(expected):
     with (root / name).open('rb') as stream:
@@ -39,7 +43,7 @@ for release in releases:
     notes += f"- {release['base']}: [{release['tag']}](https://github.com/tuananhfr/{release['fork']}/releases/tag/{release['tag']})\n"
 notes += '''
 Windows: tải setup.exe để cài cả bốn ứng dụng, hoặc giải nén bản portable.zip.
-macOS: mở DMG và kéo bốn ứng dụng vào Applications.
+{macos}
 Linux: giải nén gói AppImage (cho phép thực thi trước khi chạy), .deb hoặc .rpm.
 Trong thư mục gói .deb chạy `sudo apt install ./erpcons-*.deb`; với .rpm chạy `sudo dnf install ./erpcons-*.rpm`.
 Đối chiếu tệp tải về bằng SHA256SUMS.txt.
@@ -50,7 +54,7 @@ macOS Gatekeeper: nhấp chuột phải vào từng ứng dụng → Open, hoặ
 `xattr -dr com.apple.quarantine "/Applications/<tên ứng dụng>.app"`.
 
 Dùng bản web tại https://office.erpcons.ai.
-'''
+'''.replace('{macos}', 'Bản macOS chưa có trong lần phát hành này.' if skip_macos else 'macOS: mở DMG và kéo bốn ứng dụng vào Applications.')
 Path('release-notes.md').write_text(notes, encoding='utf-8')
 run('gh', 'release', 'create', tag, '--repo', repo, '--target', os.environ['GITHUB_SHA'], '--latest',
     '--title', f'ERPCons Văn phòng {version}', '--notes-file', 'release-notes.md',

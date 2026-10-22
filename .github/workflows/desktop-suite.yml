@@ -83,6 +83,8 @@ jobs:
           if-no-files-found: error
 
   macos:
+    # Repository variable ERPCONS_SKIP_MACOS=true ships Windows and Linux alone while hosted Mac runners are congested.
+    if: vars.ERPCONS_SKIP_MACOS != 'true'
     needs: prepare
     runs-on: macos-14
     timeout-minutes: 30
@@ -125,7 +127,10 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'tuananhfr/erpcons-office'
+    if: >-
+      ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.repository == 'tuananhfr/erpcons-office'
+      && needs.prepare.result == 'success' && needs.windows.result == 'success' && needs.linux.result == 'success'
+      && (needs.macos.result == 'success' || (needs.macos.result == 'skipped' && vars.ERPCONS_SKIP_MACOS == 'true')) }}
     needs: [prepare, windows, macos, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -146,4 +151,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           SUITE_VERSION: ${{ needs.prepare.outputs.version }}
+          SKIP_MACOS: ${{ vars.ERPCONS_SKIP_MACOS }}
         run: python3 packaging/suite/release.py
