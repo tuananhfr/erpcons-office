@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-ERPCons Văn phòng (`office.erpcons.vn`): a static Next.js site that hosts four Rust/WASM editors
+ERPCons Văn phòng (`office.erpcons.ai`): a static Next.js site that hosts four Rust/WASM editors
 built from sibling forks. This repo writes no editor code; it builds the forks, copies their
 `dist/web/` into `out/<slug>/`, and injects the ERPCons shell into each editor page.
 No backend: user files never leave the browser.
@@ -89,7 +89,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
 - `docs/gap-register.md` tracks what is still missing against the FULL V4 spec, by wave.
 - Manual checks that machines cannot do (real Word/Excel, phones, Safari/Firefox, screen readers) live in
   `docs/manual-qa-v2.md`; measured timings in `docs/benchmarks.md`.
-- Production is Apache 2.4 (`/etc/apache2/office.erpcons.vn.inc`: compression, MIME, cache).
+- Production is Apache 2.4, vhost `office.erpcons.ai` (`/etc/apache2/office.erpcons.vn.inc`: compression, MIME, cache).
+  The include and `/var/www/office.erpcons.vn` keep the old domain's name; `office.erpcons.vn` only redirects.
   Deploy and rollback are WSL scripts outside the repo: `~/deploy-office.sh` (rsync a release
   dir, switch the `current` symlink, keep 3) and `~/rollback-office.sh [RELEASE|--list]`.
 - Fork changes belong in the fork on branch `tuananhfr` and are recorded in its
@@ -107,7 +108,7 @@ clippy wasm for `ui-egui` + engine (`gate.sh <fork> [--no-wasm]`), plus extra cr
 fork has known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate. Then
 `release.sh` builds the site and the 4 editors from local heads (site vitest/typecheck/lint included),
 `~/deploy-office.sh` publishes, `~/rollback-office.sh` reverts. Production QA runs Playwright against
-`https://office.erpcons.vn` (`QA_ORIGIN` overrides). Playwright quirks: no `deviceScaleFactor` emulation on the
+`https://office.erpcons.ai` (`QA_ORIGIN` overrides). Playwright quirks: no `deviceScaleFactor` emulation on the
 eframe canvas, typed first uppercase/diacritic char can be dropped (type lowercase), no `insertText`.
 
 ## Desktop suite

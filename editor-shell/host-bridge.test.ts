@@ -22,7 +22,7 @@ export function harness({ search = embedSearch(), path = '/bang-tinh/', hosts = 
   const nativeClicks: unknown[] = []
   let objectUrls = 0
   class FakeURL extends URL {
-    static createObjectURL() { objectUrls += 1; return `blob:https://office.erpcons.vn/${objectUrls}` }
+    static createObjectURL() { objectUrls += 1; return `blob:https://office.erpcons.ai/${objectUrls}` }
     static revokeObjectURL() {}
   }
   class Anchor { download = ''; href = ''; click() { nativeClicks.push(this) } }
@@ -31,7 +31,7 @@ export function harness({ search = embedSearch(), path = '/bang-tinh/', hosts = 
     HTMLAnchorElement: Anchor,
     showSaveFilePicker: async (options: unknown) => { nativePicker.push(options); return { native: true } },
     File: class { parts: unknown[]; name: string; constructor(parts: unknown[], name: string) { this.parts = parts; this.name = name } },
-    location: { search, pathname: path, href: 'https://office.erpcons.vn' + path + search },
+    location: { search, pathname: path, href: 'https://office.erpcons.ai' + path + search },
     document: {
       documentElement: { classList: { add: (name: string) => classes.add(name), contains: (name: string) => classes.has(name) } },
       createElement: () => ({ setAttribute() {}, appendChild() {}, remove() {} }),

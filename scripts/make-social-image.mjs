@@ -42,7 +42,7 @@ const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8">
     <h1>Mở tệp là<br><span>làm việc.</span></h1>
     <p class="apps">Văn bản · Bảng tính · Trình chiếu · PDF</p>
     <p class="note">Miễn phí. Không cần tài khoản.</p>
-    <p class="url">office.erpcons.vn</p>
+    <p class="url">office.erpcons.ai</p>
   </div>
 </body></html>`
 

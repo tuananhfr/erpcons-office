@@ -13,7 +13,7 @@ type Req = string | { url: string; method?: string; mode?: string }
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SOURCE = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8')
 const CURRENT = 'erpcons-office-__BUILD_ID__'
-const origin = 'https://office.erpcons.vn'
+const origin = 'https://office.erpcons.ai'
 const at = (p: string) => new URL(p, origin)
 const u = (p: string) => `${origin}${p}`
 
@@ -177,7 +177,7 @@ describe('sw warm-up', () => {
     const { warmableUrls } = loadWorker()
     expect(warmableUrls([
       u('/van-ban/'), u('/van-ban/#top'), u('/van-ban/a_bg.wasm'), u('/sw.js'),
-      'https://example.com/x.js', 'blob:https://office.erpcons.vn/1', 'not a url', 42,
+      'https://example.com/x.js', 'blob:https://office.erpcons.ai/1', 'not a url', 42,
     ], origin)).toEqual([u('/van-ban/'), u('/van-ban/a_bg.wasm')])
     expect(warmableUrls('nope', origin)).toEqual([])
   })

@@ -9,7 +9,7 @@ describe('page SEO', () => {
     expect(new Set(pages.map(page => page.url)).size).toBe(7)
     expect(new Set(pages.map(page => page.title)).size).toBe(7)
     for (const page of pages) {
-      expect(page.url).toMatch(/^https:\/\/office\.erpcons\.vn\//)
+      expect(page.url).toMatch(/^https:\/\/office\.erpcons\.ai\//)
       expect(page.title).toContain(SEO_BRAND)
       expect(page.description).not.toBe('')
     }

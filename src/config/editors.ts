@@ -18,7 +18,7 @@ export interface EditorEntry {
 
 export const SITE = {
   name: 'ERPCons Văn phòng',
-  origin: 'https://office.erpcons.vn',
+  origin: 'https://office.erpcons.ai',
   description: 'Soạn văn bản, bảng tính, trình chiếu và PDF ngay trên trình duyệt — miễn phí, không cần cài đặt, tệp không rời máy.',
 } as const
 

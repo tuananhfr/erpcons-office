@@ -49,7 +49,7 @@ Windows SmartScreen: chọn “More info” → “Run anyway”.
 macOS Gatekeeper: nhấp chuột phải vào từng ứng dụng → Open, hoặc chạy trong Terminal:
 `xattr -dr com.apple.quarantine "/Applications/<tên ứng dụng>.app"`.
 
-Dùng bản web tại https://office.erpcons.vn.
+Dùng bản web tại https://office.erpcons.ai.
 '''
 Path('release-notes.md').write_text(notes, encoding='utf-8')
 run('gh', 'release', 'create', tag, '--repo', repo, '--target', os.environ['GITHUB_SHA'], '--latest',

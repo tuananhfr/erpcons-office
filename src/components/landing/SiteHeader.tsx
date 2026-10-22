@@ -27,11 +27,11 @@ export function SiteHeader({ active = 'home' }: { active?: Page }) {
       <nav className="erp-desktop-nav" aria-label="Điều hướng chính"><Navigation active={active} /></nav>
       <div className="erp-header-actions">
         <Install variant="header" />
-        <a className="erp-header-link" href="https://erpcons.vn/">ERPCons - Construction OS <Icon name="arrow-up-right" /></a>
+        <a className="erp-header-link" href="https://erpcons.ai/">ERPCons - Construction OS <Icon name="arrow-up-right" /></a>
       </div>
       <details className="erp-mobile-menu">
         <summary aria-label="Mở menu điều hướng"><Icon name="list" /></summary>
-        <nav aria-label="Điều hướng di động"><Navigation active={active} /><a href="https://erpcons.vn/">ERPCons - Construction OS ↗</a><Install variant="menu" /></nav>
+        <nav aria-label="Điều hướng di động"><Navigation active={active} /><a href="https://erpcons.ai/">ERPCons - Construction OS ↗</a><Install variant="menu" /></nav>
       </details>
     </div>
   </header>

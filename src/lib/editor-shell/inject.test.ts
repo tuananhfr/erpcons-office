@@ -26,7 +26,7 @@ describe('injectEditorShell', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('<html lang="vi">')
     expect(out).toContain('<title>Soạn thảo Word trực tuyến miễn phí | Văn phòng by ERPCons</title>')
-    expect(out).toContain('<link rel="canonical" href="https://office.erpcons.vn/van-ban/">')
+    expect(out).toContain('<link rel="canonical" href="https://office.erpcons.ai/van-ban/">')
     expect(out).not.toContain('<title>WordCraft</title>')
     expect(out).not.toContain('wordcraft-45f84b7721cb79a9.ico')
     expect(out).toContain('<link rel="icon" href="/brand/van-phong-icon-32.png" type="image/png" sizes="32x32">')

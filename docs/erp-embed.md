@@ -1,6 +1,6 @@
 # Nhúng editor vào ERP (Protocol v1)
 
-ERPCons (`lpc.vn`) mở tệp của Drive dự án trong một editor của office.erpcons.vn bằng iframe khác origin.
+ERPCons (`lpc.vn`) mở tệp của Drive dự án trong một editor của office.erpcons.ai bằng iframe khác origin.
 Khi lưu, ERP nhận bytes về và ghi thành phiên bản mới. Mã editor chỉ sống ở repo này. Phía ERP chỉ là lớp
 mỏng `src/features/core/office/` trong `erpcons_frontend`.
 
@@ -9,7 +9,7 @@ Cầu nối: `editor-shell/host-bridge.js`, được tiêm vào trang của cả
 
 ## Kích hoạt
 
-URL iframe: `https://office.erpcons.vn/<editor>/?embed=erpcons&parent=<origin ERP, encodeURIComponent>`
+URL iframe: `https://office.erpcons.ai/<editor>/?embed=erpcons&parent=<origin ERP, encodeURIComponent>`
 
 Bridge chỉ bật khi đủ hai điều kiện:
 
@@ -100,13 +100,13 @@ cú tải đó đi qua (trong 5 giây, cùng tên) thay vì bắt lại thành m
 
 ## Việc ngoài repo
 
-Apache của `office.erpcons.vn` phải cho phép ERP nhúng trang. Header cần trả về:
+Apache của `office.erpcons.ai` phải cho phép ERP nhúng trang. Header cần trả về:
 
 ```
 Content-Security-Policy: frame-ancestors 'self' https://lpc.vn
 ```
 
 Đồng thời header **không** được có `X-Frame-Options: DENY` hoặc `X-Frame-Options: SAMEORIGIN`. Kiểm tra bằng
-lệnh `curl -sI https://office.erpcons.vn/bang-tinh/`.
+lệnh `curl -sI https://office.erpcons.ai/bang-tinh/`.
 
 Phía ERP cũng phải cho phép origin này trong `frame-src` (`erpcons_frontend/docs/security/nginx-headers.md`).

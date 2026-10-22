@@ -41,7 +41,7 @@ Nguồn và đích đều là Chrome trên Windows, trừ khi ghi khác.
 |---|---|---|---|
 | 3.1 | Sửa, **thoát hẳn Chrome** (không chỉ đóng tab), mở lại | Có đề nghị khôi phục và khôi phục đúng nội dung (máy đã kiểm đóng tab; thoát trình duyệt hẳn chưa) | |
 | 3.2 | Chế độ ẩn danh: sửa, đóng cửa sổ ẩn danh | Mất bản nháp là đúng; cảnh báo ở thanh trạng thái nếu có | |
-| 3.3 | Bật "Chặn mọi cookie và dữ liệu trang" cho office.erpcons.vn, mở editor | Vẫn dùng được; không có lỗi treo | |
+| 3.3 | Bật "Chặn mọi cookie và dữ liệu trang" cho office.erpcons.ai, mở editor | Vẫn dùng được; không có lỗi treo | |
 | 3.4 | Mở `.doc`, `.xls`, `.ppt` (định dạng cũ) | Hộp thoại giải thích chưa hỗ trợ, đề nghị lưu lại thành định dạng mới | |
 | 3.5 | Văn bản/Trình chiếu/PDF: có thay đổi chưa lưu → Đóng tài liệu | Hộp cảnh báo mất dữ liệu có Lưu / Không lưu / Hủy; Hủy giữ nguyên | |
 | 3.6 | Bảng tính: lưu CSV với ô bắt đầu bằng `=`, `+`, `-`, `@` | Excel không chạy công thức (có dấu `'` đứng trước) | |

@@ -21,7 +21,7 @@ export const ECOSYSTEM_TOOLS: EcosystemTool[] = [
   { id: 'ubotview', name: 'UbotView', description: 'Chụp ảnh và ghi nhận thực tế.', icon: 'camera', logo: '/brand/ecosystem/ubotview.png', color: 'purple', categories: ['Công việc'] },
   { id: 'ubotconnect', name: 'UbotConnect', description: 'Kết nối đa kênh.', icon: 'diagram-3', logo: '/brand/ecosystem/ubotconnect.png', color: 'blue', categories: ['Doanh nghiệp'] },
   { id: 'tekshot', name: 'Tekshot OS', description: 'Truyền thông và vận hành AI.', icon: 'film', logo: '/brand/ecosystem/tekshot.png', color: 'purple', categories: ['Công việc', 'Doanh nghiệp'] },
-  { id: 'erpcons', name: 'ERPCons', description: 'Quản trị doanh nghiệp toàn diện.', icon: 'buildings', logo: '/brand/ecosystem/erpcons.png', color: 'red', categories: ['Doanh nghiệp'], href: 'https://erpcons.vn/' },
+  { id: 'erpcons', name: 'ERPCons', description: 'Quản trị doanh nghiệp toàn diện.', icon: 'buildings', logo: '/brand/ecosystem/erpcons.png', color: 'red', categories: ['Doanh nghiệp'], href: 'https://erpcons.ai/' },
 ]
 export function filterTools(tools: EcosystemTool[], category: Category, query: string) {
   const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLocaleLowerCase('vi')

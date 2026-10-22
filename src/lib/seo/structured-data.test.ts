@@ -8,14 +8,14 @@ describe('structured data', () => {
       name: 'Văn phòng by ERPCons',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web browser',
-      url: 'https://office.erpcons.vn/',
+      url: 'https://office.erpcons.ai/',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'VND' },
       inLanguage: 'vi',
     })
   })
 
   it('uses the same product brand for the website name', () => {
-    expect(websiteLd()).toMatchObject({ '@type': 'WebSite', name: 'Văn phòng by ERPCons', url: 'https://office.erpcons.vn/' })
+    expect(websiteLd()).toMatchObject({ '@type': 'WebSite', name: 'Văn phòng by ERPCons', url: 'https://office.erpcons.ai/' })
   })
 
   it('turns FAQ items into a FAQPage', () => {
@@ -28,13 +28,13 @@ describe('structured data', () => {
 
   it('lists the landing and the four editors', () => {
     expect(sitemapEntries().map((e) => e.url)).toEqual([
-      'https://office.erpcons.vn/',
-      'https://office.erpcons.vn/kham-pha/',
-      'https://office.erpcons.vn/huong-dan/',
-      'https://office.erpcons.vn/van-ban/',
-      'https://office.erpcons.vn/bang-tinh/',
-      'https://office.erpcons.vn/trinh-chieu/',
-      'https://office.erpcons.vn/pdf/',
+      'https://office.erpcons.ai/',
+      'https://office.erpcons.ai/kham-pha/',
+      'https://office.erpcons.ai/huong-dan/',
+      'https://office.erpcons.ai/van-ban/',
+      'https://office.erpcons.ai/bang-tinh/',
+      'https://office.erpcons.ai/trinh-chieu/',
+      'https://office.erpcons.ai/pdf/',
     ])
   })
 })

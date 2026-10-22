@@ -23,7 +23,7 @@ export const PLATFORMS: PlatformGuide[] = [
     browsers: 'Windows, macOS, Linux · Chrome hoặc Edge',
     icon: 'laptop',
     install: [
-      { text: 'Mở office.erpcons.vn bằng Chrome hoặc Edge.' },
+      { text: 'Mở office.erpcons.ai bằng Chrome hoặc Edge.' },
       { text: 'Bấm "Cài ứng dụng" ở đầu trang, hoặc biểu tượng cài đặt ở cuối thanh địa chỉ.', icon: 'download' },
       { text: 'Văn phòng mở trong cửa sổ riêng và có biểu tượng trên màn hình, thanh tác vụ hoặc Launchpad.' },
     ],
@@ -39,7 +39,7 @@ export const PLATFORMS: PlatformGuide[] = [
     browsers: 'Chrome',
     icon: 'android2',
     install: [
-      { text: 'Mở office.erpcons.vn bằng Chrome.' },
+      { text: 'Mở office.erpcons.ai bằng Chrome.' },
       { text: 'Bấm "Cài ứng dụng" trong menu của trang, hoặc menu ⋮ của Chrome rồi chọn "Cài đặt ứng dụng".', icon: 'three-dots-vertical' },
       { text: 'Văn phòng xuất hiện trên màn hình chính như một ứng dụng.' },
     ],
@@ -56,7 +56,7 @@ export const PLATFORMS: PlatformGuide[] = [
     browsers: 'Safari',
     icon: 'phone',
     install: [
-      { text: 'Mở office.erpcons.vn bằng Safari.' },
+      { text: 'Mở office.erpcons.ai bằng Safari.' },
       { text: 'Bấm nút Chia sẻ của Safari.', icon: 'box-arrow-up' },
       { text: 'Chọn "Thêm vào MH chính" rồi bấm Thêm.', icon: 'plus-square' },
     ],
