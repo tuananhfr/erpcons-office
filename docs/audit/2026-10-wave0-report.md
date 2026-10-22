@@ -60,10 +60,10 @@ Desktop: engine chạy headless trên Linux (cùng mã với bản Windows/macOS
 |---|---|---|---|
 | GRID-11 | P1 | `daicoc.xls` dùng font .VnTime (mã TCVN3/ABC): chữ Việt hiện vỡ (vd. "b¶ng c­êng ®é"). Văn bản có sẵn chức năng chuyển mã cũ → Unicode, Bảng tính chưa có. | Phát hiện mã TCVN3/VNI theo font, đề nghị chuyển sang Unicode (dùng lại bảng chuyển của Văn bản) |
 | GRID-12 | P2 | Thanh thông báo khi mở `.xls` có câu tiếng Anh "6 items in this file were handled differently…" | Dịch toàn bộ thông báo mất mát/chuyển đổi |
-| PDF-06 | P2 | Màn hình chào của PDF web ghi "Chào mừng bạn đến với PdfCraft", không theo tên sản phẩm ERPCons như bản desktop | Dùng thương hiệu "PDF – ERPCons" cho cả web |
+| PDF-07 | P2 | Màn hình chào của PDF web ghi "Chào mừng bạn đến với PdfCraft", không theo tên sản phẩm ERPCons như bản desktop | Dùng thương hiệu "PDF – ERPCons" cho cả web |
 
 ## 5. Câu hỏi chờ chủ dự án
 1. Phần nhập ETABS (.mdb/DAO) và xuất AutoCAD của `daicoc.xls` là COM, b1 không chạy. Theo plan thì chúng báo
    "không hỗ trợ". Có muốn làm chức năng thay thế gốc trong app (nhập .mdb/CSV của ETABS, xuất DXF mở được bằng
    UbotCAD) không? Nếu có, xếp vào đợt nào?
-2. Đưa GRID-11/12 và PDF-06 vào đợt nào? Lead đề xuất GRID-12 và PDF-06 vào Đợt 2, GRID-11 vào Đợt 4.
+2. Đưa GRID-11/12 và PDF-07 vào đợt nào? Lead đề xuất GRID-12 và PDF-07 vào Đợt 2, GRID-11 vào Đợt 4.
