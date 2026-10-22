@@ -51,6 +51,14 @@ function messagePage(status, message, retryUrl) {
   return new Response(html, { status: status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
 
+async function quotaWarning(error) {
+  if (!error || error.name !== 'QuotaExceededError') return
+  try {
+    var windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    windows.forEach(function (client) { if (client.postMessage) client.postMessage({ type: 'erpcons-quota' }) })
+  } catch (ignored) { /* Reporting a cache failure must not break an online response. */ }
+}
+
 async function networkFirst(request, requestingId) {
   var cache = await caches.open(CACHE)
   try {
@@ -62,6 +70,7 @@ async function networkFirst(request, requestingId) {
         if (pathname.slice(-1) === '/') await prune(cache, pathname, requestingId)
       } catch (error) {
         console.warn('Offline cache update failed', error)
+        await quotaWarning(error)
       }
     }
     return response
@@ -87,6 +96,7 @@ async function cacheFirst(request) {
       await cache.put(request, response.clone())
     } catch (error) {
       console.warn('Offline cache update failed', error)
+      await quotaWarning(error)
     }
   }
   return response
@@ -115,12 +125,13 @@ async function warm(urls) {
     try {
       var response = await fetch(url)
       if (storable(response)) await cache.put(url, response.clone())
-    } catch (error) { /* stays uncached; the next online visit fills it */ }
+    } catch (error) { await quotaWarning(error) }
   }))
 }
 
 self.addEventListener('message', function (event) {
   var data = event.data
+  if (data && data.type === 'erpcons-apply-update') { event.waitUntil(self.skipWaiting()); return }
   if (!data || data.type !== 'erpcons-warm') return
   event.waitUntil(warm(warmableUrls(data.urls, self.location.origin)))
 })
@@ -185,12 +196,12 @@ async function receiveShare(request) {
   }
 }
 
-self.addEventListener('install', function () { self.skipWaiting() })
+self.addEventListener('install', function () {})
 
 self.addEventListener('activate', function (event) {
   event.waitUntil(
     caches.keys()
-      .then(function (keys) { return Promise.all(keys.filter(function (k) { return k.indexOf('erpcons-office-') === 0 && k !== CACHE }).map(carryOver)) })
+      .then(function (keys) { return Promise.all(keys.filter(function (k) { return k.indexOf('erpcons-office-') === 0 && k !== CACHE }).map(function (name) { return carryOver(name).catch(quotaWarning) })) })
       .then(function () { return self.clients.claim() }),
   )
 })

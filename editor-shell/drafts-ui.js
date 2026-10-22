@@ -32,8 +32,11 @@
   var SAVE_KEY = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘S' : 'Ctrl+S'
 
   var STATUS = {
+    dirty: { text: function () { return 'Bản nháp trên thiết bị chưa cập nhật' }, short: 'Chưa lưu nháp', tone: 'warn' },
+    pending: { text: function () { return 'Đang lưu bản nháp trên thiết bị…' }, short: 'Đang lưu nháp…', tone: 'warn' },
     saved: { text: function (s) { return 'Đã lưu bản nháp trên thiết bị · ' + time(s.at) }, short: 'Đã lưu nháp', tone: 'ok' },
-    nearFull: { text: function (s) { return 'Đã lưu bản nháp · bộ nhớ trình duyệt sắp đầy · ' + time(s.at) }, short: 'Bộ nhớ sắp đầy', tone: 'warn' },
+    nearFull: { text: function () { return 'Bộ nhớ trình duyệt sắp đầy. Hãy tải bản sao về thiết bị.' }, short: 'Bộ nhớ sắp đầy', tone: 'warn' },
+    cacheQuota: { text: function () { return 'Bộ nhớ trình duyệt đầy: chưa lưu được dữ liệu dùng ngoại tuyến.' }, short: 'Bộ nhớ đầy', tone: 'alert' },
     quota: { text: function () { return 'Bộ nhớ trình duyệt đầy: bản nháp mới nhất chưa được lưu. Hãy bấm Lưu (' + SAVE_KEY + ') để tải bản sao.' }, short: 'Bộ nhớ đầy', tone: 'alert' },
     error: { text: function () { return 'Không lưu được bản nháp trên thiết bị. Hãy bấm Lưu (' + SAVE_KEY + ') để tải bản sao.' }, short: 'Lỗi lưu nháp', tone: 'alert' },
     unavailable: { text: function () { return 'Trình duyệt không cho lưu bản nháp trên thiết bị. Nhớ bấm Lưu (' + SAVE_KEY + ') thường xuyên.' }, short: 'Không lưu nháp', tone: 'alert' },
@@ -53,6 +56,8 @@
     badge.hidden = !view
     if (!view) return
     var text = view.text(status)
+    if (status.draftKind && STATUS[status.draftKind]) text = STATUS[status.draftKind].text(status) + ' · ' + text
+    if (status.docId !== undefined) text = (status.name || 'Tài liệu hiện tại') + ' · ' + text
     badge.className = 'erp-shell__draft erp-shell__draft--' + view.tone
     // Failures interrupt; routine saves must not chatter to screen readers on every pause in typing.
     badge.setAttribute('role', view.tone === 'alert' ? 'alert' : 'status')

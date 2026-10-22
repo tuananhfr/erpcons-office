@@ -23,6 +23,7 @@ interface Store {
 interface Drafts {
   put(key: string, name: string, format: string, bytes: Uint8Array): void
   remove(key: string): void
+  state(value: { docId: string; name: string; revision: number; dirty: boolean; pending: boolean; committed: boolean; failed?: boolean }): void
   ready(restore: (...args: unknown[]) => void): void
 }
 
@@ -129,7 +130,7 @@ describe('draft store', () => {
     await flush()
     drafts!.remove('doc-1')
     await flush()
-    expect(seen).toEqual(['saved', 'idle'])
+    expect(seen).toEqual(['idle', 'pending', 'saved', 'idle'])
   })
 
   it('removes the record when the editor says the document is saved or closed', async () => {
@@ -151,6 +152,7 @@ describe('draft store', () => {
     await flush()
     expect(seen.at(-1)).toMatchObject({ kind: 'quota', name: 'Report.docx' })
     expect(idb.rows().map(row => row.size)).toEqual([1])
+    expect([...(idb.rows()[0].bytes as Uint8Array)]).toEqual([1])
   })
 
   it('says drafts cannot be kept when storage cannot be opened', async () => {
@@ -161,7 +163,7 @@ describe('draft store', () => {
     store!.subscribe(status => seen.push(status.kind))
     await flush()
     drafts!.put('doc-1', 'Report.docx', 'docx', bytes(1))
-    expect(seen).toEqual(['unavailable'])
+    expect(seen).toEqual(['idle', 'unavailable'])
   })
 
   it('asks the browser once to keep storage after the first draft', async () => {
@@ -179,7 +181,7 @@ describe('draft store', () => {
     store!.subscribe(status => seen.push(status.kind))
     drafts!.put('doc-1', 'A.docx', 'docx', bytes(1))
     await flush()
-    expect(seen).toEqual(['saved', 'nearFull'])
+    expect(seen).toEqual(['idle', 'pending', 'saved', 'nearFull'])
   })
 })
 

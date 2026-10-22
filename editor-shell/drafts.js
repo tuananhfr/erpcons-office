@@ -22,6 +22,39 @@
   var openInEditor = null
   var persistAsked = false
   var status = { kind: 'idle' }
+  var documents = Object.create(null)
+  var active = null
+  var inFlight = 0
+  var storageWarning = null
+  function snapshot() {
+    if (broken) return { kind: 'unavailable' }
+    var current = active === null ? status : documents[active]
+    return Object.assign({}, current, storageWarning ? { kind: storageWarning, draftKind: current.kind } : {})
+  }
+  function publish() {
+    listeners.forEach(function (fn) { fn(snapshot()) })
+  }
+  function state(value) {
+    if (!value || typeof value.docId !== 'string' || typeof value.name !== 'string'
+      || !integer(value.revision, 9007199254740991)
+      || typeof value.dirty !== 'boolean' || typeof value.pending !== 'boolean' || typeof value.committed !== 'boolean') return
+    var previous = documents[value.docId]
+    if (previous && value.revision < previous.revision) return
+    active = value.docId
+    documents[active] = {
+      docId: active, name: value.name, revision: value.revision,
+      dirty: value.dirty, pending: value.pending, committed: value.committed, failed: value.failed,
+      kind: value.failed ? 'error' : value.pending ? 'pending' : value.dirty ? 'dirty' : value.committed ? 'saved' : 'idle',
+      at: previous && previous.revision === value.revision && previous.kind === 'saved' ? previous.at : Date.now(),
+    }
+    publish()
+  }
+  function hasPending() {
+    return inFlight > 0 || Object.keys(documents).some(function (id) {
+      var doc = documents[id]
+      return doc.dirty || doc.pending || Boolean(doc.failed)
+    })
+  }
   function noop() {}
 
   // Synchronous on purpose: a draft flushed from `pagehide` must be written before the page is gone,
@@ -79,7 +112,7 @@
 
   function setStatus(next) {
     status = next
-    listeners.forEach(function (fn) { fn(status) })
+    publish()
   }
   function anyLive() {
     for (var id in live) if (live[id]) return true
@@ -145,26 +178,38 @@
     }
     if (storage.estimate) {
       storage.estimate().then(function (e) {
-        if (e.quota && e.usage / e.quota > 0.9 && status.kind === 'saved') setStatus({ kind: 'nearFull', at: status.at, name: status.name })
+        if (e.quota && e.usage / e.quota > 0.9 && storageWarning !== 'quota' && storageWarning !== 'cacheQuota') { storageWarning = 'nearFull'; publish() }
       }).catch(noop)
     }
   }
 
   function put(key, name, format, bytes) {
-    if (!bytes || typeof bytes.length !== 'number') return
+    if (!bytes || typeof bytes.length !== 'number' || broken) return Promise.resolve(false)
     var id = adopted[key] ? key : tab + '|' + key
     var now = Date.now()
     var record = { v: VERSION, id: id, editor: editor, tab: tab, name: String(name), format: String(format), size: bytes.length, crc: crc32(bytes), bytes: bytes, savedAt: now }
     live[id] = true
-    whenOpen(function () {
-      // A full quota aborts the transaction, so the previous draft of this document stays as it was.
-      request(STORE, 'readwrite', function (s) { s.put(record) }).then(function () {
-        if (!live[id]) return
-        setStatus({ kind: 'saved', at: now, name: record.name })
-        afterSave()
-      }, function (error) {
-        setStatus({ kind: error && error.name === 'QuotaExceededError' ? 'quota' : 'error', at: now, name: record.name })
-      })
+    inFlight += 1
+    setStatus({ kind: 'pending', name: record.name })
+    return new Promise(function (resolve) {
+      var task = function () {
+        // A full quota aborts the transaction, so the previous draft of this document stays as it was.
+        request(STORE, 'readwrite', function (s) { s.put(record) }).then(function () {
+          inFlight -= 1
+          if (storageWarning === 'quota') storageWarning = null
+          if (!live[id]) { publish(); resolve(true); return }
+          setStatus({ kind: 'saved', at: now, name: record.name })
+          afterSave()
+          resolve(true)
+        }, function (error) {
+          inFlight -= 1
+          if (error && error.name === 'QuotaExceededError') storageWarning = 'quota'
+          setStatus({ kind: error && error.name === 'QuotaExceededError' ? 'quota' : 'error', at: now, name: record.name })
+          resolve(false)
+        })
+      }
+      task.cancel = function () { resolve(false) }
+      whenOpen(task)
     })
   }
 
@@ -197,7 +242,9 @@
   try { opening = indexedDB.open('erpcons-drafts-v1', 1) } catch (error) { opening = null }
   function unavailable() {
     broken = true
+    queued.forEach(function (task) { if (task.cancel) task.cancel() })
     queued = []
+    inFlight = 0
     setStatus({ kind: 'unavailable' })
   }
   if (!opening) unavailable()
@@ -215,6 +262,8 @@
   }
 
   window.erpDrafts = {
+    version: 2,
+    state: state,
     put: put,
     remove: remove,
     ready: function (restore) {
@@ -225,7 +274,10 @@
 
   window.erpDraftStore = {
     tab: tab,
-    subscribe: function (fn) { listeners.push(fn) },
+    subscribe: function (fn) { listeners.push(fn); fn(snapshot()) },
+    snapshot: snapshot,
+    hasPending: hasPending,
+    warnQuota: function () { storageWarning = 'cacheQuota'; publish() },
     onReady: function (fn) {
       readyListeners.push(fn)
       fireReady()

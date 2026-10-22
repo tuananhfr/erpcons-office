@@ -57,6 +57,8 @@ function loadWorker(options: WorkerOptions = {}) {
     for (const [p, body] of Object.entries(entries)) cache.entries.set(u(p), response(200, body))
     store.set(name, cache)
   }
+  const messages: unknown[] = []
+  const skipWaiting = vi.fn(async () => {})
   const fetched: string[] = []
   const network = options.network ?? (() => response(200, 'net'))
   const source = options.manifest === null ? SOURCE : SOURCE.replace('/*__ASSET_MANIFEST__*/[]', JSON.stringify(options.manifest ?? []))
@@ -82,12 +84,12 @@ function loadWorker(options: WorkerOptions = {}) {
       addEventListener: (type: string, fn: unknown) => { listeners[type] = fn },
       location: { origin },
       crypto: { randomUUID: () => 'shared-1' },
-      skipWaiting: () => {},
+      skipWaiting,
       clients: {
         claim: async () => {},
         matchAll: async () => [
           ...(options.windows ?? []).map((p, i) => ({ id: `other-${i}`, url: u(p) })),
-          { id: 'fetching', url: 'about:blank' },
+          { id: 'fetching', url: 'about:blank', postMessage: (data: unknown) => messages.push(data) },
         ],
       },
     },
@@ -111,6 +113,9 @@ function loadWorker(options: WorkerOptions = {}) {
   const paths = (name = CURRENT) => [...(store.get(name)?.entries.keys() ?? [])].map((k) => k.slice(origin.length)).sort()
   return {
     warnings: context.console.warn,
+    messages,
+    skipWaiting,
+    install: () => dispatch('install', {}),
     classify: api.classify,
     warmableUrls: api.warmableUrls,
     listeners,
@@ -183,6 +188,7 @@ describe('sw fetch strategies', () => {
     expect(w.paths()).toEqual([oldPath])
     expect(remove).not.toHaveBeenCalled()
     expect(w.warnings).toHaveBeenCalledOnce()
+    expect(w.messages).toEqual([{ type: 'erpcons-quota' }])
   })
 
   it('returns the fresh page when pruning rejects', async () => {
@@ -371,4 +377,13 @@ describe('sw offline page', () => {
     const w = loadWorker({ network: () => 'offline' })
     await expect(w.fetchAsset('/bang-tinh/a_bg.wasm').then(p => p)).rejects.toThrow('Failed to fetch')
   })
+})
+
+
+it('waits for an explicit update action before skipping waiting', async () => {
+  const w = loadWorker()
+  await w.install()
+  expect(w.skipWaiting).not.toHaveBeenCalled()
+  await w.message({ type: 'erpcons-apply-update' })
+  expect(w.skipWaiting).toHaveBeenCalledOnce()
 })
