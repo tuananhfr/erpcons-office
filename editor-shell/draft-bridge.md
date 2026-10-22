@@ -5,7 +5,8 @@
 `put` now returns `Promise<boolean>`: true on transaction commit, false on failure
 (including unavailable storage). Await it before sending committed/failed; legacy callers
 may ignore the return value. The IndexedDB record schema remains v1. Editors without `state` retain the global
-save badge. Embedded ERP recovery remains owned by the host.
+save badge. Embedded (ERP iframe) recovery is the editor's own: see the fork's
+`packaging/web/README.md` "Embedded document recovery" (`init` with `docId`, `drafts: "host"|"local"`).
 
 Each fork (Word, Grid, Deck, PDF) must feature-detect `erpDrafts.state` and call:
 
