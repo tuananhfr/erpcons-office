@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+from sbom import write_sbom
 
 
 def run(*args):
@@ -29,6 +30,9 @@ if skip_macos:
     expected.discard('ERPCons-VanPhong-macos-universal.dmg')
 if {path.name for path in root.iterdir()} != expected:
     raise ValueError(f'Expected exactly {len(expected)} suite artifacts')
+releases = json.loads(Path('releases.json').read_text(encoding='utf-8'))
+write_sbom(root, releases)
+expected.add('sbom.cdx.json')
 checksums = []
 for name in sorted(expected):
     with (root / name).open('rb') as stream:
@@ -48,13 +52,13 @@ Linux: giải nén gói AppImage (cho phép thực thi trước khi chạy), .de
 Trong thư mục gói .deb chạy `sudo apt install ./erpcons-*.deb`; với .rpm chạy `sudo dnf install ./erpcons-*.rpm`.
 Đối chiếu tệp tải về bằng SHA256SUMS.txt.
 
-Bộ cài Windows chưa ký mã; macOS chỉ ký ad-hoc, chưa được Apple notarize.
+{signing}
 Windows SmartScreen: chọn “More info” → “Run anyway”.
 macOS Gatekeeper: nhấp chuột phải vào từng ứng dụng → Open, hoặc chạy trong Terminal:
 `xattr -dr com.apple.quarantine "/Applications/<tên ứng dụng>.app"`.
 
 Dùng bản web tại https://office.erpcons.ai.
-'''.replace('{macos}', 'Bản macOS chưa có trong lần phát hành này.' if skip_macos else 'macOS: mở DMG và kéo bốn ứng dụng vào Applications.')
+'''.replace('{signing}', 'Chữ ký bộ cài Windows đã được xác minh.' if os.environ.get('REQUIRE_SIGNING') == 'true' else 'Bộ cài Windows chưa ký mã; macOS chỉ ký ad-hoc, chưa được Apple notarize.').replace('{macos}', 'Bản macOS chưa có trong lần phát hành này.' if skip_macos else 'macOS: mở DMG và kéo bốn ứng dụng vào Applications.')
 Path('release-notes.md').write_text(notes, encoding='utf-8')
 run('gh', 'release', 'create', tag, '--repo', repo, '--target', os.environ['GITHUB_SHA'], '--latest',
     '--title', f'ERPCons Văn phòng {version}', '--notes-file', 'release-notes.md',

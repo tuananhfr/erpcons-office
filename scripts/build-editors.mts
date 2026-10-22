@@ -8,6 +8,9 @@ import { downloadMegabytes } from '../src/lib/build/editor-sizes.ts'
 import { forkBranchProblem, scanDistForBrand } from '../src/lib/build/fork-guard.ts'
 import { REPO_ROOT, forkDist, workspaceRoot } from '../src/lib/build/workspace.ts'
 
+import { checkout, verifyProvenance, writeProvenance } from '../src/lib/build/provenance.ts'
+
+const localOverride = process.argv.includes('--allow-local-provenance') || process.env.ERPCONS_ALLOW_LOCAL_PROVENANCE === '1'
 const skipRust = process.argv.includes('--skip-rust')
 const allowMissing = process.argv.includes('--allow-missing')
 const root = workspaceRoot()
@@ -35,6 +38,8 @@ function currentBranch(fork: string): string {
 }
 
 for (const editor of EDITORS) {
+  const dir = path.join(root, editor.fork)
+  const state = skipRust && allowMissing ? null : checkout(dir)
   if (!skipRust) {
     const problem = forkBranchProblem(editor.fork, currentBranch(editor.fork))
     if (problem) throw new Error(problem)
@@ -52,6 +57,8 @@ for (const editor of EDITORS) {
     }
     throw new Error(`[${editor.slug}] missing build: ${dist}/index.html`)
   }
+  if (!skipRust && state) writeProvenance(editor.fork, dir, dist, state)
+  if (!allowMissing && state) verifyProvenance(dist, editor.fork, state, localOverride)
   const files = fs.readdirSync(dist).filter((name) => fs.statSync(path.join(dist, name)).isFile())
     .map((name) => ({ name, gzipBytes: gzipSync(fs.readFileSync(path.join(dist, name)), { level: 9 }).length }))
   const leaks = scanDistForBrand(dist)

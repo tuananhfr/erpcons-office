@@ -1,5 +1,6 @@
 # ERPCons changes
 
+- WEB-06/WEB-07: Ghi và kiểm tra nguồn gốc bản build của bốn trình soạn thảo (`/build-info.json`), xuất SBOM CycloneDX cho site và bộ cài, thêm cổng bắt buộc ký mã `ERPCONS_REQUIRE_SIGNING` (mặc định tắt).
 - WEB-02/WEB-04/T22/T23 (web): Nhãn bản nháp luôn hiện đúng trạng thái kể cả khi trình duyệt chặn lưu; giao thức `state` v2 cho nhãn theo từng tài liệu và phiên bản; cảnh báo khi bộ nhớ trình duyệt đầy mà vẫn giữ bản nháp cũ; chỉ cập nhật service worker khi người dùng bấm và bản nháp đã lưu xong.
 - Desktop suite: Thêm bộ ERPCons Văn phòng gồm bốn ứng dụng cho Windows, macOS, Linux; kiểm tra SHA-256, thử cài đặt trong CI và ưu tiên tải trọn bộ trên landing.
 - GĐ4 (web): Thêm mục "Tải bản cài trên máy tính" cho cả bốn trình soạn thảo (Windows, macOS, Linux), làm nổi bản cài hợp với hệ điều hành, kèm ghi chú phát hành và hướng dẫn khi máy cảnh báo bộ cài chưa ký mã.

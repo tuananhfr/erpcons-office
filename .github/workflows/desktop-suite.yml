@@ -66,6 +66,20 @@ jobs:
         env:
           SUITE_VERSION: ${{ needs.prepare.outputs.version }}
         run: ./packaging/suite/windows/build.ps1 -Version $env:SUITE_VERSION
+      - name: Sign and verify final Windows setup
+        if: vars.ERPCONS_REQUIRE_SIGNING == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          AZURE_CERT_PROFILE: ${{ secrets.AZURE_CERT_PROFILE }}
+        run: ./packaging/suite/windows/sign.ps1 artifacts/ERPCons-VanPhong-windows-x64-setup.exe
       - name: Test fresh install and preinstalled VanBan
         shell: pwsh
         run: ./packaging/suite/windows/test.ps1
@@ -93,6 +107,11 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: suite-versions
+      - name: Require macOS notarization tooling
+        if: vars.ERPCONS_REQUIRE_SIGNING == 'true'
+        run: |
+          echo 'Signing required: suite notarization tooling is not configured; refusing release.' >&2
+          exit 1
       - name: Download and verify released DMGs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -151,5 +170,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           SUITE_VERSION: ${{ needs.prepare.outputs.version }}
+          REQUIRE_SIGNING: ${{ vars.ERPCONS_REQUIRE_SIGNING }}
           SKIP_MACOS: ${{ vars.ERPCONS_SKIP_MACOS }}
         run: python3 packaging/suite/release.py

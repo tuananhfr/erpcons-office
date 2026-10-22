@@ -118,3 +118,21 @@ After all four forks have released, run `.github/workflows/desktop-suite.yml` on
 in `tuananhfr/erpcons-office`. Optionally supply a version (`YYYY.MM.DD`, or `YYYY.MM.DD.N` for another release the same day; defaults to today UTC).
 The workflow verifies upstream SHA-256 checksums, tests the packages, and publishes `vanphong-v<version>`;
 existing tags are refused. Pushes to `installers/**` only build, test and upload artifacts.
+
+Suite security: repository variable `ERPCONS_REQUIRE_SIGNING=true` requires Windows setup signing and
+`Get-AuthenticodeSignature` status `Valid` before upload. Default unset preserves unsigned packaging.
+Secrets: `WINDOWS_CERTIFICATE` (base64 PFX), optional `WINDOWS_CERTIFICATE_PASSWORD`, or all of
+`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_SIGNING_ENDPOINT`,
+`AZURE_SIGNING_ACCOUNT`, `AZURE_CERT_PROFILE`. Optional `WINDOWS_TIMESTAMP_URL` overrides timestamping.
+The suite has no macOS notarization tooling yet: with the gate enabled the macOS job fails closed.
+Use `ERPCONS_SKIP_MACOS=true` to ship only the five Windows/Linux packages. Do not enable macOS signed
+releases until Developer ID signing, notarization submission, stapling and Gatekeeper verification are implemented.
+Each suite release also attaches `sbom.cdx.json`, aggregating published fork CycloneDX BOMs or explicitly
+listing release artifacts from SHA256SUMS.txt and tags when dependency BOMs are unavailable.
+
+Site builds write `/build-info.json` (site SHA, four fork provenance records and wasm/js SHA-256 hashes)
+and `/sbom.cdx.json` (npm production dependencies; excluded from precache). Fork builds write
+`dist/web/build-provenance.json` with full SHA, branch, dirty flag, workspace version, tool versions and time.
+Reused builds must match clean current fork HEADs, including during assembly. Missing provenance requires
+an editor rebuild. Local experiments can set `ERPCONS_ALLOW_LOCAL_PROVENANCE=1` for the whole pipeline
+(or pass `--allow-local-provenance` to both scripts); build-info records the override. Never use it for deployment.

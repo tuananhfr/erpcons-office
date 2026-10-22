@@ -18,7 +18,7 @@ function walk(dir: string, prefix = ''): string[] {
 
 /** URL paths of a built site plus an id that changes only when some file's content changes. */
 export function assetManifest(outDir: string): AssetManifest {
-  const files = walk(outDir).filter((rel) => rel !== 'sw.js' && !PRECOMPRESSED.test(rel)).sort()
+  const files = walk(outDir).filter((rel) => rel !== 'sw.js' && rel !== 'sbom.cdx.json' && !PRECOMPRESSED.test(rel)).sort()
   const hash = createHash('sha256')
   const urls = files.map((rel) => {
     hash.update(rel).update('\0').update(fs.readFileSync(path.join(outDir, rel))).update('\0')
