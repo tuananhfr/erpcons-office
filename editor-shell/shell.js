@@ -44,15 +44,27 @@
       apply.disabled = Boolean(busy)
       notice.title = busy ? 'Đang giữ bản nháp. Hãy chờ lưu nháp xong rồi cập nhật.' : 'Bản nháp đã được giữ trên thiết bị.'
     }
+    // Phones show only the short caption, so the Update button stays on screen next to the draft badge.
+    function caption(full, short) {
+      notice.textContent = ''
+      var long = document.createElement('span')
+      long.className = 'erp-shell__draft-full'
+      long.textContent = full
+      notice.appendChild(long)
+      var brief = document.createElement('span')
+      brief.className = 'erp-shell__draft-short'
+      brief.textContent = short
+      notice.appendChild(brief)
+    }
     function ready(worker) {
       waiting = worker
       if (!notice) {
         var bar = document.querySelector('.erp-shell')
         if (!bar) return
         notice = document.createElement('span')
-        notice.className = 'erp-shell__draft erp-shell__draft--warn'
+        notice.className = 'erp-shell__draft erp-shell__draft--warn erp-shell__update'
         notice.setAttribute('role', 'status')
-        notice.textContent = 'Có bản cập nhật. '
+        caption('Có bản cập nhật.', '')
         apply = document.createElement('button')
         apply.type = 'button'
         apply.textContent = 'Cập nhật'
@@ -84,8 +96,8 @@
       if (!notice) return
       waiting = null
       apply = null
-      notice.title = ''
-      notice.textContent = 'Đã cập nhật nền. Tiếp tục soạn thảo; chưa tải lại trang.'
+      notice.title = 'Đã cập nhật nền. Tiếp tục soạn thảo; chưa tải lại trang.'
+      caption('Đã cập nhật nền. Tiếp tục soạn thảo; chưa tải lại trang.', 'Đã cập nhật')
     }
   }
   if ('serviceWorker' in navigator) {

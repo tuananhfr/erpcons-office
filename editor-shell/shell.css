@@ -78,6 +78,9 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__draft--warn::before { background: var(--erp-warn); }
 .erp-shell__draft--alert { color: var(--erp-danger); font-weight: 600; }
 .erp-shell__draft--alert::before { background: var(--erp-danger); border-radius: 1px; transform: rotate(45deg); }
+/* The caption may shrink to an ellipsis; the Update button never does. */
+.erp-shell__update { flex: 0 1 auto; }
+.erp-shell__update button { flex: none; }
 @media (max-width: 767px) {
   .erp-shell__draft-full { display: none; }
   .erp-shell__draft-short { display: inline; }
