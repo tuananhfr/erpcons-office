@@ -1,0 +1,3 @@
+# These run inside a Linux container, whatever core.autocrlf says on the host.
+*.sh text eol=lf
+Dockerfile text eol=lf

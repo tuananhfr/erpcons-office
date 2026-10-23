@@ -26,7 +26,7 @@ Workspace layout (resolved by `src/lib/build/workspace.ts`, override with `ERPCO
 - `npm test` · `npm run lint` · `npm run typecheck`
 - Single test: `npx vitest run src/lib/build/fork-guard.test.ts` (or add `-t "<name>"`).
 
-Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
+Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image provides both.
 
 ## Build pipeline (the non-obvious parts)
 
@@ -91,8 +91,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
   `docs/manual-qa-v2.md`; measured timings in `docs/benchmarks.md`.
 - Production is Apache 2.4, vhost `office.erpcons.ai` (`/etc/apache2/office.erpcons.vn.inc`: compression, MIME, cache).
   The include and `/var/www/office.erpcons.vn` keep the old domain's name; `office.erpcons.vn` only redirects.
-  Deploy and rollback are WSL scripts outside the repo: `~/deploy-office.sh` (rsync a release
-  dir, switch the `current` symlink, keep 3) and `~/rollback-office.sh [RELEASE|--list]`.
+  Deploy model: rsync a release dir, switch the `current` symlink, keep 3, roll back by symlink
+  (the scripts that did this are lost, see "Gate and local builds").
 - Fork changes belong in the fork on branch `tuananhfr` and are recorded in its
   `ERPCONS-CHANGES.md`. The forks' own notes say "push to `main`" — that is upstream's flow;
   here `main` is untouched upstream. `../../craftrules` referenced by the forks is not checked out.
@@ -100,16 +100,28 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH.
 - Design spec and history: `docs/superpowers/specs/` and `docs/superpowers/plans/`.
   UI QA screenshots/reports go to `.qa/` (gitignored).
 
-## Gate and release tree (WSL, outside the repo)
+## Gate and local builds (Docker, `build/`)
 
-Windows Smart App Control blocks new native binaries, so every cargo and wasm job runs in WSL under one
-flock (`/tmp/erpcons-build.lock`; other sessions may share the machine). Per fork: clippy native, tests native,
-clippy wasm for `ui-egui` + engine (`gate.sh <fork> [--no-wasm]`), plus extra crates via `wsl-extra.sh`. Each
-fork has known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate. Then
-`release.sh` builds the site and the 4 editors from local heads (site vitest/typecheck/lint included),
-`~/deploy-office.sh` publishes, `~/rollback-office.sh` reverts. Production QA runs Playwright against
-`https://office.erpcons.ai` (`QA_ORIGIN` overrides). Playwright quirks: no `deviceScaleFactor` emulation on the
-eframe canvas, typed first uppercase/diacritic char can be dropped (type lowercase), no `insertText`.
+GitHub Actions minutes are not relied on: every cargo, wasm and Windows compile runs in the pinned Linux image
+`build/Dockerfile` (Rust 1.99.0, trunk, cargo-xwin, node, gh), started from Git Bash with `build/run.sh <step> ...`.
+The workspace is mounted at `/ws`; cargo targets (one per checkout: `/target/<fork>`, worktrees `/target/wt/<name>`;
+a shared dir links stale crates from another checkout of the same version), cargo, trunk/xwin and npm caches and this
+repo's `node_modules` live in Docker volumes. `build/run.sh test <fork> [--dir tmp/<wt>] <cargo test args>` runs tests. Working trees must be LF (`core.autocrlf=false` per repo):
+a CRLF checkout leaks `\r` into `include_str!` data and breaks rustfmt and tests in the container.
+
+- `build/run.sh gate <fork> [--no-wasm]`: the fork's CI Linux gate (rustfmt on files changed since the last
+  `erpcons-v*` tag or `GATE_BASE`, clippy `-D warnings`, tests, wasm clippy); logs in `build/logs/`. Each fork has
+  known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate.
+- `build/run.sh desktop-win <fork>`: refuses a dirty tree, cross-builds `<fork>.exe` and `<fork>-cli.exe`
+  (`x86_64-pc-windows-msvc`, static CRT, icon/VERSIONINFO checked) into `<fork>/target/x86_64-pc-windows-msvc/release/`.
+  Then on the host: `pwsh <fork>/packaging/windows/package.ps1 -Arch x64 -SkipBuild` (WiX 5.0.2 as a dotnet tool).
+  The host is Windows 11 Home (no Windows containers), so WiX packaging cannot move into Docker.
+- Web release and deploy: the previous machine's WSL scripts (`release.sh`, `~/deploy-office.sh`,
+  `~/rollback-office.sh`) are lost and not yet replaced. Production (`office.erpcons.ai`) is 69.62.73.66.
+
+Production QA runs Playwright against `https://office.erpcons.ai` (`QA_ORIGIN` overrides). Playwright quirks: no
+`deviceScaleFactor` emulation on the eframe canvas, typed first uppercase/diacritic char can be dropped (type
+lowercase), no `insertText`.
 
 ## Desktop suite
 
