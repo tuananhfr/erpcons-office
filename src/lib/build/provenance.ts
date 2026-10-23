@@ -25,6 +25,13 @@ export function checkout(dir: string): Checkout {
     dirty: command('git', ['status', '--porcelain', '--untracked-files=all'], dir) !== '', version }
 }
 export function gitSha(dir: string): string { return command('git', ['rev-parse', 'HEAD'], dir) }
+// Trunk downloads the wasm-bindgen CLI matching the locked crate into its own cache, so the CLI is not on PATH.
+export function lockedWasmBindgen(dir: string): string {
+  const lock = fs.readFileSync(path.join(dir, 'Cargo.lock'), 'utf8')
+  const version = lock.match(/^name = "wasm-bindgen"\r?\nversion = "([^"]+)"/m)?.[1]
+  if (!version) throw new Error(`Missing wasm-bindgen in ${dir}/Cargo.lock`)
+  return `wasm-bindgen ${version} (Cargo.lock)`
+}
 export function artifactHashes(dist: string): Record<string, string> {
   const names = fs.readdirSync(dist).filter((name) => /\.(wasm|js)$/.test(name)).sort()
   if (!names.some((name) => name.endsWith('.wasm')) || !names.some((name) => name.endsWith('.js'))) {
@@ -35,7 +42,7 @@ export function artifactHashes(dist: string): Record<string, string> {
 export function writeProvenance(fork: string, dir: string, dist: string, state: Checkout): void {
   const after = checkout(dir)
   if (JSON.stringify(after) !== JSON.stringify(state)) throw new Error(`[${fork}] checkout changed during build; rebuild`)
-  const tools = Object.fromEntries(['rustc', 'cargo', 'wasm-bindgen'].map((tool) => [tool, command(tool, ['--version'], dir)]))
+  const tools = { ...Object.fromEntries(['rustc', 'cargo'].map((tool) => [tool, command(tool, ['--version'], dir)])), 'wasm-bindgen': lockedWasmBindgen(dir) }
   fs.writeFileSync(path.join(dist, PROVENANCE), JSON.stringify({ ...state, fork, tools, builtAt: new Date().toISOString(), artifacts: artifactHashes(dist) }, null, 2) + '\n')
 }
 export function verifyProvenance(dist: string, fork: string, expected: Checkout, override = false): Provenance {

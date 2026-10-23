@@ -4,7 +4,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { EDITORS } from '../../config/editors.ts'
-import { artifactHashes, buildInfo, PROVENANCE, verifyProvenance } from './provenance.ts'
+import { artifactHashes, buildInfo, lockedWasmBindgen, PROVENANCE, verifyProvenance } from './provenance.ts'
 import { lockfileSbom } from './site-sbom.ts'
 import { assetManifest } from './asset-manifest.ts'
 
@@ -52,6 +52,14 @@ it('refuses modified artifacts even with local override', () => {
   const { dist } = fixture()
   fs.writeFileSync(path.join(dist, 'main.js'), 'changed')
   expect(() => verifyProvenance(dist, 'wordcraft', state, true)).toThrow('checksums')
+})
+it('records the wasm-bindgen version locked by the fork, not a CLI on PATH', () => {
+  const { root } = fixture()
+  const dir = path.join(root, 'wordcraft')
+  fs.writeFileSync(path.join(dir, 'Cargo.lock'), '[[package]]\nname = "wasm-bindgen-macro"\nversion = "9.9.9"\n\n[[package]]\r\nname = "wasm-bindgen"\r\nversion = "0.2.129"\r\n')
+  expect(lockedWasmBindgen(dir)).toBe('wasm-bindgen 0.2.129 (Cargo.lock)')
+  fs.writeFileSync(path.join(dir, 'Cargo.lock'), '[[package]]\nname = "serde"\nversion = "1.0.0"\n')
+  expect(() => lockedWasmBindgen(dir)).toThrow('Missing wasm-bindgen')
 })
 it('excludes site SBOM from precache and includes build-info', () => {
   const { root } = fixture()
