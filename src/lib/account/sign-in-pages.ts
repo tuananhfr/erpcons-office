@@ -15,7 +15,7 @@ const STYLE = [
   'img{border-radius:50%}',
   '[hidden]{display:none!important}',
   '.error p{color:var(--danger)}',
-  'button{min-height:40px;padding:0 20px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font:600 15px/1 inherit;font-family:inherit;cursor:pointer}',
+  'button{min-height:40px;padding:0 20px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font-weight:600;font-size:15px;line-height:1;font-family:inherit;cursor:pointer}',
   'button:focus-visible{outline:2px solid #3678d4;outline-offset:2px}',
 ].join('')
 

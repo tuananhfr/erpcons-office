@@ -185,6 +185,8 @@
       .then(function (response) {
         return readBody(response).then(function (doc) {
           var methods = doc && doc.code_challenge_methods_supported
+          if (response.status === 429) throw failure('rate_limited', 429, retryAfterOf(response))
+          if (response.status >= 500) throw failure('dependency_unavailable', response.status, retryAfterOf(response))
           if (!response.ok || !doc || doc.issuer !== config.issuer || typeof doc.authorization_endpoint !== 'string'
             || typeof doc.token_endpoint !== 'string' || !Array.isArray(methods) || methods.indexOf('S256') === -1) throw failure('discovery_failed')
           return doc
@@ -619,6 +621,12 @@
     if (!error) {
       if (wait) clearTimeout(wait.timer)
       delete backoff[key]
+      // The retry note would otherwise outlive the outage; keep it while another task still backs off.
+      if (state.error && (state.error.code === 'rate_limited' || state.error.code === 'dependency_unavailable')
+        && !Object.keys(backoff).length) {
+        state.error = null
+        changed()
+      }
       return
     }
     var code = error.code

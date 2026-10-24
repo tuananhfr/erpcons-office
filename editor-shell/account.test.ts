@@ -354,6 +354,17 @@ describe('sign-in popup', () => {
     }
   })
 
+  it('reports PI ID as busy or down, not as a network problem, when discovery answers 429 or 503', async () => {
+    for (const [status, code] of [[429, 'rate_limited'], [503, 'dependency_unavailable']] as const) {
+      const env = new Env()
+      env.pi.on(call => (call.path === '/.well-known/openid-configuration' ? problem(status, code) : undefined))
+      const opener = env.open('/van-ban/')
+      const done = opener.account.signIn()
+      env.open(opener.opened[0].url, { popup: opener.opened[0] })
+      expect((await done).error?.code).toBe(code)
+    }
+  })
+
   it('reports a blocked popup', async () => {
     const env = new Env()
     const tab = env.open('/van-ban/', { popupBlocked: true })
@@ -778,6 +789,18 @@ describe('API errors (contract §3)', () => {
     expect(tab.account.status()).toBe('signed-in')
     env.clock.advance(1000)
     await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
+  })
+
+  it('clears the outage note once the retry succeeds', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.pi.on(call => (call.path === '/v1/me' ? problem(503, 'dependency_unavailable') : undefined))
+    const tab = env.open('/')
+    await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('dependency_unavailable'))
+    env.clock.advance(1000)
+    await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
+    await vi.waitFor(() => expect(tab.account.snapshot().error).toBeNull())
+    expect(tab.account.status()).toBe('signed-in')
   })
 
   it('an unknown code falls back to its HTTP status', async () => {
