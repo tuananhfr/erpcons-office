@@ -122,7 +122,8 @@
     setOpen(false, true)
     account.signOut()
   })
-  note.addEventListener('click', hideNote)
+  // The note lets clicks through to the editor below and goes at the first press anywhere.
+  document.addEventListener('pointerdown', function () { if (note.textContent) hideNote() }, true)
   slot.addEventListener('keydown', function (event) {
     if (!open) return
     if (event.key === 'Escape') {

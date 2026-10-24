@@ -224,13 +224,14 @@ describe('shell account slot', () => {
     expect(ui.q('sign-in').hidden).toBe(false)
   })
 
-  it('shows an error once, as a polite status the user can dismiss', () => {
+  it('shows an error once, as a polite status that goes at the first press anywhere', () => {
     const ui = mount(snapshot())
     const error = { code: 'popup_blocked', message: 'Trình duyệt đã chặn cửa sổ đăng nhập.', retryAfter: null }
     ui.emit(snapshot({ error }))
     expect(ui.q('note').textContent).toBe(error.message)
     expect(ui.q('note').getAttribute('aria-live')).toBe('polite')
-    ui.click(ui.q('note'))
+    // A press on the editor under the note (here the canvas) dismisses it and still reaches the editor.
+    ui.document.dispatch(ui.document.querySelector('canvas')!, 'pointerdown')
     expect(ui.q('note').textContent).toBe('')
     ui.emit(snapshot({ error }))
     expect(ui.q('note').textContent).toBe('')

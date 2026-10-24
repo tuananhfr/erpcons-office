@@ -108,7 +108,7 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-drafts__meta { color: var(--erp-text-2); font-size: 12px; }
 .erp-drafts__row-actions { display: flex; flex: none; gap: 6px; }
 .erp-drafts__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.erp-drafts__button { min-height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; font: 600 13px/1 inherit; font-family: inherit; white-space: nowrap; cursor: pointer; }
+.erp-drafts__button { min-height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; font-weight: 600; font-size: 13px; line-height: 1; font-family: inherit; white-space: nowrap; cursor: pointer; }
 .erp-drafts__button:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
 .erp-drafts__button:active { transform: translateY(1px); }
 .erp-drafts__button:disabled { opacity: 0.6; cursor: progress; transform: none; }
@@ -158,7 +158,7 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__sign-in {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; height: 32px; padding: 0 12px;
   border: 1px solid var(--erp-border); border-radius: 6px; background: var(--erp-surface); color: var(--erp-ink);
-  font: 600 13px/1 inherit; font-family: inherit; white-space: nowrap; cursor: pointer;
+  font-weight: 600; font-size: 13px; line-height: 1; font-family: inherit; white-space: nowrap; cursor: pointer;
 }
 .erp-shell__sign-in:hover { background: var(--erp-surface-2); }
 .erp-shell__sign-in:disabled { opacity: 0.6; cursor: progress; }
@@ -166,7 +166,7 @@ html.erp-embedded .erp-shell { display: none; }
 /* Same darker crimson as the drafts panel: white on #da3548 falls short of 4.5:1. */
 .erp-shell__avatar {
   display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
-  border: 0; border-radius: 50%; background: #c22a3d; color: #fff; font: 700 14px/1 inherit; font-family: inherit; cursor: pointer;
+  border: 0; border-radius: 50%; background: #c22a3d; color: #fff; font-weight: 700; font-size: 14px; line-height: 1; font-family: inherit; cursor: pointer;
 }
 .erp-shell__avatar:hover { background: #a8233a; }
 .erp-shell__sign-in:focus-visible, .erp-shell__avatar:focus-visible, .erp-shell__account-action:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
@@ -184,7 +184,7 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__account-orgs-title { margin: 2px 8px 4px; color: var(--erp-text-2); font-size: 12px; }
 .erp-shell__account-action {
   display: block; box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px; border: 0; border-radius: 6px;
-  background: none; color: var(--erp-ink); font: 500 14px/1.3 inherit; font-family: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer;
+  background: none; color: var(--erp-ink); font-weight: 500; font-size: 14px; line-height: 1.3; font-family: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer;
 }
 .erp-shell__account-action:hover { background: var(--erp-surface-2); }
 .erp-shell__account-action[aria-pressed="true"] { font-weight: 700; box-shadow: inset 2px 0 0 var(--erp-crimson); cursor: default; }
@@ -192,7 +192,9 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__account-note {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 61; box-sizing: border-box; width: min(320px, calc(100vw - 24px - var(--erp-inset-left) - var(--erp-inset-right)));
   margin: 0; padding: 10px 12px; border: 1px solid #f3c1bc; border-radius: 8px; background: #fdecea; color: #b42318;
-  font: 400 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: normal; box-shadow: 0 8px 28px #10182024; cursor: pointer;
+  font: 400 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: normal; box-shadow: 0 8px 28px #10182024;
+  /* It floats over the editor's own title bar, so clicks go through to it (account-ui.js hides it). */
+  pointer-events: none;
 }
 .erp-shell__account-note:empty { display: none; }
 @media (max-width: 479px) {
