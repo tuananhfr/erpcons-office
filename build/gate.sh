@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Local equivalent of the fork's "ERPCons CI / Linux gate" job (.github/workflows/erpcons-ci.yml).
+# Local equivalent of the fork's "ERPCons CI / Linux gate" job (.github/workflows/erpcons-ci.yml), widened to the
+# whole workspace like `cargo xtask ci`: file readers/writers (xlsx, docx, ...) live outside the app crates.
 # Usage: gate.sh <fork> [--dir <worktree>] [--no-wasm]. rustfmt is checked against GATE_BASE (default: the last
 # erpcons-v* tag).
 set -uo pipefail
@@ -35,10 +36,9 @@ rustfmt_changed() {
   [ -z "$bad" ] || { echo "not rustfmt-clean: $bad"; return 1; }
 }
 
-pkgs=(-p "$fork" -p "$fork-ui-egui" -p "$fork-engine")
 step "rustfmt (changed files)" rustfmt_changed
-step "clippy (desktop app, ui-egui, engine)" cargo clippy "${pkgs[@]}" --all-targets -- -D warnings
-step "tests (desktop app, ui-egui, engine)" bash -c 'set -o pipefail; cargo test --no-fail-fast "$@" 2>&1 | tee "$0"' "$test_log" "${pkgs[@]}"
+step "clippy (workspace)" cargo clippy --workspace --all-targets -- -D warnings
+step "tests (workspace)" bash -c 'set -o pipefail; cargo test --workspace --no-fail-fast 2>&1 | tee "$0"' "$test_log"
 [ $wasm = 1 ] && step "clippy (web app, wasm32)" cargo clippy -p "$fork-web" --target wasm32-unknown-unknown -- -D warnings
 
 echo; echo "### Failing tests"

@@ -110,7 +110,7 @@ repo's `node_modules` live in Docker volumes. `build/run.sh test <fork> [--dir t
 a CRLF checkout leaks `\r` into `include_str!` data and breaks rustfmt and tests in the container.
 
 - `build/run.sh gate <fork> [--no-wasm]`: the fork's CI Linux gate (rustfmt on files changed since the last
-  `erpcons-v*` tag or `GATE_BASE`, clippy `-D warnings`, tests, wasm clippy); logs in `build/logs/`. Each fork has
+  `erpcons-v*` tag or `GATE_BASE`, workspace clippy `-D warnings` and tests as in `cargo xtask ci`, wasm clippy); logs in `build/logs/`. Each fork has
   known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate.
 - `build/run.sh desktop-win <fork>`: refuses a dirty tree, cross-builds `<fork>.exe` and `<fork>-cli.exe`
   (`x86_64-pc-windows-msvc`, static CRT, icon/VERSIONINFO checked) into `<fork>/target/x86_64-pc-windows-msvc/release/`.
