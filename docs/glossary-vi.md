@@ -251,3 +251,4 @@ Acrobat không có giao diện tiếng Việt; dùng cách gọi phổ thông, n
 | Nháp đã lưu | Đã lưu bản nháp trên thiết bị · {giờ} |
 | Bảng khôi phục | Có bản nháp chưa lưu từ lần trước · Khôi phục · Bỏ · Để sau |
 | Lưu ra tệp | Đã lưu vào tệp / Đã tải bản sao |
+| Tài khoản PI ID (tùy chọn) | Đăng nhập · Đăng xuất · Tổ chức · Cá nhân · Đang đăng nhập… · Đóng |

@@ -2,8 +2,13 @@ var CACHE = 'erpcons-office-__BUILD_ID__'
 // Every URL path of this build, filled in by assemble; empty means "unknown", which disables pruning.
 var MANIFEST = /*__ASSET_MANIFEST__*/[]
 
+// PI sign-in popup and callback (src/config/pi.ts): the callback URL carries the one-time `code` and `state`, which
+// must never reach Cache Storage or be served back offline. Issuer and API requests are cross-origin, so bypassed too.
+var SIGN_IN_PREFIX = '/dang-nhap/'
+
 function classify(url, method, mode, origin) {
   if (method !== 'GET' || url.origin !== origin || url.pathname === '/sw.js') return 'bypass'
+  if (url.pathname.indexOf(SIGN_IN_PREFIX) === 0) return 'bypass'
   if (mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html')) return 'network-first'
   return 'cache-first'
 }
@@ -109,7 +114,7 @@ function warmableUrls(urls, origin) {
     if (typeof raw !== 'string') return
     var url
     try { url = new URL(raw) } catch (error) { return }
-    if (!/^https?:$/.test(url.protocol) || url.origin !== origin || url.pathname === '/sw.js') return
+    if (!/^https?:$/.test(url.protocol) || url.origin !== origin || url.pathname === '/sw.js' || url.pathname.indexOf(SIGN_IN_PREFIX) === 0) return
     url.hash = ''
     if (seen.indexOf(url.href) === -1) seen.push(url.href)
   })
@@ -211,6 +216,8 @@ self.addEventListener('fetch', function (event) {
     event.respondWith(receiveShare(event.request))
     return
   }
+  // Authenticated responses are per user and `no-store`; never cache them, whatever origin the API ends up on.
+  if (event.request.headers && event.request.headers.has('Authorization')) return
   var strategy = classify(new URL(event.request.url), event.request.method, event.request.mode, self.location.origin)
   if (strategy === 'bypass') return
   // A navigation's own window only exists as resultingClientId; clientId is the tab that started it.

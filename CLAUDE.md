@@ -51,10 +51,10 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   `lang="vi"`, SEO tags, manifest, the 40px `.erp-shell` bar, and the canvas pushed below it.
   It is idempotent (`data-erpcons-shell`) and throws if the page shape changes upstream.
 - `editor-shell/*.js` are plain-ES5 IIFEs concatenated in order by `assets.ts`
-  (`shell → viewport → file-picker → open-file → keys → drafts → drafts-ui → host-bridge → crash-guard`) into one
-  inline `<script>`, after `window.erpEmbedHosts` (from `src/config/embed.ts`) and `window.erpMimeTypes` (from
-  `src/lib/files/mime-types.ts`, shared with the landing picker); no bundler, no TS. Tests run them
-  in node against fakes (`fake-idb.ts`).
+  (`shell → account → account-ui → viewport → file-picker → open-file → keys → drafts → drafts-ui → host-bridge → crash-guard`)
+  into one inline `<script>`, after `window.erpEmbedHosts` (from `src/config/embed.ts`), `window.erpMimeTypes` (from
+  `src/lib/files/mime-types.ts`, shared with the landing picker) and, only with PI sign-in on, `window.erpPi`; no
+  bundler, no TS. Tests run them in node against fakes (`fake-idb.ts`, `fake-browser.ts`, `fake-pi.ts`).
   - Phones: inject.ts adds `viewport-fit=cover, interactive-widget=resizes-content` to the fork's viewport meta;
     shell.css owns the safe-area vars (`--erp-inset-*`, zeroed when embedded) and `--erp-top`/`--erp-bottom`
     that the bar, canvas and overlays use. `viewport.js` sets `--erp-keyboard-h` from `visualViewport` (iOS
@@ -73,11 +73,19 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   - `host-bridge.js`: ERP embedding (`?embed=erpcons&parent=<origin>`, origin must be in
     `erpEmbedHosts`): postMessage protocol v1 in `docs/erp-embed.md`. It identifies the document
     by file name only, so two open documents with the same name are ambiguous.
+  - `account.js`: optional PI ID sign-in (contract in sibling `erpcons-account/docs/`), behind
+    `PI_ACCOUNT_ENABLED` in `src/config/pi.ts` (off in production). Always installs `window.erpAccount` v1 (shape in
+    `src/lib/account/types.ts`, read later by the forks); without `window.erpPi` or when embedded it is a guest with
+    built-in tiers and no network. Popup sign-in (`/dang-nhap/`, `/dang-nhap/callback/`, written by assemble only when
+    enabled; same script), refresh token in localStorage (rotated under Web Locks), access token in memory, shared
+    with other tabs over BroadcastChannel. The landing inlines the same file from `app/layout.tsx`.
+    `account-ui.js` fills the bar slot inject.ts adds only when enabled.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
     of that build is open. It also answers the manifest's Android `share_target` (POST `/share-target/`):
     the shared file joins the same `pending` queue as the landing picker, then a 303 to `/<editor>/?open=<id>`.
+    `/dang-nhap/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.
 - Links between exported pages are plain `<a>` (static hosting, no RSC rewrites).
 
