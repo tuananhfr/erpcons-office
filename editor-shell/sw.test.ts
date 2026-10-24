@@ -160,6 +160,13 @@ describe('sw classify', () => {
     expect(classify(at('/sw.js'), 'GET', 'no-cors', origin)).toBe('bypass')
   })
 
+  it('never handles the PI sign-in pages or the PI issuer and API', () => {
+    expect(classify(at('/dang-nhap/'), 'GET', 'navigate', origin)).toBe('bypass')
+    expect(classify(at('/dang-nhap/callback/?code=c1&state=s1'), 'GET', 'navigate', origin)).toBe('bypass')
+    expect(classify(new URL('https://id.pi.invalid/.well-known/openid-configuration'), 'GET', 'cors', origin)).toBe('bypass')
+    expect(classify(new URL('https://id.pi.invalid/v1/me/entitlements?product_id=vanban'), 'GET', 'cors', origin)).toBe('bypass')
+  })
+
   it('keeps build and manifest placeholders for assemble to fill in', () => {
     expect(SOURCE).toContain('__BUILD_ID__')
     expect(SOURCE).toContain('/*__ASSET_MANIFEST__*/[]')
@@ -212,6 +219,30 @@ describe('sw fetch strategies', () => {
   it('serves a cached page, ignoring the query, when the network is down', async () => {
     const w = loadWorker({ caches: { [CURRENT]: { '/van-ban/': 'old page' } }, network: () => 'offline' })
     expect((await (await w.fetchPage('/van-ban/?from=home'))!).body).toBe('old page')
+  })
+})
+
+describe('sw and PI sign-in', () => {
+  it('leaves the OIDC callback to the network: never stored, never served from cache offline', async () => {
+    const online = loadWorker()
+    expect(await online.fetchPage('/dang-nhap/callback/?code=c1&state=s1')).toBeUndefined()
+    expect(await online.fetchPage('/dang-nhap/')).toBeUndefined()
+    expect(online.fetched).toEqual([])
+    expect(online.paths()).toEqual([])
+    const offline = loadWorker({ caches: { [CURRENT]: { '/dang-nhap/callback/?code=old&state=old': 'stale', '/': 'home' } }, network: () => 'offline' })
+    expect(await offline.fetchPage('/dang-nhap/callback/?code=c2&state=s2')).toBeUndefined()
+  })
+
+  it('never caches a request that carries an Authorization header', async () => {
+    const w = loadWorker()
+    const headers = new Headers({ Authorization: 'Bearer at-1' })
+    expect(await w.dispatchRaw({ request: { url: u('/v1/me'), method: 'GET', mode: 'cors', headers } })).toBeUndefined()
+    expect(w.paths()).toEqual([])
+  })
+
+  it('does not warm sign-in pages a tab reports', () => {
+    const { warmableUrls } = loadWorker()
+    expect(warmableUrls([u('/dang-nhap/callback/?code=c1&state=s1'), u('/dang-nhap/'), u('/')], origin)).toEqual([u('/')])
   })
 })
 

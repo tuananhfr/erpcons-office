@@ -2,6 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EDITORS } from '../src/config/editors.ts'
 import { embedHosts } from '../src/config/embed.ts'
+import { piConfig } from '../src/config/pi.ts'
+import { accountScript } from '../src/lib/account/account-script.ts'
+import { signInPages } from '../src/lib/account/sign-in-pages.ts'
 import { assetManifest, fillServiceWorker } from '../src/lib/build/asset-manifest.ts'
 import { loadShellAssets } from '../src/lib/editor-shell/assets.ts'
 import { installEditor } from '../src/lib/build/assemble.ts'
@@ -15,13 +18,23 @@ const out = path.join(REPO_ROOT, 'out')
 if (!fs.existsSync(path.join(out, 'index.html'))) throw new Error('out/index.html missing — run next build first')
 
 const shell = path.join(REPO_ROOT, 'editor-shell')
-const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS))
+const pi = piConfig()
+const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS), pi)
 
 const root = workspaceRoot()
 const info = buildInfo(root, REPO_ROOT, process.argv.includes('--allow-local-provenance') || process.env.ERPCONS_ALLOW_LOCAL_PROVENANCE === '1')
 for (const editor of EDITORS) {
   installEditor(editor, forkDist(editor, root), out, EDITORS, assets)
   console.log(`[${editor.slug}] installed from ${editor.fork}`)
+}
+
+// Only with PI sign-in enabled: the deployed site otherwise ships no sign-in pages at all.
+if (pi) {
+  for (const page of signInPages(pi, accountScript(pi, shell))) {
+    fs.mkdirSync(path.dirname(path.join(out, page.file)), { recursive: true })
+    fs.writeFileSync(path.join(out, page.file), page.html)
+    console.log(`sign-in page /${page.file}`)
+  }
 }
 
 fs.writeFileSync(path.join(out, 'build-info.json'), JSON.stringify(info, null, 2) + '\n')

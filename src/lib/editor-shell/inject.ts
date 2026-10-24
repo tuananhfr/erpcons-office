@@ -9,6 +9,8 @@ export const LOADING_MARKER = 'data-erpcons-loading'
 export interface ShellAssets {
   css: string
   script: string
+  /** PI sign-in is enabled (`src/config/pi.ts`): the bar gets the account slot account-ui.js fills in. */
+  account?: boolean
 }
 
 const escapeHtml = (text: string) =>
@@ -88,6 +90,26 @@ function headTags(editor: EditorEntry, assets: ShellAssets): string {
   ].join('\n')
 }
 
+// Bootstrap Icons "person" (MIT), inline so the bar needs no icon font.
+const PERSON_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg>'
+
+// Starts hidden: account-ui.js reveals it unless the page is embedded or account.js is disabled.
+const ACCOUNT_SLOT = [
+  '<div class="erp-shell__account" data-erp-account hidden>',
+  `<button type="button" class="erp-shell__sign-in" data-erp-account-sign-in>${PERSON_ICON}<span class="erp-shell__sign-in-text">Đăng nhập</span></button>`,
+  '<div class="erp-shell__user" data-erp-account-user hidden>',
+  '<button type="button" class="erp-shell__avatar" data-erp-account-toggle aria-expanded="false" aria-controls="erp-account-panel" aria-label="Tài khoản"><span data-erp-account-initials aria-hidden="true"></span></button>',
+  '<div class="erp-shell__account-panel" id="erp-account-panel" data-erp-account-panel hidden>',
+  '<p class="erp-shell__account-name" data-erp-account-name></p>',
+  '<p class="erp-shell__account-email" data-erp-account-email></p>',
+  '<div class="erp-shell__account-orgs" data-erp-account-orgs role="group" aria-label="Tổ chức" hidden></div>',
+  '<button type="button" class="erp-shell__account-action erp-shell__account-sign-out" data-erp-account-sign-out>Đăng xuất</button>',
+  '</div>',
+  '</div>',
+  '<p class="erp-shell__account-note" data-erp-account-note role="status" aria-live="polite"></p>',
+  '</div>',
+].join('')
+
 function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: ShellAssets): string {
   const links = navLinks(editor, editors)
   return [
@@ -96,6 +118,7 @@ function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: 
     `<span class="erp-shell__current">${escapeHtml(editor.name)}</span>`,
     `<nav class="erp-shell__nav" aria-label="Chức năng">${links}</nav>`,
     `<details class="erp-shell__menu"><summary>Chức năng</summary><nav aria-label="Chức năng">${links}</nav></details>`,
+    ...(assets.account ? [ACCOUNT_SLOT] : []),
     `</header>`,
     // Engines without a note of their own (PDF) get one; shell.js drops it on TrunkApplicationStarted.
     ...(editor.loadingId ? [] : [`<div class="erp-shell__loading" ${LOADING_MARKER}>${LOADING_TEXT}</div>`]),

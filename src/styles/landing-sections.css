@@ -22,6 +22,31 @@
 .erp-install__hint .erp-icon { vertical-align: -2px; color: var(--erp-blue); }
 .erp-install--menu .erp-install__button { width: 100%; padding: 12px; border: 0; background: none; color: var(--erp-blue); font-size: 15px; text-align: left; }
 .erp-install--menu .erp-install__hint { margin: 4px 12px 0; box-shadow: none; }
+.erp-account { position: relative; }
+.erp-account button { font: inherit; cursor: pointer; }
+.erp-account button:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
+.erp-account__sign-in { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.erp-account__sign-in:disabled { opacity: .6; cursor: progress; }
+.erp-account--header .erp-account__sign-in { border: 1px solid var(--erp-border); border-radius: 9px; padding: 9px 15px; background: #fff; color: var(--erp-text); font-weight: 600; font-size: 13px; }
+.erp-account--header .erp-account__sign-in:hover { background: var(--erp-bg); }
+.erp-account__avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: var(--erp-crimson); color: #fff; font-weight: 700; font-size: 15px; }
+.erp-account__avatar:hover { background: var(--erp-crimson-hover); }
+.erp-account__panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 6; box-sizing: border-box; min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 8px; border: 1px solid var(--erp-border); border-radius: 10px; background: #fff; box-shadow: 0 10px 24px #0826741a; color: var(--erp-text); }
+.erp-account__name { margin: 4px 8px 2px; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.erp-account__email { margin: 0 8px 8px; color: var(--erp-text-2); font-size: 12px; overflow-wrap: anywhere; }
+.erp-account__orgs { display: grid; padding: 6px 0; border-top: 1px solid var(--erp-border); }
+.erp-account__orgs-title { margin: 2px 8px 4px; color: var(--erp-text-2); font-size: 12px; }
+.erp-account__action { display: block; width: 100%; min-height: 44px; padding: 10px 8px; border: 0; border-radius: 8px; background: none; color: var(--erp-text); font-size: 14px; text-align: left; overflow-wrap: anywhere; }
+.erp-account__action:hover { background: var(--erp-bg); }
+.erp-account__action[aria-pressed="true"] { font-weight: 700; box-shadow: inset 2px 0 0 var(--erp-crimson); cursor: default; }
+.erp-account__sign-out { margin-top: 4px; border-top: 1px solid var(--erp-border); border-radius: 0 0 8px 8px; }
+.erp-account__note { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: #fdecea; color: #b42318; font-size: 13px; line-height: 1.5; }
+.erp-account--header .erp-account__note { position: absolute; top: calc(100% + 8px); right: 0; z-index: 6; width: 280px; }
+.erp-account--menu { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--erp-border); }
+.erp-account--menu .erp-account__sign-in { width: 100%; min-height: 44px; padding: 12px; border: 0; background: none; color: var(--erp-blue); font-size: 15px; text-align: left; }
+.erp-account--menu .erp-account__name { margin-inline: 12px; font-size: 15px; }
+.erp-account--menu .erp-account__email { margin-inline: 12px; }
+.erp-account--menu .erp-account__action { padding-inline: 12px; font-size: 15px; }
 .erp-hero { background: #fff; }
 .erp-hero__inner { display: grid; grid-template-columns: 1fr 1.14fr; align-items: center; min-height: clamp(340px, calc(100svh - 420px), 560px); padding-block: clamp(12px, 2.3svh, 24px) clamp(12px, 1.8svh, 20px); position: relative; }
 .erp-hero__copy { position: relative; z-index: 1; padding-block: clamp(12px, 2.2svh, 24px); }

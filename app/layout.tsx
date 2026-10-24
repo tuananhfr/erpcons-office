@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Patrick_Hand } from 'next/font/google'
 import type { ReactNode } from 'react'
 import { RegisterServiceWorker } from '@/components/RegisterServiceWorker.tsx'
+import { piConfig } from '@/config/pi.ts'
+import { accountScript } from '@/lib/account/account-script.ts'
 import { CAPTURE_INSTALL_PROMPT } from '@/lib/pwa/install-prompt.ts'
 import { PWA_THEME_COLOR } from '@/lib/pwa/web-manifest.ts'
 import { SITE } from '@/config/editors.ts'
@@ -27,10 +29,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: PWA_THEME_COLOR, width: 'device-width', initialScale: 1 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const pi = piConfig()
   return (
     <html lang="vi" className={`${inter.variable} ${handwriting.variable}`}>
       <body>
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
+        {/* Same account.js as the editors, so the landing shares their sign-in (same-origin storage). */}
+        {pi && <script dangerouslySetInnerHTML={{ __html: accountScript(pi) }} />}
         {children}
         <RegisterServiceWorker />
       </body>

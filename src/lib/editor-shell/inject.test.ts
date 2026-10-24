@@ -164,6 +164,18 @@ describe('injectEditorShell', () => {
     expect(out).toContain('console.log("shell")')
   })
 
+  it('adds the PI account slot to the bar only when sign-in is enabled, hidden until account-ui.js shows it', () => {
+    expect(injectEditorShell(trunkWord, word, EDITORS, assets)).not.toContain('data-erp-account')
+    const out = injectEditorShell(trunkWord, word, EDITORS, { ...assets, account: true })
+    const bar = out.slice(out.indexOf('<header class="erp-shell"'), out.indexOf('</header>'))
+    expect(bar).toContain('<div class="erp-shell__account" data-erp-account hidden>')
+    expect(bar).toContain('<span class="erp-shell__sign-in-text">Đăng nhập</span>')
+    expect(bar).toContain('data-erp-account-sign-out>Đăng xuất</button>')
+    expect(bar).toContain('aria-controls="erp-account-panel"')
+    expect(bar).toContain('id="erp-account-panel" data-erp-account-panel hidden')
+    expect(bar.indexOf('data-erp-account')).toBeGreaterThan(bar.indexOf('erp-shell__menu'))
+  })
+
   it('fails when an injection point is missing', () => {
     expect(() => injectEditorShell(trunkWord.replace('</head>', ''), word, EDITORS, assets)).toThrow('expected exactly one </head>')
     expect(() => injectEditorShell(trunkWord.replace('<body>', ''), word, EDITORS, assets)).toThrow('expected exactly one <body>')

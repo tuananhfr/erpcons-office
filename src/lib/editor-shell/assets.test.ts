@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { piConfig } from '../../config/pi.ts'
 import { SHELL_SCRIPTS, loadShellAssets } from './assets.ts'
 
 const shellDir = fileURLToPath(new URL('../../../editor-shell/', import.meta.url))
@@ -53,6 +54,32 @@ describe('loadShellAssets', () => {
     expect(part('host-bridge.js')).toBeGreaterThan(part('open-file.js'))
     expect(part('host-bridge.js')).toBeGreaterThan(part('drafts.js'))
     expect(part('open-file.js')).toBeGreaterThan(-1)
+  })
+
+  it('runs the account script right after shell.js and its bar UI right after it', () => {
+    expect(SHELL_SCRIPTS.slice(0, 3)).toEqual(['shell.js', 'account.js', 'account-ui.js'])
+    const script = loadShellAssets(shellDir).script
+    const part = (name: string) => script.indexOf(fs.readFileSync(`${shellDir}${name}`, 'utf8').trim())
+    expect(part('account.js')).toBeGreaterThan(part('shell.js'))
+    expect(part('account-ui.js')).toBeGreaterThan(part('account.js'))
+    expect(part('viewport.js')).toBeGreaterThan(part('account-ui.js'))
+  })
+
+  it('declares window.erpPi before the account script only when PI sign-in is enabled', () => {
+    const off = loadShellAssets(shellDir, ['https://lpc.vn'], null)
+    expect(off.script).not.toContain('window.erpPi=')
+    expect(off.account).toBe(false)
+    const on = loadShellAssets(shellDir, ['https://lpc.vn'], piConfig(true))
+    expect(on.account).toBe(true)
+    const config = on.script.indexOf('window.erpPi={"version":1,"issuer":"https://id.pi.invalid"')
+    expect(config).toBeGreaterThan(on.script.indexOf('window.erpMimeTypes='))
+    expect(config).toBeLessThan(on.script.indexOf(fs.readFileSync(`${shellDir}account.js`, 'utf8').trim()))
+  })
+
+  it('follows the feature flag by default', () => {
+    const assets = loadShellAssets(shellDir)
+    expect(assets.account).toBe(piConfig() !== null)
+    expect(assets.script.includes('window.erpPi=')).toBe(piConfig() !== null)
   })
 
   it('runs the crash guard last, once the draft store and the host bridge it reads exist', () => {

@@ -2,7 +2,9 @@
 import { Brand } from '@/components/Brand.tsx'
 import { Icon } from '@/components/Icon.tsx'
 import { InstallAppButton } from '@/components/InstallAppButton.tsx'
+import { AccountMenu } from '@/components/landing/AccountMenu.tsx'
 import { DESKTOP_DOWNLOADS_ENABLED } from '@/config/desktop.ts'
+import { PI_ACCOUNT_ENABLED } from '@/config/pi.ts'
 
 type Page = 'home' | 'explore' | 'guide'
 
@@ -20,6 +22,11 @@ function Install({ variant }: { variant: 'header' | 'menu' }) {
   return <InstallAppButton variant={variant} icon={<Icon name="download" />} shareIcon={<Icon name="box-arrow-up" label="Chia sẻ" />} />
 }
 
+function Account({ variant }: { variant: 'header' | 'menu' }) {
+  if (!PI_ACCOUNT_ENABLED) return null
+  return <AccountMenu variant={variant} icon={<Icon name="person" />} />
+}
+
 export function SiteHeader({ active = 'home' }: { active?: Page }) {
   return <header className="erp-site-header">
     <a className="erp-skip" href="#noi-dung">Đến nội dung chính</a>
@@ -28,11 +35,12 @@ export function SiteHeader({ active = 'home' }: { active?: Page }) {
       <nav className="erp-desktop-nav" aria-label="Điều hướng chính"><Navigation active={active} /></nav>
       <div className="erp-header-actions">
         <Install variant="header" />
+        <Account variant="header" />
         <a className="erp-header-link" href="https://erpcons.ai/">ERPCons - Construction OS <Icon name="arrow-up-right" /></a>
       </div>
       <details className="erp-mobile-menu">
         <summary aria-label="Mở menu điều hướng"><Icon name="list" /></summary>
-        <nav aria-label="Điều hướng di động"><Navigation active={active} /><a href="https://erpcons.ai/">ERPCons - Construction OS ↗</a><Install variant="menu" /></nav>
+        <nav aria-label="Điều hướng di động"><Navigation active={active} /><a href="https://erpcons.ai/">ERPCons - Construction OS ↗</a><Install variant="menu" /><Account variant="menu" /></nav>
       </details>
     </div>
   </header>
