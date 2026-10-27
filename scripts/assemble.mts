@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EDITORS } from '../src/config/editors.ts'
 import { embedHosts } from '../src/config/embed.ts'
+import { LOCAL_ONLINE_ENV, buildFlags } from '../src/config/online.ts'
 import { piConfig } from '../src/config/pi.ts'
 import { accountScript } from '../src/lib/account/account-script.ts'
 import { signInPages } from '../src/lib/account/sign-in-pages.ts'
@@ -18,8 +19,10 @@ const out = path.join(REPO_ROOT, 'out')
 if (!fs.existsSync(path.join(out, 'index.html'))) throw new Error('out/index.html missing — run next build first')
 
 const shell = path.join(REPO_ROOT, 'editor-shell')
-const pi = piConfig()
-const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS), pi)
+const flags = buildFlags(process.env, process.argv)
+if (flags.localOverride) console.warn(`${LOCAL_ONLINE_ENV}: PI sign-in and online documents are on; this out/ must never be deployed`)
+const pi = piConfig(flags.pi)
+const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS), pi, flags.online)
 
 const root = workspaceRoot()
 const info = buildInfo(root, REPO_ROOT, process.argv.includes('--allow-local-provenance') || process.env.ERPCONS_ALLOW_LOCAL_PROVENANCE === '1')

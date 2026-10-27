@@ -55,7 +55,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   into one inline `<script>`, after `window.erpEmbedHosts` (from `src/config/embed.ts`), `window.erpMimeTypes` (from
   `src/lib/files/mime-types.ts`, shared with the landing picker), `window.erpIntakeContract` (from
   `src/lib/files/intake-contract.ts`) and, only with PI sign-in on, `window.erpPi`; no
-  bundler, no TS. Tests run them in node against fakes (`fake-idb.ts`, `fake-browser.ts`, `fake-pi.ts`).
+  bundler, no TS. Tests run them in node against fakes (`fake-idb.ts`, `fake-browser.ts`, `fake-pi.ts`; online:
+  `fake-dom.ts`, `fake-office.ts`, `online-harness.ts`).
   - Phones: inject.ts adds `viewport-fit=cover, interactive-widget=resizes-content` to the fork's viewport meta;
     shell.css owns the safe-area vars (`--erp-inset-*`, zeroed when embedded) and `--erp-top`/`--erp-bottom`
     that the bar, canvas and overlays use. `viewport.js` sets `--erp-keyboard-h` from `visualViewport` (iOS
@@ -86,7 +87,16 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     built-in tiers and no network. Popup sign-in (`/dang-nhap/`, `/dang-nhap/callback/`, written by assemble only when
     enabled; same script), refresh token in localStorage (rotated under Web Locks), access token in memory, shared
     with other tabs over BroadcastChannel. The landing inlines the same file from `app/layout.tsx`.
-    `account-ui.js` fills the bar slot inject.ts adds only when enabled.
+    `account-ui.js` fills the bar slot inject.ts adds only when enabled. `erpAccount.apiFetch(path, init)` is the only
+    way to call the Office API: same-origin `/api/v1/…` paths only (throws otherwise, before any request), access
+    token attached, one refresh + retry on 401, then `unauthenticated`.
+  - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (off;
+    needs `PI_ACCOUNT_ENABLED` too). Only then `assets.ts` adds `ONLINE_SCRIPTS` before `host-bridge.js`: parts
+    `online-backoff/api/pending/state/dialogs/saver/open.js` on `window.erpOnline`, composed by `online.js`, which
+    defines `window.erpHost` v1 for a signed-in user on `/<editor>/?doc=<id>` (never when embedded). Pending
+    unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`
+    turns PI + online on in `assemble.mts`, and only together with `ERPCONS_ALLOW_LOCAL_PROVENANCE=1`, which build-info
+    records and the deploy refuses. `ERPCONS_API_PROXY=http://127.0.0.1:<port>` makes `npm run preview` proxy `/api/`.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
@@ -96,7 +106,7 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     file goes straight to `/<editor>/?open=<id>`: the OS share sheet and a cross-site page that strips its referrer
     are indistinguishable, so neither may open an editor by itself. `assemble.mts` fills its
     `/*__INTAKE__*/` placeholder with the contract and `intake.js`.
-    `/dang-nhap/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
+    `/dang-nhap/*`, `/api/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.
 - Links between exported pages are plain `<a>` (static hosting, no RSC rewrites).
 

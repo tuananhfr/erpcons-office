@@ -71,4 +71,10 @@ export interface ErpAccount {
   snapshot(): AccountSnapshot
   /** Returns the unsubscribe function. */
   onChange(listener: (snapshot: AccountSnapshot) => void): () => void
+  /**
+   * Same-origin `/api/v1/…` only (throws `invalid_api_path` before any request otherwise), with the access token
+   * attached; a 401 refreshes once and retries, then rejects with `unauthenticated`. Network failure: `network`.
+   */
+  apiFetch(path: string, init?: RequestInit): Promise<Response>
+
 }

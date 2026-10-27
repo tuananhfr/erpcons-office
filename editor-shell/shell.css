@@ -134,33 +134,56 @@ html.erp-embedded .erp-shell { display: none; }
 }
 
 /* Above every shell layer (drafts panel 50, transfer note 100): the engine under it no longer answers. */
-.erp-crash {
+.erp-crash, .erp-online {
   position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
   box-sizing: border-box; background: #10182073;
   padding: calc(16px + var(--erp-inset-top)) calc(16px + var(--erp-inset-right)) calc(16px + var(--erp-bottom)) calc(16px + var(--erp-inset-left));
   font: 400 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
-.erp-crash__box {
+.erp-crash__box, .erp-online__box {
   box-sizing: border-box; width: min(460px, 100%); max-height: 100%; overflow: auto; padding: 20px;
   border: 1px solid var(--erp-border); border-top: 3px solid var(--erp-crimson); border-radius: 10px;
   background: var(--erp-surface); color: var(--erp-ink); box-shadow: 0 12px 40px #10182040;
 }
-.erp-crash__title { margin: 0 0 8px; font-size: 17px; font-weight: 700; line-height: 1.35; }
-.erp-crash__body p { margin: 0 0 8px; color: var(--erp-text-2); }
-.erp-crash__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.erp-crash__button {
+.erp-crash__title, .erp-online__title { margin: 0 0 8px; font-size: 17px; font-weight: 700; line-height: 1.35; }
+.erp-crash__body p, .erp-online__body p { margin: 0 0 8px; color: var(--erp-text-2); }
+.erp-crash__actions, .erp-online__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.erp-crash__button, .erp-online__button {
   display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 36px; padding: 0 16px;
   border: 1px solid transparent; border-radius: 6px; font: 600 14px/1 inherit; font-family: inherit; text-decoration: none; white-space: nowrap; cursor: pointer;
 }
-.erp-crash__button:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
+.erp-crash__button:focus-visible, .erp-online__button:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
 /* Same darker crimson as the drafts panel: white on #da3548 falls short of 4.5:1. */
-.erp-crash__button--primary { background: #c22a3d; color: #fff; }
-.erp-crash__button--primary:hover { background: #a8233a; }
-.erp-crash__button--quiet { background: var(--erp-surface); border-color: var(--erp-border); color: var(--erp-ink); }
-.erp-crash__button--quiet:hover { background: var(--erp-surface-2); }
+.erp-crash__button--primary, .erp-online__button--primary { background: #c22a3d; color: #fff; }
+.erp-crash__button--primary:hover, .erp-online__button--primary:hover { background: #a8233a; }
+.erp-crash__button--quiet, .erp-online__button--quiet { background: var(--erp-surface); border-color: var(--erp-border); color: var(--erp-ink); }
+.erp-crash__button--quiet:hover, .erp-online__button--quiet:hover { background: var(--erp-surface-2); }
 @media (max-width: 479px) {
-  .erp-crash__actions { flex-direction: column-reverse; align-items: stretch; }
+  .erp-crash__actions, .erp-online__actions { flex-direction: column-reverse; align-items: stretch; }
 }
+/* Online documents (online-dialogs.js): the crash dialog's look, one layer below it so a crash still shows. */
+.erp-online { z-index: 900; }
+.erp-online__title { overflow-wrap: anywhere; }
+.erp-online__body p { overflow-wrap: anywhere; }
+.erp-online__note { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; background: #fdecea; color: var(--erp-danger, #b42318); font-size: 13px; }
+.erp-online__note[hidden] { display: none; }
+.erp-online__button:disabled { opacity: 0.6; cursor: progress; }
+.erp-online__box[aria-busy="true"] { cursor: progress; }
+/* Save state badge (online-state.js), drawn like the draft badge; saving is neutral, not a warning. The bar's
+   line-height of 1 with overflow hidden would clip Vietnamese marks below the line (ộ, ợ, ậ). */
+.erp-shell__save { line-height: 20px; }
+/* State first, at full width; the document name alone shrinks to an ellipsis and, below 4em, wraps onto the hidden
+   second line instead of leaving a bare "…". A state longer than the bar (an error message) is cut, see title. */
+.erp-shell__save .erp-shell__draft-full { display: flex; flex-wrap: wrap; min-width: 0; height: 20px; }
+.erp-shell__save-status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.erp-shell__save-doc { flex: 1 1 4em; min-width: 4em; max-width: max-content; overflow: hidden; text-overflow: ellipsis; }
+.erp-shell__save-doc::before { content: "·"; margin: 0 0.4em; }
+@media (max-width: 767px) { .erp-shell__save .erp-shell__draft-full { display: none; } }
+/* A long save or draft caption gives way first: the nav, the editor name and the menu would otherwise wrap. */
+.erp-shell__nav, .erp-shell__current, .erp-shell__menu { flex: none; white-space: nowrap; }
+@media (max-width: 479px) { .erp-shell__save { gap: 4px; } }
+.erp-shell__draft--saving { color: var(--erp-text-2); }
+.erp-shell__draft--saving::before { background: var(--erp-text-2); }
 
 /* PI sign-in slot (account-ui.js); the bar is 40px tall, so controls stay at 32px. */
 .erp-shell__account { position: relative; flex: none; display: flex; align-items: center; }

@@ -51,6 +51,9 @@ class Env {
   locks: SharedLocks | null = new SharedLocks()
   pi = new FakePi(() => this.clock.now)
   config: PiConfig = piConfig(true)!
+  /** The site's own origin (Office API); every request to it is recorded in `siteCalls`. */
+  site: ((url: string, init: RequestInit) => Promise<Response>) | null = null
+  siteCalls: { url: string; init: RequestInit }[] = []
 
   open(path: string, options: TabOptions = {}): Tab {
     const url = new URL(path, SITE_ORIGIN)
@@ -66,7 +69,7 @@ class Env {
         replace: (to: string) => { tab.replaced.push(to) },
       },
       history: { replaceState: (_state: unknown, _title: string, to: string) => { tab.history.push(to) } },
-      URLSearchParams, TextEncoder, TextDecoder, Uint8Array, atob, btoa,
+      URL, URLSearchParams, TextEncoder, TextDecoder, Uint8Array, atob, btoa,
       crypto: {
         subtle: globalThis.crypto.subtle,
         getRandomValues: (bytes: Uint8Array) => (random ? random(bytes) : globalThis.crypto.getRandomValues(bytes), bytes),
@@ -75,7 +78,11 @@ class Env {
       performance: { now: () => this.clock.now },
       setTimeout: this.clock.setTimeout, clearTimeout: this.clock.clearTimeout,
       setInterval: this.clock.setInterval, clearInterval: this.clock.clearInterval,
-      fetch: this.pi.fetch,
+      fetch: (input: string, init: RequestInit = {}) => {
+        if (!input.startsWith(SITE_ORIGIN + '/')) return this.pi.fetch(input, init as unknown as Parameters<FakePi['fetch']>[1])
+        this.siteCalls.push({ url: input, init })
+        return this.site ? this.site(input, init) : Promise.reject(new TypeError('Failed to fetch'))
+      },
       navigator: this.locks ? { locks: this.locks } : {},
       sessionStorage: options.session ?? new MemoryStorage(),
       addEventListener: (type: string, fn: (event: unknown) => void) => { (listeners[type] ||= []).push(fn) },
@@ -837,6 +844,123 @@ describe('snapshot', () => {
     const env = new Env()
     expect(env.open('/trinh-chieu/').account.snapshot().product).toBe('trinhchieu')
     expect(env.open('/').account.snapshot().product).toBeNull()
+  })
+})
+
+describe('apiFetch (Office API, docs/erp-host.md)', () => {
+  const auth = (call: { init: RequestInit }) => (call.init.headers as Record<string, string>).Authorization
+
+  it('sends the access token to a same-origin /api/v1/ path only, absolute, without cookies or redirects', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(200, { ok: true })
+    const tab = env.open('/van-ban/?doc=1')
+    const response = await tab.account.apiFetch('/api/v1/documents/abc?x=1', { method: 'PUT', headers: { 'If-Match': '"e1"', Authorization: 'Bearer stolen' }, body: 'x' })
+    expect(response.status).toBe(200)
+    expect(env.siteCalls).toHaveLength(1)
+    const [call] = env.siteCalls
+    expect(call.url).toBe(`${SITE_ORIGIN}/api/v1/documents/abc?x=1`)
+    expect(call.init).toMatchObject({ method: 'PUT', credentials: 'omit', cache: 'no-store', redirect: 'error', body: 'x' })
+    expect(call.init.headers).toEqual({ 'If-Match': '"e1"', Authorization: auth(call) })
+    expect(auth(call)).toMatch(/^Bearer at-\d+$/)
+  })
+
+  it.each([
+    'https://evil.example/api/v1/documents',
+    '//evil.example/api/v1/documents',
+    '/\\evil.example/api/v1/documents',
+    '\\\\evil.example/api/v1/documents',
+    'api/v1/documents',
+    '/api/v2/documents',
+    '/api/v1',
+    '/api/v1/../../dang-nhap/',
+    '/api/v1/%2e%2e/%2e%2e/x',
+    '/apiv1/documents',
+    `${SITE_ORIGIN}/api/v1/documents`,
+    'https://user:pw@office.erpcons.ai/api/v1/documents',
+    '/api/v1/documents#frag',
+  ])('refuses %s by throwing, before any request or token refresh', async (path) => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(200, {})
+    const tab = env.open('/van-ban/')
+    await settle()
+    const grants = env.pi.grants('refresh_token').length
+    const piCalls = env.pi.calls.length
+    expect(() => tab.account.apiFetch(path)).toThrow('invalid_api_path')
+    await settle()
+    expect(env.siteCalls).toHaveLength(0)
+    expect(env.pi.grants('refresh_token')).toHaveLength(grants)
+    expect(env.pi.calls).toHaveLength(piCalls)
+  })
+
+  it('takes leading-slash paths only, checked after the browser normalises them', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(200, {})
+    const tab = env.open('/van-ban/')
+    // Leading-slash paths only: an absolute URL is refused even when it names this origin.
+    expect(() => tab.account.apiFetch(`${SITE_ORIGIN}/api/v1/me`)).toThrow('invalid_api_path')
+    await tab.account.apiFetch('/api/v1/./documents/%2e/abc')
+    expect(env.siteCalls.map(c => c.url)).toEqual([`${SITE_ORIGIN}/api/v1/documents/abc`])
+  })
+
+  it('a 401 refreshes once and retries with the new token, then answers', async () => {
+    const env = new Env()
+    env.signedIn()
+    let calls = 0
+    env.site = async () => (++calls === 1 ? json(401, { code: 'UNAUTHENTICATED' }) : json(200, { ok: true }))
+    const tab = env.open('/van-ban/')
+    await settle()
+    const grants = env.pi.grants('refresh_token').length
+    const response = await tab.account.apiFetch('/api/v1/me')
+    expect(response.status).toBe(200)
+    expect(env.siteCalls).toHaveLength(2)
+    expect(env.pi.grants('refresh_token')).toHaveLength(grants + 1)
+    expect(auth(env.siteCalls[0])).not.toBe(auth(env.siteCalls[1]))
+  })
+
+  it('a second 401 rejects with unauthenticated, without looping, and keeps the session', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(401, { code: 'UNAUTHENTICATED' })
+    const tab = env.open('/van-ban/')
+    await settle()
+    await expect(tab.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'unauthenticated', status: 401 })
+    await settle()
+    expect(env.siteCalls).toHaveLength(2)
+    expect(tab.account.status()).toBe('signed-in')
+  })
+
+  it('rejects with signed_out when nobody is signed in, and network when the server is unreachable', async () => {
+    const env = new Env()
+    const guest = env.open('/van-ban/')
+    await expect(guest.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'signed_out' })
+    const disabled = env.open('/van-ban/', { config: null })
+    await expect(disabled.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'signed_out' })
+    expect(env.siteCalls).toHaveLength(0)
+    env.signedIn()
+    const tab = env.open('/van-ban/')
+    await expect(tab.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'network' })
+  })
+
+  it('never puts the token anywhere but the Authorization header of /api/v1/ requests', async () => {
+    const env = new Env()
+    env.signedIn()
+    let calls = 0
+    env.site = async () => (++calls === 1 ? json(401, {}) : json(200, {}))
+    const tab = env.open('/van-ban/')
+    await tab.account.apiFetch('/api/v1/documents/x/content', { method: 'GET' })
+    const tokens = env.siteCalls.map(c => auth(c).slice('Bearer '.length))
+    // The token is PI ID's own: besides /api/v1/ it only ever goes back to the issuer, and never in a URL.
+    for (const call of env.pi.calls) {
+      expect(new URL(call.url).origin).toBe(ISSUER)
+      for (const token of tokens) expect(call.url).not.toContain(token)
+    }
+    for (const call of env.siteCalls) for (const token of tokens) expect(call.url).not.toContain(token)
+    expect(JSON.stringify([...env.local.map.values()])).not.toContain(tokens[0])
+    expect(JSON.stringify([tab.warnings, tab.errors])).not.toContain(tokens[0])
+    expect(tab.account.version).toBe(1)
   })
 })
 

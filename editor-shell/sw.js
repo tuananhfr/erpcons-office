@@ -7,10 +7,15 @@ var MANIFEST = /*__ASSET_MANIFEST__*/[]
 // PI sign-in popup and callback (src/config/pi.ts): the callback URL carries the one-time `code` and `state`, which
 // must never reach Cache Storage or be served back offline. Issuer and API requests are cross-origin, so bypassed too.
 var SIGN_IN_PREFIX = '/dang-nhap/'
+// Office API (/api/v1/, docs/erp-host.md): per-user documents, never cached, even a GET without a token.
+var API_PREFIX = '/api/'
+
+function uncachedPath(pathname) {
+  return pathname === '/sw.js' || pathname.indexOf(SIGN_IN_PREFIX) === 0 || pathname.indexOf(API_PREFIX) === 0
+}
 
 function classify(url, method, mode, origin) {
-  if (method !== 'GET' || url.origin !== origin || url.pathname === '/sw.js') return 'bypass'
-  if (url.pathname.indexOf(SIGN_IN_PREFIX) === 0) return 'bypass'
+  if (method !== 'GET' || url.origin !== origin || uncachedPath(url.pathname)) return 'bypass'
   if (mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html')) return 'network-first'
   return 'cache-first'
 }
@@ -117,7 +122,7 @@ function warmableUrls(urls, origin) {
     if (typeof raw !== 'string') return
     var url
     try { url = new URL(raw) } catch (error) { return }
-    if (!/^https?:$/.test(url.protocol) || url.origin !== origin || url.pathname === '/sw.js' || url.pathname.indexOf(SIGN_IN_PREFIX) === 0) return
+    if (!/^https?:$/.test(url.protocol) || url.origin !== origin || uncachedPath(url.pathname)) return
     url.hash = ''
     if (seen.indexOf(url.href) === -1) seen.push(url.href)
   })

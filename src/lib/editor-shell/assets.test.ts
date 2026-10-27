@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { piConfig } from '../../config/pi.ts'
-import { SHELL_SCRIPTS, loadShellAssets, serviceWorkerIntake } from './assets.ts'
+import { ONLINE_SCRIPTS, SHELL_SCRIPTS, loadShellAssets, serviceWorkerIntake, shellScripts } from './assets.ts'
 
 const shellDir = fileURLToPath(new URL('../../../editor-shell/', import.meta.url))
 
@@ -50,7 +50,7 @@ describe('loadShellAssets', () => {
   })
 
   it('ships every script in the editor-shell folder except the service worker', () => {
-    const shipped = new Set(SHELL_SCRIPTS)
+    const shipped = new Set([...SHELL_SCRIPTS, ...ONLINE_SCRIPTS])
     const onDisk = fs.readdirSync(shellDir).filter((name) => name.endsWith('.js') && name !== 'sw.js')
     expect(onDisk.filter((name) => !shipped.has(name))).toEqual([])
   })
@@ -106,6 +106,27 @@ describe('loadShellAssets', () => {
     expect(part('open-file.js')).toBeGreaterThan(part('intake.js'))
     expect(part('share.js')).toBeGreaterThan(part('open-file.js'))
     expect(part('host-bridge.js')).toBeGreaterThan(part('share.js'))
+  })
+
+  it('ships the online scripts only with both PI sign-in and online documents on', () => {
+    const marker = fs.readFileSync(`${shellDir}online.js`, 'utf8').trim()
+    expect(loadShellAssets(shellDir).script).not.toContain(marker)
+    expect(loadShellAssets(shellDir, [], null, true).script).not.toContain(marker)
+    expect(loadShellAssets(shellDir, [], piConfig(true), false).script).not.toContain(marker)
+    const on = loadShellAssets(shellDir, [], piConfig(true), true).script
+    for (const name of ONLINE_SCRIPTS) expect(on).toContain(fs.readFileSync(`${shellDir}${name}`, 'utf8').trim())
+  })
+
+  it('runs the online parts after account.js and the transfer notice, online.js last of them, before the host bridge', () => {
+    const order = shellScripts(true)
+    const at = (name: string) => order.indexOf(name)
+    expect(order.filter((name) => ONLINE_SCRIPTS.includes(name))).toEqual(ONLINE_SCRIPTS)
+    expect(ONLINE_SCRIPTS[ONLINE_SCRIPTS.length - 1]).toBe('online.js')
+    expect(at('online-backoff.js')).toBeGreaterThan(at('open-file.js'))
+    expect(at('online-backoff.js')).toBeGreaterThan(at('account.js'))
+    expect(at('online.js')).toBeLessThan(at('host-bridge.js'))
+    expect(order[order.length - 1]).toBe('crash-guard.js')
+    expect(shellScripts(false)).toEqual(SHELL_SCRIPTS)
   })
 
   it('gives the service worker the same contract and intake.js, on its own global', () => {

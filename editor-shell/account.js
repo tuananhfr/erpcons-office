@@ -865,8 +865,51 @@
     }).then(function () { return snapshot() })
   }
 
+  // --- Office API (docs/erp-host.md) -----------------------------------------------------------------------
+  // The access token may only reach the site's own API: the check runs on the URL as the browser resolves it, and
+  // the request goes out absolute, so neither `..`, `//host`, `\` nor a <base> element can send it elsewhere.
+  var API_PREFIX = '/api/v1/'
+  function apiUrl(path) {
+    if (typeof path !== 'string' || path.charAt(0) !== '/') return null
+    var url
+    try { url = new URL(path, location.origin) } catch (e) { return null }
+    if (url.origin !== location.origin || url.pathname.indexOf(API_PREFIX) !== 0 || url.username || url.password || url.hash) return null
+    return url.href
+  }
+  function plainHeaders(given) {
+    var headers = {}
+    if (given && typeof given.forEach === 'function' && !Array.isArray(given)) given.forEach(function (value, key) { headers[key] = value })
+    else if (Array.isArray(given)) given.forEach(function (pair) { headers[pair[0]] = pair[1] })
+    else if (given) Object.keys(given).forEach(function (key) { headers[key] = given[key] })
+    Object.keys(headers).forEach(function (key) { if (/^authorization$/i.test(key)) delete headers[key] })
+    return headers
+  }
+  // Throws before any request for a refused URL; a 401 gets one refresh and one retry, then `unauthenticated`.
+  function apiFetch(path, init) {
+    var url = apiUrl(path)
+    if (!url) throw failure('invalid_api_path')
+    if (!enabled || !readSession()) return Promise.reject(failure('signed_out'))
+    var headers = plainHeaders(init && init.headers)
+    function attempt(token) {
+      var request = Object.assign({}, init || {}, {
+        headers: Object.assign({}, headers, { Authorization: 'Bearer ' + token }),
+        credentials: 'omit', cache: 'no-store', redirect: 'error'
+      })
+      return fetch(url, request).then(null, function () { throw failure('network') })
+    }
+    return getAccess().then(attempt).then(function (response) {
+      if (response.status !== 401) return response
+      state.access = null
+      return getAccess().then(attempt).then(function (retried) {
+        if (retried.status === 401) throw failure('unauthenticated', 401)
+        return retried
+      })
+    })
+  }
+
   window.erpAccount = {
     version: API_VERSION,
+    apiFetch: apiFetch,
     status: function () { return snapshot().status },
     user: function () { return snapshot().user },
     orgs: function () { return snapshot().orgs },
