@@ -426,10 +426,18 @@ describe('sw share target', () => {
     expect(w.store.get(CURRENT)!.entries.get(u('/nhan-tep/'))!.body).toContain('old.js')
   })
 
-  it('opens a single valid file straight in its editor, as before', async () => {
+  it('waits on the batch page for a click when a share carries no referrer, even with one valid file', async () => {
+    const idb = new FakeIdb()
+    const res = await (await loadWorker({ idb }).share(form([shared('Báo cáo.docx')])))!
+    expect(res.status).toBe(303)
+    expect(location(res)).toBe(u('/nhan-tep/?batch=id-1'))
+    expect(idb.rows('pending')[0]).toMatchObject({ id: 'id-2', state: 'READY', editor: 'van-ban' })
+  })
+
+  it('opens a single valid file straight in its editor when the share comes from this site', async () => {
     const idb = new FakeIdb()
     const type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    const res = await (await loadWorker({ idb }).share(form([shared('Báo cáo.DOCX', { type })])))!
+    const res = await (await loadWorker({ idb }).share(form([shared('Báo cáo.DOCX', { type })]), u('/')))!
     expect(res.status).toBe(303)
     expect(location(res)).toBe(u('/van-ban/?open=id-2'))
     const [row] = idb.rows('pending')
@@ -445,7 +453,7 @@ describe('sw share target', () => {
   it('routes every accepted extension to the editor that declares it', async () => {
     for (const editor of EDITORS) {
       for (const ext of editor.accepts) {
-        const res = await (await loadWorker().share(form([shared(`tệp.${ext}`)])))!
+        const res = await (await loadWorker().share(form([shared(`tệp.${ext}`)]), u('/')))!
         expect(location(res), ext).toBe(u(`/${editor.slug}/?open=id-2`))
       }
     }

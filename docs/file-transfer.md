@@ -61,12 +61,14 @@ once the editor page is fetched fresh the same link works.
 
 The manifest's `share_target` posts multipart `file` (plus `title`, `text`, `url`) to `/share-target/`, which
 `editor-shell/sw.js` answers without reaching the server. A post whose referrer is another site is refused. The OS
-share sheet sends no referrer, so an empty one must be accepted: a cross-site page that posts with
-`referrerpolicy="no-referrer"` gets through (known limitation; its files still pass the type, size and signature
-checks, but a single valid file opens straight in its editor). Each file
+share sheet sends no referrer, so an empty one must be accepted, but a cross-site page that posts with
+`referrerpolicy="no-referrer"` looks the same. Such a share therefore never opens an editor by itself: it always lands
+on `/nhan-tep/` and waits for the user's click. A cross-site page can still fill the temporary store (at most
+200 MB per post, expiring after an hour). Each file
 is checked on its own (type, size, signature); file 6 onwards and anything over the batch limit are rejected and stored
-without bytes. All records share one `batchId`. Exactly one valid file redirects to `/<editor>/?open=<id>`; anything
-else goes to `/nhan-tep/?batch=<batchId>`, which groups the files by editor ("Mở N tệp trong <Editor>"), offers
+without bytes. All records share one `batchId`. Only a post with a same-origin referrer and exactly one valid file
+redirects to `/<editor>/?open=<id>`; every other share goes to `/nhan-tep/?batch=<batchId>`, which groups the files
+by editor ("Mở N tệp trong <Editor>"), offers
 "Thử lại" only for `FAILED_RETRYABLE`, "Chọn lại tệp" and "Hủy lô tệp" (deletes the batch). A share with only a
 link (no file) gets a guidance page; the URL is never fetched, logged or shown. `launch_handler` is `navigate-new`.
 

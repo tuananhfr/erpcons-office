@@ -279,8 +279,11 @@ async function receiveShare(request) {
   } catch (error) {
     return messagePage(507, intake.message(error && error.name === 'QuotaExceededError' ? 'quota' : 'noSpace'))
   }
+  // The OS share sheet and a cross-site page that strips its referrer look the same here, so a share without a
+  // same-origin referrer never opens an editor by itself: the batch page waits for the user's click.
+  var trusted = Boolean(request.referrer)
   var only = batch.records.length === 1 ? batch.records[0] : null
-  var target = only && only.state === 'READY'
+  var target = trusted && only && only.state === 'READY'
     ? '/' + only.editor + '/?open=' + encodeURIComponent(only.id)
     : BATCH_PAGE + '?batch=' + encodeURIComponent(batch.batchId)
   return Response.redirect(self.location.origin + target, 303)

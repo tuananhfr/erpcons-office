@@ -92,7 +92,9 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
     of that build is open. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
     files join the same `pending` queue as the landing picker under one `batchId`, then a 303 to
-    `/<editor>/?open=<id>` (exactly one valid file) or `/nhan-tep/?batch=<id>`. `assemble.mts` fills its
+    `/nhan-tep/?batch=<id>`, which waits for the user's click. Only a same-origin referrer with exactly one valid
+    file goes straight to `/<editor>/?open=<id>`: the OS share sheet and a cross-site page that strips its referrer
+    are indistinguishable, so neither may open an editor by itself. `assemble.mts` fills its
     `/*__INTAKE__*/` placeholder with the contract and `intake.js`.
     `/dang-nhap/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.

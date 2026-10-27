@@ -43,7 +43,7 @@ thiết bị thì ghi **BỊ CHẶN**, không suy ra từ thiết bị khác.
 
 | # | Việc | Mong đợi | Kết quả |
 |---|---|---|---|
-| TC01 | Android: trong Zalo mở một tin có tệp DOCX tổng hợp → Chia sẻ → Văn phòng. Lặp lại với tệp đã lưu về máy, chia sẻ từ Files | Mở thẳng trong Văn bản, đúng nội dung. Network chỉ có `POST /share-target/` do service worker trả (cột Size ghi "ServiceWorker"), không có request nào mang tệp lên máy chủ. Nếu Zalo chỉ gửi liên kết thì làm tiếp TC11 và ghi lại | |
+| TC01 | Android: trong Zalo mở một tin có tệp DOCX tổng hợp → Chia sẻ → Văn phòng. Lặp lại với tệp đã lưu về máy, chia sẻ từ Files | Hiện trang "Nhận tệp" với một dòng DOCX; bấm "Mở 1 tệp trong Văn bản" thì mở đúng nội dung (chia sẻ không bao giờ tự mở công cụ, xem mục 3). Network chỉ có `POST /share-target/` do service worker trả (cột Size ghi "ServiceWorker"), không có request nào mang tệp lên máy chủ. Nếu Zalo chỉ gửi liên kết thì làm tiếp TC11 và ghi lại | |
 | TC03 | Android: Gmail, thư có XLSX đính kèm (có công thức `SUM`, `IF`, tham chiếu sheet khác) → Chia sẻ → Văn phòng | Mở trong Bảng tính; chọn ô có công thức, thanh công thức hiện đúng công thức, giá trị khớp Excel | |
 | TC04 | iPhone Safari: trang chủ → "Mở tệp" → Files → chọn DOCX | Mở trong Văn bản. Lặp lại với XLSX, PPTX, PDF: mỗi tệp chọn được và mở đúng công cụ | |
 | TC06 | Windows Chrome rồi Edge (PWA đã cài): chuột phải `.docx` → Mở bằng → Văn phòng; lặp lại với `.xlsx`, `.pptx`, `.pdf`. Chọn hai tệp `.docx` cùng lúc → Mở bằng | Mỗi tệp mở đúng công cụ, trong cửa sổ mới (không thay cửa sổ đang mở). Hai tệp chọn cùng lúc mở thành hai tài liệu. macOS Finder: như trên | |
@@ -88,8 +88,10 @@ thiết bị thì ghi **BỊ CHẶN**, không suy ra từ thiết bị khác.
 - Ngay sau khi triển khai bản mới, nếu thiết bị đang offline và công cụ chỉ còn trang của bản cũ trong bộ nhớ đệm,
   trang cũ chỉ hiểu một mã `?open=`: nút "Mở N tệp trong …" với N > 1 báo tệp tạm hết hạn, tệp vẫn còn trong lô.
   Có mạng lại (trang công cụ được tải mới) thì bấm lại nút đó trên trang "Nhận tệp" là mở được.
-- Một trang web khác có thể gửi tệp vào `/share-target/` nếu nó tắt referrer (xem `docs/file-transfer.md`); tệp
-  vẫn qua kiểm tra loại và chữ ký, nhưng một tệp hợp lệ sẽ mở thẳng trong công cụ.
+- Chia sẻ từ bảng chia sẻ của hệ điều hành luôn dừng ở trang "Nhận tệp" chờ người dùng bấm mở, kể cả khi chỉ có
+  một tệp: trình duyệt không phân biệt được bảng chia sẻ với một trang web khác tắt referrer (xem
+  `docs/file-transfer.md`). Trang lạ vẫn có thể ghi tệp vào bộ nhớ tạm (tối đa 200 MB mỗi lần, tự xóa sau 1 giờ)
+  nhưng không mở được công cụ.
 - "Chia sẻ…" gửi một bản xuất; không đồng bộ ngược về ứng dụng nguồn.
 - Công cụ chưa có hook báo kết quả thì trạng thái dừng ở "Đã chuyển vào công cụ" thay vì "Đã mở".
 
