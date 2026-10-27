@@ -34,6 +34,7 @@ describe('validateEditors', () => {
     expect(validateEditors(dup)).toEqual([
       'duplicate slug: van-ban',
       'duplicate canvasId: wordcraft_canvas',
+      ...base.accepts.map((ext) => `two editors accept .${ext}`),
     ])
   })
 
@@ -43,5 +44,24 @@ describe('validateEditors', () => {
 
   it('reports an extension without a leading dot', () => {
     expect(validateEditors([{ ...base, extension: 'docx' }])).toEqual(['extension must start with a dot: docx'])
+  })
+
+  it('reports accepted extensions that miss the main one, carry a dot or upper case', () => {
+    expect(validateEditors([{ ...base, accepts: ['.docx', 'DOC'] }])).toEqual([
+      'van-ban does not accept its own .docx',
+      'accepted extension must be lower-case without a dot: .docx',
+      'accepted extension must be lower-case without a dot: DOC',
+    ])
+  })
+})
+
+describe('accepted formats', () => {
+  it('route each format the engines open to one editor; legacy ppt/odp and html stay out', () => {
+    expect(Object.fromEntries(EDITORS.map((e) => [e.slug, e.accepts]))).toEqual({
+      'van-ban': ['docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf', 'txt', 'md'],
+      'bang-tinh': ['xlsx', 'xlsm', 'xls', 'xlsb', 'ods', 'csv', 'tsv'],
+      'trinh-chieu': ['pptx', 'pptm', 'potx', 'ppsx'],
+      pdf: ['pdf'],
+    })
   })
 })

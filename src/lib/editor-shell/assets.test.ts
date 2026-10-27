@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { piConfig } from '../../config/pi.ts'
-import { SHELL_SCRIPTS, loadShellAssets } from './assets.ts'
+import { SHELL_SCRIPTS, loadShellAssets, serviceWorkerIntake } from './assets.ts'
 
 const shellDir = fileURLToPath(new URL('../../../editor-shell/', import.meta.url))
 
@@ -14,6 +14,13 @@ describe('loadShellAssets', () => {
     expect(rule?.[1].trim().split(/,\s*/)).toEqual(['.erp-shell', '.erp-shell a', '.erp-shell__brand'])
     expect(rule?.[2]).toMatch(/(?:^|;)\s*user-select:\s*none;/)
     expect(rule?.[2]).not.toMatch(/pointer-events/)
+  })
+
+  it('lets clicks pass through the transfer note to the editor, except on its own link and button', () => {
+    const css = loadShellAssets(shellDir).css
+    const rule = (selector: string) => css.split('}').map((block) => block.split('{')).find(([head]) => head.replace(/\/\*[^]*?\*\//g, '').trim() === selector)?.[1] ?? ''
+    expect(rule('.erp-shell__transfer')).toMatch(/pointer-events:\s*none/)
+    expect(rule('.erp-shell__transfer a, .erp-shell__transfer button')).toMatch(/pointer-events:\s*auto/)
   })
 
   it('ships the key guard with every editor page', () => {
@@ -88,5 +95,25 @@ describe('loadShellAssets', () => {
     expect(part('crash-guard.js')).toBeGreaterThan(part('drafts.js'))
     expect(part('crash-guard.js')).toBeGreaterThan(part('host-bridge.js'))
     expect(script.trimEnd().endsWith(fs.readFileSync(`${shellDir}crash-guard.js`, 'utf8').trim())).toBe(true)
+  })
+
+  it('declares the intake contract, then runs intake.js before open-file.js and share.js after it', () => {
+    const script = loadShellAssets(shellDir).script
+    const part = (name: string) => script.indexOf(fs.readFileSync(`${shellDir}${name}`, 'utf8').trim())
+    const contract = script.indexOf('window.erpIntakeContract={"version":1,')
+    expect(contract).toBeGreaterThan(script.indexOf('window.erpMimeTypes='))
+    expect(part('intake.js')).toBeGreaterThan(contract)
+    expect(part('open-file.js')).toBeGreaterThan(part('intake.js'))
+    expect(part('share.js')).toBeGreaterThan(part('open-file.js'))
+    expect(part('host-bridge.js')).toBeGreaterThan(part('share.js'))
+  })
+
+  it('gives the service worker the same contract and intake.js, on its own global', () => {
+    const intake = serviceWorkerIntake(shellDir)
+    expect(intake.startsWith('self.erpIntakeContract={"version":1,')).toBe(true)
+    expect(intake).toContain(fs.readFileSync(`${shellDir}intake.js`, 'utf8').trim())
+    const page = loadShellAssets(shellDir).script
+    const contract = (source: string, global: string) => source.slice(source.indexOf(`${global}.erpIntakeContract=`) + global.length + 19).split(';\n')[0]
+    expect(contract(intake, 'self')).toBe(contract(page, 'window'))
   })
 })

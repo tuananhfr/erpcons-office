@@ -28,7 +28,7 @@ export const PLATFORMS: PlatformGuide[] = [
       { text: 'Văn phòng mở trong cửa sổ riêng và có biểu tượng trên màn hình, thanh tác vụ hoặc Launchpad.' },
     ],
     open: [
-      { text: 'Nhấp chuột phải vào tệp DOCX, XLSX, PPTX hoặc PDF, chọn "Mở bằng" rồi chọn Văn phòng.' },
+      { text: 'Nhấp chuột phải vào tệp Word, Excel, PowerPoint hoặc PDF, chọn "Mở bằng" rồi chọn Văn phòng.' },
       { text: 'Lần đầu, trình duyệt hỏi có cho Văn phòng mở loại tệp này không. Chọn Cho phép.' },
       { text: 'Hoặc kéo tệp thả vào trang công cụ, hoặc bấm "Mở tệp" ở trang chủ.', icon: 'folder2-open' },
     ],
@@ -75,7 +75,7 @@ export const SAVING = [
 ]
 
 export const TROUBLES = [
-  { icon: 'file-earmark-x', title: 'Loại tệp chưa hỗ trợ', text: 'Văn phòng mở DOCX, XLSX, PPTX và PDF. Tệp DOC, XLS, PPT đời cũ cần lưu lại sang định dạng mới bằng Microsoft Office hoặc LibreOffice.' },
+  { icon: 'file-earmark-x', title: 'Loại tệp chưa hỗ trợ', text: 'Văn phòng mở tệp Word, Excel (kể cả DOC, XLS đời cũ), PowerPoint, OpenDocument, RTF, văn bản thuần, CSV và PDF. Tệp PPT và ODP đời cũ cần lưu lại thành PPTX bằng Microsoft Office hoặc LibreOffice.' },
   { icon: 'cloud-arrow-down', title: 'Tệp trên 100 MB', text: 'Nút "Mở tệp" ở trang chủ nhận tối đa 100 MB. Với tệp lớn hơn, mở công cụ rồi dùng menu Tệp bên trong.' },
   { icon: 'exclamation-triangle', title: 'Tệp hỏng hoặc trống', text: 'Công cụ sẽ báo không đọc được. Thử mở tệp bằng phần mềm khác, lưu lại một bản mới rồi mở lại.' },
   { icon: 'info-circle', title: 'Không lưu tạm được tệp', text: 'Máy có thể đã hết dung lượng, hoặc trình duyệt đang ở chế độ ẩn danh hay chặn lưu trữ. Giải phóng bộ nhớ hoặc mở bằng cửa sổ thường.' },

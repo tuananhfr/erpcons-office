@@ -1,6 +1,8 @@
 var CACHE = 'erpcons-office-__BUILD_ID__'
 // Every URL path of this build, filled in by assemble; empty means "unknown", which disables pruning.
 var MANIFEST = /*__ASSET_MANIFEST__*/[]
+// The intake contract and editor-shell/intake.js, filled in by assemble (self.erpIntake).
+/*__INTAKE__*/
 
 // PI sign-in popup and callback (src/config/pi.ts): the callback URL carries the one-time `code` and `state`, which
 // must never reach Cache Storage or be served back offline. Issuer and API requests are cross-origin, so bypassed too.
@@ -48,11 +50,12 @@ async function prune(cache, pageDir, requestingId) {
 
 var OFFLINE_MESSAGE = 'Không tải được trang này. Hãy kiểm tra kết nối mạng rồi thử lại. Khi mất mạng, mỗi công cụ chỉ mở được nếu trước đó đã mở ít nhất một lần lúc có mạng trên thiết bị này.'
 
-function messagePage(status, message, retryUrl) {
-  var retry = retryUrl ? '<a href="' + retryUrl + '">Thử lại</a> · ' : ''
+// `links` replaces the default "Thử lại · Về trang chủ" pair; hrefs and labels are the worker's own, never user input.
+function messagePage(status, message, retryUrl, links) {
+  var pairs = links || (retryUrl ? [[retryUrl, 'Thử lại']] : []).concat([['/', 'Về trang chủ']])
   var html = '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
     + '<title>Văn phòng by ERPCons</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5">'
-    + '<p>' + message + '</p><p>' + retry + '<a href="/">Về trang chủ</a></p></body></html>'
+    + '<p>' + message + '</p><p>' + pairs.map(function (pair) { return '<a href="' + pair[0] + '">' + pair[1] + '</a>' }).join(' · ') + '</p></body></html>'
   return new Response(html, { status: status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
 
@@ -134,11 +137,62 @@ async function warm(urls) {
   }))
 }
 
+var PAGE_ASSET = /(?:src|href)="(\/(?!\/)[^"?#]+\.(?:js|css|woff2|svg|png|webp|ico))"/g
+
+function pageAssets(html, origin) {
+  var urls = []
+  var match
+  PAGE_ASSET.lastIndex = 0
+  while ((match = PAGE_ASSET.exec(html))) if (urls.indexOf(origin + match[1]) === -1) urls.push(origin + match[1])
+  return urls
+}
+
+async function storeAll(cache, urls) {
+  var stored = await Promise.all(urls.map(async function (url) {
+    if (await cache.match(url)) return true
+    try {
+      var response = await fetch(url)
+      if (!storable(response)) return false
+      await cache.put(url, response.clone())
+      return true
+    } catch (error) { await quotaWarning(error); return false }
+  }))
+  return stored.every(Boolean)
+}
+
+// A page carried over from an older build can name chunks prune() has since dropped; it only counts with all of them.
+async function batchPageComplete(cache, origin) {
+  var hit = await cache.match(origin + BATCH_PAGE)
+  if (!hit) return false
+  var assets = pageAssets(await hit.clone().text(), origin)
+  for (var i = 0; i < assets.length; i++) {
+    if (MANIFEST.length && MANIFEST.indexOf(new URL(assets[i]).pathname) === -1) return false
+    if (!(await cache.match(assets[i]))) return false
+  }
+  return true
+}
+
+// The batch page is reached only through this worker's share redirect, often offline, so no tab ever reports it:
+// it is warmed with every report, together with the scripts and styles its HTML names.
+async function warmBatchPage(origin) {
+  var url = origin + BATCH_PAGE
+  var cache = await caches.open(CACHE)
+  try {
+    if (await batchPageComplete(cache, origin)) return
+    var response = await fetch(url)
+    if (!storable(response)) return
+    // Without every asset the page would hydrate to nothing offline; keep the previous copy instead.
+    if (!(await storeAll(cache, pageAssets(await response.clone().text(), origin)))) return
+    await cache.put(url, response)
+  } catch (error) { await quotaWarning(error) }
+}
+
 self.addEventListener('message', function (event) {
   var data = event.data
   if (data && data.type === 'erpcons-apply-update') { event.waitUntil(self.skipWaiting()); return }
   if (!data || data.type !== 'erpcons-warm') return
-  event.waitUntil(warm(warmableUrls(data.urls, self.location.origin)))
+  var origin = self.location.origin
+  event.waitUntil(Promise.all([warm(warmableUrls(data.urls, origin)), warmBatchPage(origin)]))
 })
 
 // Deleting the previous build's cache would take every editor the user opened before offline;
@@ -155,50 +209,81 @@ async function carryOver(oldName) {
   await caches.delete(oldName)
 }
 
-// Android "Share" to the installed app (manifest share_target). Same handoff as the landing page's Open
-// button (src/lib/files/pending-file.ts): queue the file on the device, then open its editor with ?open=<id>.
+// Android "Share" to the installed app (manifest share_target). Same queue as the landing's Open button
+// (src/lib/files/pending-file.ts); docs/file-transfer.md describes the records and the batch page.
 var SHARE_PATH = '/share-target/'
-var SHARE_EDITORS = { docx: 'van-ban', xlsx: 'bang-tinh', pptx: 'trinh-chieu', pdf: 'pdf' }
-var SHARE_MAX_BYTES = 100 * 1024 * 1024
+var BATCH_PAGE = '/nhan-tep/'
 
-function sharedEditor(file) {
-  return SHARE_EDITORS[String(file.name).split('.').pop().toLowerCase()]
+function isFile(value) {
+  return Boolean(value) && typeof value === 'object' && typeof value.name === 'string' && typeof value.size === 'number'
 }
 
-function queueShared(file, editor) {
-  var id = self.crypto.randomUUID()
-  return new Promise(function (resolve, reject) {
-    var request = indexedDB.open('erpcons-file-transfer-v1', 1)
-    request.onupgradeneeded = function () { request.result.createObjectStore('pending', { keyPath: 'id' }) }
-    request.onerror = function () { reject(request.error) }
-    request.onsuccess = function () {
-      var db = request.result
-      var transaction = db.transaction('pending', 'readwrite')
-      transaction.objectStore('pending').put({ id: id, name: file.name, file: file, editor: editor, expiresAt: Date.now() + 60 * 60 * 1000 })
-      transaction.oncomplete = function () { db.close(); resolve(id) }
+function sharedText(form) {
+  return ['title', 'text', 'url'].some(function (key) { var value = form.get(key); return typeof value === 'string' && value.trim() !== '' })
+}
+
+function storeShared(records) {
+  return self.erpIntake.openDb().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var name = self.erpIntake.contract.store
+      var transaction = db.transaction(name, 'readwrite')
+      var store = transaction.objectStore(name)
+      self.erpIntake.pruneExpired(store, Date.now())
+      records.forEach(function (record) { store.put(record) })
+      transaction.oncomplete = function () { db.close(); resolve() }
       transaction.onabort = function () { db.close(); reject(transaction.error) }
-    }
+    })
   })
 }
 
+// Every file gets a record, refused ones without bytes, so the batch page can say why each one was left out.
+async function intakeShared(files) {
+  var intake = self.erpIntake
+  var limits = intake.contract.limits
+  var batchId = self.crypto.randomUUID()
+  var accepted = 0
+  var records = []
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i]
+    var record = intake.record({
+      id: self.crypto.randomUUID(), batchId: batchId, position: i, sourceMode: 'SHARE_IN', name: file.name,
+      claimedMime: typeof file.type === 'string' ? file.type : '', size: file.size, editor: intake.editorFor(file.name) || null, state: 'VALIDATING',
+    })
+    var reason = i >= limits.maxFiles ? 'tooMany' : await intake.validate(file)
+    if (!reason && accepted + file.size > limits.maxBatchBytes) reason = 'batchTooLarge'
+    if (reason) intake.fail(record, reason)
+    else { accepted += file.size; record.state = 'READY'; record.file = file }
+    records.push(record)
+  }
+  return { batchId: batchId, records: records }
+}
+
 async function receiveShare(request) {
+  var intake = self.erpIntake
   // The OS share sheet sends no referrer; a cross-site form posting here could push its file into the editor.
   if (request.referrer && new URL(request.referrer).origin !== self.location.origin) {
-    return messagePage(403, 'Chỉ nhận tệp được chia sẻ từ thiết bị của bạn.')
+    return messagePage(403, intake.message('crossSite'))
   }
   var form
-  try { form = await request.formData() } catch (error) { return messagePage(400, 'Không đọc được tệp được chia sẻ.') }
-  var file = form.getAll('file').filter(function (f) { return f && typeof f.name === 'string' && sharedEditor(f) })[0]
-  if (!file) return messagePage(415, 'Văn phòng mở được tệp DOCX, XLSX, PPTX hoặc PDF. Tệp được chia sẻ không thuộc các loại này.')
-  if (!file.size) return messagePage(422, 'Tệp được chia sẻ đang trống.')
-  if (file.size > SHARE_MAX_BYTES) return messagePage(413, 'Tệp vượt quá 100 MB. Hãy mở trực tiếp từ menu Tệp của công cụ.')
-  var editor = sharedEditor(file)
-  try {
-    var id = await queueShared(file, editor)
-    return Response.redirect(self.location.origin + '/' + editor + '/?open=' + encodeURIComponent(id), 303)
-  } catch (error) {
-    return messagePage(507, 'Không lưu tạm được tệp trên thiết bị. Kiểm tra bộ nhớ hoặc quyền lưu trữ của trình duyệt.')
+  try { form = await request.formData() } catch (error) { return messagePage(400, intake.message('unreadableShare')) }
+  var files = form.getAll('file').filter(isFile)
+  // A link or text is never fetched, logged or shown back: it may be a private Zalo/Messenger URL.
+  if (!files.length) {
+    return sharedText(form)
+      ? messagePage(200, intake.contract.linkOnly, null, [['/', 'Chọn tệp trên máy']])
+      : messagePage(415, intake.message('unsupported'))
   }
+  var batch = await intakeShared(files)
+  try {
+    await storeShared(batch.records)
+  } catch (error) {
+    return messagePage(507, intake.message(error && error.name === 'QuotaExceededError' ? 'quota' : 'noSpace'))
+  }
+  var only = batch.records.length === 1 ? batch.records[0] : null
+  var target = only && only.state === 'READY'
+    ? '/' + only.editor + '/?open=' + encodeURIComponent(only.id)
+    : BATCH_PAGE + '?batch=' + encodeURIComponent(batch.batchId)
+  return Response.redirect(self.location.origin + target, 303)
 }
 
 self.addEventListener('install', function () {})

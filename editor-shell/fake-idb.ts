@@ -17,6 +17,7 @@ export class FakeIdb {
   failWrites: string | null = null
   failOpen = false
   version = 0
+  writeLock: Promise<void> = Promise.resolve()
 
   open = (_name: string, version: number) => {
     const request = new FakeRequest<FakeDb>()
@@ -61,17 +62,24 @@ class FakeTransaction {
   private name: string
   private mode: string
 
+  private started: Promise<void>
+
   constructor(idb: FakeIdb, name: string, mode: string) {
     this.idb = idb
     this.name = name
     this.mode = mode
     const failure = mode === 'readwrite' ? idb.failWrites : null
+    // Like a browser, a readwrite transaction waits for the previous one on the database to finish.
+    let release = () => {}
+    this.started = mode === 'readwrite' ? idb.writeLock : Promise.resolve()
+    if (mode === 'readwrite') idb.writeLock = new Promise<void>((resolve) => { release = resolve })
     // Requests are made right after the transaction; it only completes once they have answered.
-    setTimeout(() => setTimeout(() => {
-      if (failure) { this.error = { name: failure }; this.onabort?.(); return }
+    void this.started.then(() => setTimeout(() => setTimeout(() => {
+      if (failure) { this.error = { name: failure }; this.onabort?.(); release(); return }
       this.writes.forEach(apply => apply())
       this.oncomplete?.()
-    }))
+      release()
+    })))
   }
 
   objectStore(name: string) {
@@ -79,7 +87,7 @@ class FakeTransaction {
     if (!store || name !== this.name) throw new Error('NotFoundError: ' + name)
     const later = <T>(value: () => T) => {
       const request = new FakeRequest<T>()
-      setTimeout(() => { request.result = value(); request.onsuccess?.() })
+      void this.started.then(() => setTimeout(() => { request.result = value(); request.onsuccess?.() }))
       return request
     }
     const write = (apply: () => void) => {

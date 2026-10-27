@@ -46,9 +46,11 @@ describe('assetManifest', () => {
 })
 
 describe('fillServiceWorker', () => {
-  it('fills both placeholders and refuses a template without them', () => {
-    const filled = fillServiceWorker("var CACHE = 'erpcons-office-__BUILD_ID__'\nvar MANIFEST = /*__ASSET_MANIFEST__*/[]\n", { id: 'abc123abc123', urls: ['/', '/pdf/'] })
-    expect(filled).toBe("var CACHE = 'erpcons-office-abc123abc123'\nvar MANIFEST = [\"/\",\"/pdf/\"]\n")
-    expect(() => fillServiceWorker("var CACHE = 'x'", { id: 'a', urls: [] })).toThrow(/placeholder/)
+  it('fills every placeholder and refuses a template without them', () => {
+    const template = "var CACHE = 'erpcons-office-__BUILD_ID__'\nvar MANIFEST = /*__ASSET_MANIFEST__*/[]\n/*__INTAKE__*/\n"
+    const filled = fillServiceWorker(template, { id: 'abc123abc123', urls: ['/', '/pdf/'] }, 'self.x=1$&')
+    expect(filled).toBe("var CACHE = 'erpcons-office-abc123abc123'\nvar MANIFEST = [\"/\",\"/pdf/\"]\nself.x=1$&\n")
+    expect(() => fillServiceWorker("var CACHE = 'x'", { id: 'a', urls: [] }, '')).toThrow(/placeholder/)
+    expect(() => fillServiceWorker(template.replace('/*__INTAKE__*/', ''), { id: 'a', urls: [] }, '')).toThrow(/placeholder/)
   })
 })

@@ -42,6 +42,12 @@ export const GUIDE_SEO = createPageSeo(
   'Hướng dẫn cài Văn phòng by ERPCons trên máy tính, Android, iPhone và iPad, mở tệp DOCX, XLSX, PPTX, PDF bằng "Mở bằng" hoặc nút Chia sẻ, và nơi lưu tệp.',
 )
 
+export const INTAKE_SEO = createPageSeo(
+  '/nhan-tep/',
+  'Nhận tệp',
+  'Danh sách tệp được chia sẻ vào Văn phòng by ERPCons từ ứng dụng khác, lưu tạm trên thiết bị và mở trong đúng công cụ.',
+)
+
 export function editorSeo(editor: EditorEntry): PageSeo {
   return createPageSeo(`/${editor.slug}/`, editor.seoTitle, editor.seoDescription)
 }

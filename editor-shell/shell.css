@@ -65,8 +65,18 @@ html.erp-embedded .erp-shell { display: none; }
   .erp-shell__menu { display: block; }
 }
 
-.erp-shell__transfer { position: fixed; z-index: 100; bottom: calc(20px + var(--erp-bottom)); left: calc(20px + var(--erp-inset-left)); right: calc(20px + var(--erp-inset-right)); max-width: 600px; margin: auto; padding: 14px 20px; border: 1px solid #b8d1ed; border-radius: 10px; background: #fff; color: #082674; font: 14px/1.6 system-ui, sans-serif; box-shadow: 0 6px 24px #08267418; }
+/* Just under the shell bar, as narrow as its text: the editors keep status bars and toasts at the bottom, and their
+   own title-bar controls sit under it, so only its link or button takes the pointer (same rule as the PI ID note). */
+.erp-shell__transfer {
+  position: fixed; z-index: 100; top: calc(var(--erp-top) + 6px); left: calc(12px + var(--erp-inset-left)); right: calc(12px + var(--erp-inset-right));
+  box-sizing: border-box; width: fit-content; max-width: 520px; margin: 0 auto; padding: 6px 12px;
+  border: 1px solid #b8d1ed; border-radius: 8px; background: #fff; color: #082674; font: 13px/1.45 system-ui, sans-serif;
+  box-shadow: 0 6px 24px #08267418; pointer-events: none;
+}
+.erp-shell__transfer a, .erp-shell__transfer button { pointer-events: auto; }
 .erp-shell__transfer a { color: #0960ea; }
+.erp-shell__transfer button { margin-left: 6px; padding: 1px 8px; border: 1px solid #b8d1ed; border-radius: 6px; background: #fff; color: #082674; font: inherit; cursor: pointer; }
+@media (max-width: 800px) { .erp-shell__transfer { max-width: 420px; } }
 
 .erp-shell { --erp-ok: #1d6b45; --erp-warn: #8a5300; --erp-danger: #b42318; }
 .erp-shell__draft { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; font-size: 12px; font-weight: 500; color: var(--erp-text-2); white-space: nowrap; cursor: default; }

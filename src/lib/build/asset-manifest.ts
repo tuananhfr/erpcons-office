@@ -27,9 +27,13 @@ export function assetManifest(outDir: string): AssetManifest {
   return { id: hash.digest('hex').slice(0, 12), urls: urls.sort() }
 }
 
-export function fillServiceWorker(template: string, manifest: AssetManifest): string {
-  if (!template.includes('__BUILD_ID__') || !template.includes('/*__ASSET_MANIFEST__*/[]')) {
+/** `intake` is the intake contract plus editor-shell/intake.js (serviceWorkerIntake), inlined so the worker needs no importScripts. */
+export function fillServiceWorker(template: string, manifest: AssetManifest, intake: string): string {
+  if (!template.includes('__BUILD_ID__') || !template.includes('/*__ASSET_MANIFEST__*/[]') || !template.includes('/*__INTAKE__*/')) {
     throw new Error('sw.js template is missing a placeholder')
   }
-  return template.replace('__BUILD_ID__', () => manifest.id).replace('/*__ASSET_MANIFEST__*/[]', () => JSON.stringify(manifest.urls))
+  return template
+    .replace('__BUILD_ID__', () => manifest.id)
+    .replace('/*__ASSET_MANIFEST__*/[]', () => JSON.stringify(manifest.urls))
+    .replace('/*__INTAKE__*/', () => intake)
 }

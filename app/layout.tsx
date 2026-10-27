@@ -14,6 +14,7 @@ import '@/styles/landing.css'
 import '@/styles/landing-sections.css'
 import '@/styles/explore.css'
 import '@/styles/guide.css'
+import '@/styles/intake.css'
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'], display: 'swap', variable: '--erp-font' })
 

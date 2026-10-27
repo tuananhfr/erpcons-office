@@ -8,3 +8,4 @@ src/generated/
 next-env.d.ts
 
 .qa/
+.qa-tmp/

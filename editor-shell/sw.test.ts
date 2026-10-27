@@ -4,21 +4,24 @@ import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
 import { EDITORS } from '../src/config/editors.ts'
+import { serviceWorkerIntake } from '../src/lib/editor-shell/assets.ts'
+import { SIGNATURE_RULES } from '../src/lib/files/intake-contract.ts'
 import { FakeIdb } from './fake-idb.ts'
 
 type Strategy = 'bypass' | 'network-first' | 'cache-first'
-type FakeResponse = { status: number; type: string; body: string; clone: () => FakeResponse }
+type FakeResponse = { status: number; type: string; body: string; clone: () => FakeResponse; text: () => Promise<string> }
 type Req = string | { url: string; method?: string; mode?: string }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SOURCE = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8')
+const INTAKE = serviceWorkerIntake(__dirname)
 const CURRENT = 'erpcons-office-__BUILD_ID__'
 const origin = 'https://office.erpcons.ai'
 const at = (p: string) => new URL(p, origin)
 const u = (p: string) => `${origin}${p}`
 
 function response(status: number, body = ''): FakeResponse {
-  const r: FakeResponse = { status, type: 'basic', body, clone: () => r }
+  const r: FakeResponse = { status, type: 'basic', body, clone: () => r, text: async () => body }
   return r
 }
 
@@ -61,7 +64,9 @@ function loadWorker(options: WorkerOptions = {}) {
   const skipWaiting = vi.fn(async () => {})
   const fetched: string[] = []
   const network = options.network ?? (() => response(200, 'net'))
-  const source = options.manifest === null ? SOURCE : SOURCE.replace('/*__ASSET_MANIFEST__*/[]', JSON.stringify(options.manifest ?? []))
+  const filled = SOURCE.replace('/*__INTAKE__*/', () => INTAKE)
+  const source = options.manifest === null ? filled : filled.replace('/*__ASSET_MANIFEST__*/[]', JSON.stringify(options.manifest ?? []))
+  let uuid = 0
   const context = {
     URL,
     console: { warn: vi.fn() },
@@ -83,7 +88,7 @@ function loadWorker(options: WorkerOptions = {}) {
     self: {
       addEventListener: (type: string, fn: unknown) => { listeners[type] = fn },
       location: { origin },
-      crypto: { randomUUID: () => 'shared-1' },
+      crypto: { randomUUID: () => `id-${++uuid}` },
       skipWaiting,
       clients: {
         claim: async () => {},
@@ -170,6 +175,7 @@ describe('sw classify', () => {
   it('keeps build and manifest placeholders for assemble to fill in', () => {
     expect(SOURCE).toContain('__BUILD_ID__')
     expect(SOURCE).toContain('/*__ASSET_MANIFEST__*/[]')
+    expect(SOURCE).toContain('/*__INTAKE__*/')
   })
 })
 
@@ -257,15 +263,33 @@ describe('sw warm-up', () => {
   })
 
   it('caches what the page already loaded so the first visit works offline', async () => {
-    const w = loadWorker({ caches: { [CURRENT]: { '/brand/erpcons-mark.svg': 'svg' } } })
+    const w = loadWorker({ caches: { [CURRENT]: { '/brand/erpcons-mark.svg': 'svg', '/nhan-tep/': 'batch page' } } })
     await w.message({ type: 'erpcons-warm', urls: [u('/van-ban/'), u('/van-ban/a_bg.wasm'), u('/brand/erpcons-mark.svg')] })
     expect(w.fetched).toEqual([u('/van-ban/'), u('/van-ban/a_bg.wasm')])
-    expect(w.paths()).toEqual(['/brand/erpcons-mark.svg', '/van-ban/', '/van-ban/a_bg.wasm'])
+    expect(w.paths()).toEqual(['/brand/erpcons-mark.svg', '/nhan-tep/', '/van-ban/', '/van-ban/a_bg.wasm'])
   })
 
   it('stores only full 200 responses and survives a failing URL', async () => {
     const w = loadWorker({ network: (url) => (url.endsWith('missing.js') ? response(404) : url.endsWith('down.js') ? 'offline' : response(200)) })
     await w.message({ type: 'erpcons-warm', urls: [u('/missing.js'), u('/down.js'), u('/pdf/')] })
+    expect(w.paths()).toEqual(['/nhan-tep/', '/pdf/'])
+  })
+
+  it('warms the share batch page with the scripts and styles its HTML names, whichever page reports', async () => {
+    const html = '<link rel="stylesheet" href="/_next/static/chunks/a.css"/><link rel="preload" href="/_next/static/media/f.woff2"/>'
+      + '<script src="/_next/static/chunks/b.js" async=""></script><img src="/brand/mark.svg"/>'
+      + '<a href="/van-ban/">x</a><script src="//cdn.example.com/x.js"></script><script src="https://example.com/y.js"></script>'
+    const w = loadWorker({ network: (url) => response(200, url === u('/nhan-tep/') ? html : 'asset') })
+    await w.message({ type: 'erpcons-warm', urls: [u('/')] })
+    expect(w.paths()).toEqual(['/', '/_next/static/chunks/a.css', '/_next/static/chunks/b.js', '/_next/static/media/f.woff2', '/brand/mark.svg', '/nhan-tep/'])
+    const before = w.fetched.length
+    await w.message({ type: 'erpcons-warm', urls: [u('/')] })
+    expect(w.fetched.length).toBe(before)
+  })
+
+  it('does not keep a batch page it could not fetch whole', async () => {
+    const w = loadWorker({ network: (url) => (url === u('/nhan-tep/') ? response(404) : response(200)) })
+    await w.message({ type: 'erpcons-warm', urls: [u('/pdf/')] })
     expect(w.paths()).toEqual(['/pdf/'])
   })
 
@@ -334,37 +358,175 @@ describe('sw across deploys', () => {
 })
 
 describe('sw share target', () => {
-  const shared = (name: string, size = 10) => ({ name, size })
-  const form = (...files: unknown[]) => ({ getAll: (key: string) => (key === 'file' ? files : []) }) as unknown as FormData
+  const MB = 1024 * 1024
+  const ZIP = [0x50, 0x4b, 0x03, 0x04, 0x14, 0x00]
+  const OLE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]
+  const head = (ext: string): number[] => {
+    const kind = SIGNATURE_RULES[ext]?.[0]
+    if (kind === 'zip') return ZIP
+    if (kind === 'ole') return OLE
+    if (kind === 'rtf') return [...Buffer.from('{\\rtf1 x}')]
+    if (kind === 'pdf') return [...Buffer.from('%PDF-1.7\n')]
+    return [...Buffer.from('plain text;1;2\n')]
+  }
+  // A real File (IndexedDB clones it); `size` can be faked so limits are testable without allocating 100 MB.
+  const shared = (name: string, { bytes = head(name.split('.').pop()!.toLowerCase()), size, type = '' }: { bytes?: number[]; size?: number; type?: string } = {}) => {
+    const file = new File([new Uint8Array(bytes)], name, { type })
+    if (size !== undefined) Object.defineProperty(file, 'size', { value: size })
+    return file
+  }
+  const form = (files: unknown[], fields: Record<string, string> = {}) => ({
+    getAll: (key: string) => (key === 'file' ? files : []),
+    get: (key: string) => fields[key] ?? null,
+  }) as unknown as FormData
+  const location = (res: Response) => res.headers.get('location')
+  type Row = { id: string; name: string; state: string; errorCode: string | null; reason: string | null; file?: File; editor: string | null; batchId: string; position?: number }
+  const rows = (idb: FakeIdb) => (idb.rows('pending') as unknown as Row[]).sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }))
 
-  it('queues a shared file for its editor and opens it with ?open=', async () => {
-    const idb = new FakeIdb()
-    const res = await (await loadWorker({ idb }).share(form(shared('Báo cáo.DOCX'))))!
-    expect(res.status).toBe(303)
-    expect(res.headers.get('location')).toBe(u('/van-ban/?open=shared-1'))
-    expect(idb.rows('pending')).toMatchObject([{ id: 'shared-1', name: 'Báo cáo.DOCX', editor: 'van-ban', file: { size: 10 } }])
-    expect(idb.rows('pending')[0].expiresAt).toBeGreaterThan(Date.now())
+  it('shows the cached batch page, query ignored, when a batch arrives offline', async () => {
+    let online = true
+    const html = '<h1>Nhận tệp</h1><script src="/_next/static/chunks/b.js"></script>'
+    const w = loadWorker({ network: (url) => (!online ? 'offline' : response(200, url === u('/nhan-tep/') ? html : 'js')) })
+    await w.message({ type: 'erpcons-warm', urls: [u('/')] })
+    online = false
+    const res = await (await w.share(form([shared('a.docx'), shared('b.pdf')])))!
+    const target = location(res)!
+    expect(target).toBe(u('/nhan-tep/?batch=id-1'))
+    expect((await (await w.fetchPage(target.slice(origin.length)))!).body).toBe(html)
+    expect((await (await w.fetchAsset('/_next/static/chunks/b.js'))!).body).toBe('js')
   })
 
-  it('routes every editor extension the site knows to that editor', async () => {
-    for (const e of EDITORS) {
-      const res = await (await loadWorker().share(form(shared(`a${e.extension}`))))!
-      expect(res.headers.get('location')).toBe(u(`/${e.slug}/?open=shared-1`))
+  it('replaces a carried-over batch page whose chunks a deploy pruned, before the next offline batch', async () => {
+    const OLD = 'erpcons-office-0123456789ab'
+    const oldHtml = '<h1>old</h1><script src="/_next/static/chunks/old.js"></script>'
+    const newHtml = '<h1>new</h1><script src="/_next/static/chunks/new.js"></script>'
+    let online = true
+    const w = loadWorker({
+      caches: { [OLD]: { '/': 'old landing', '/nhan-tep/': oldHtml, '/_next/static/chunks/old.js': 'old js' } },
+      manifest: ['/', '/nhan-tep/', '/_next/static/chunks/new.js'],
+      network: (url) => (!online ? 'offline' : response(200, url === u('/nhan-tep/') ? newHtml : url.endsWith('new.js') ? 'new js' : 'landing')),
+    })
+    await w.activate()
+    await w.fetchPage('/')
+    expect(w.paths()).not.toContain('/_next/static/chunks/old.js')
+    await w.message({ type: 'erpcons-warm', urls: [u('/')] })
+    online = false
+    const res = await (await w.share(form([shared('a.docx'), shared('b.pdf')])))!
+    expect((await (await w.fetchPage(location(res)!.slice(origin.length)))!).body).toBe(newHtml)
+    expect((await (await w.fetchAsset('/_next/static/chunks/new.js'))!).body).toBe('new js')
+  })
+
+  it('keeps the previous batch page when one of the new assets cannot be stored', async () => {
+    const w = loadWorker({
+      caches: { [CURRENT]: { '/nhan-tep/': '<script src="/_next/static/chunks/old.js"></script>' } },
+      manifest: ['/nhan-tep/', '/_next/static/chunks/new.js'],
+      network: (url) => (url === u('/nhan-tep/') ? response(200, '<script src="/_next/static/chunks/new.js"></script>') : response(500)),
+    })
+    await w.message({ type: 'erpcons-warm', urls: [] })
+    expect(w.store.get(CURRENT)!.entries.get(u('/nhan-tep/'))!.body).toContain('old.js')
+  })
+
+  it('opens a single valid file straight in its editor, as before', async () => {
+    const idb = new FakeIdb()
+    const type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const res = await (await loadWorker({ idb }).share(form([shared('Báo cáo.DOCX', { type })])))!
+    expect(res.status).toBe(303)
+    expect(location(res)).toBe(u('/van-ban/?open=id-2'))
+    const [row] = idb.rows('pending')
+    expect(row).toMatchObject({
+      id: 'id-2', batchId: 'id-1', sourceMode: 'SHARE_IN', name: 'Báo cáo.DOCX', editor: 'van-ban', state: 'READY', size: 6,
+      claimedMime: type, errorCode: null, recoverable: false,
+    })
+    expect((row.file as File).size).toBe(6)
+    expect(row.expiresAt).toBeGreaterThan(Date.now())
+    expect(row.createdAt).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('routes every accepted extension to the editor that declares it', async () => {
+    for (const editor of EDITORS) {
+      for (const ext of editor.accepts) {
+        const res = await (await loadWorker().share(form([shared(`tệp.${ext}`)])))!
+        expect(location(res), ext).toBe(u(`/${editor.slug}/?open=id-2`))
+      }
     }
   })
 
-  it('takes the first supported file when several are shared', async () => {
-    const res = await (await loadWorker().share(form(shared('anh.jpg'), shared('so.xlsx'))))!
-    expect(res.headers.get('location')).toBe(u('/bang-tinh/?open=shared-1'))
+  it('checks every file of a batch on its own and sends the batch to /nhan-tep/', async () => {
+    const idb = new FakeIdb()
+    const files = [shared('a.docx'), shared('anh.jpg'), shared('b.xlsx'), shared('trong.pdf', { bytes: [] }), shared('c.pdf')]
+    const res = await (await loadWorker({ idb }).share(form(files)))!
+    expect(location(res)).toBe(u('/nhan-tep/?batch=id-1'))
+    expect(rows(idb).map(r => [r.name, r.batchId, r.state, r.errorCode, r.reason, r.editor, Boolean(r.file)])).toEqual([
+      ['a.docx', 'id-1', 'READY', null, null, 'van-ban', true],
+      ['anh.jpg', 'id-1', 'FAILED_FINAL', 'UNSUPPORTED_TYPE', 'unsupported', null, false],
+      ['b.xlsx', 'id-1', 'READY', null, null, 'bang-tinh', true],
+      ['trong.pdf', 'id-1', 'FAILED_FINAL', 'INVALID_SIGNATURE', 'empty', 'pdf', false],
+      ['c.pdf', 'id-1', 'READY', null, null, 'pdf', true],
+    ])
+    expect(rows(idb).map(r => r.position)).toEqual([0, 1, 2, 3, 4])
   })
 
-  it('explains unsupported, empty, oversized and unreadable shares in Vietnamese', async () => {
+  it('refuses the sixth file and later ones without reading them', async () => {
+    const idb = new FakeIdb()
+    const sixth = shared('f.pdf')
+    const slice = vi.spyOn(sixth, 'slice')
+    const res = await (await loadWorker({ idb }).share(form(['1', '2', '3', '4', '5'].map(n => shared(`${n}.pdf`)).concat(sixth))))!
+    expect(location(res)).toBe(u('/nhan-tep/?batch=id-1'))
+    const all = rows(idb)
+    expect(all.filter(r => r.state === 'READY')).toHaveLength(5)
+    expect(all.find(r => r.name === 'f.pdf')).toMatchObject({ state: 'FAILED_FINAL', errorCode: 'QUOTA_EXCEEDED', reason: 'tooMany' })
+    expect(slice).not.toHaveBeenCalled()
+  })
+
+  it('keeps each file under 100 MB and the batch under 200 MB', async () => {
+    const idb = new FakeIdb()
+    const sizes = [90, 101, 90, 30, 20]
+    await (await loadWorker({ idb }).share(form(sizes.map((size, i) => shared(`${'abcde'[i]}.pdf`, { size: size * MB })))))!
+    expect(rows(idb).map(r => [r.name, r.state, r.reason, r.errorCode])).toEqual([
+      ['a.pdf', 'READY', null, null],
+      ['b.pdf', 'FAILED_FINAL', 'tooLarge', 'TOO_LARGE'],
+      ['c.pdf', 'READY', null, null],
+      ['d.pdf', 'FAILED_FINAL', 'batchTooLarge', 'QUOTA_EXCEEDED'],
+      ['e.pdf', 'READY', null, null],
+    ])
+  })
+
+  it('refuses content that contradicts the extension (a PDF renamed .docx), even alone', async () => {
+    const idb = new FakeIdb()
+    const res = await (await loadWorker({ idb }).share(form([shared('hop-dong.docx', { bytes: [...Buffer.from('%PDF-1.7')] })])))!
+    expect(location(res)).toBe(u('/nhan-tep/?batch=id-1'))
+    expect(rows(idb)).toMatchObject([{ state: 'FAILED_FINAL', errorCode: 'INVALID_SIGNATURE', reason: 'signature' }])
+    expect(rows(idb)[0].file).toBeUndefined()
+  })
+
+  it('accepts a PDF preamble inside the first KB but not beyond it', async () => {
+    const pdf = [...Buffer.from('%PDF-1.4')]
+    const idb = new FakeIdb()
+    const files = [shared('a.pdf', { bytes: [...new Array(1000).fill(32), ...pdf] }), shared('b.pdf', { bytes: [...new Array(1020).fill(32), ...pdf] })]
+    await (await loadWorker({ idb }).share(form(files)))!
+    expect(rows(idb).map(r => [r.name, r.state])).toEqual([['a.pdf', 'READY'], ['b.pdf', 'FAILED_FINAL']])
+  })
+
+  it('answers a link or text without a file with guidance, never fetching or echoing it', async () => {
+    const w = loadWorker()
+    const secret = 'https://zalo.me/private/abc?token=s3cret'
+    const res = await (await w.share(form([], { title: 'Hợp đồng', text: 'xem', url: secret })))!
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Ứng dụng nguồn chỉ gửi liên kết, không gửi tệp')
+    expect(html).toContain('<a href="/">Chọn tệp trên máy</a>')
+    expect(html).not.toContain('s3cret')
+    expect(html).not.toContain('Hợp đồng')
+    expect(w.fetched).toEqual([])
+    expect(w.warnings).not.toHaveBeenCalled()
+  })
+
+  it('explains an empty or unreadable share in Vietnamese with its code', async () => {
     const w = loadWorker()
     const cases: [FormData | 'broken', number, string][] = [
-      [form(shared('anh.jpg')), 415, 'DOCX, XLSX, PPTX hoặc PDF'],
-      [form(shared('a.pdf', 0)), 422, 'đang trống'],
-      [form(shared('a.pdf', 101 * 1024 * 1024)), 413, '100 MB'],
-      ['broken', 400, 'Không đọc được'],
+      [form([]), 415, '(Mã: UNSUPPORTED_TYPE)'],
+      [form(['not a file']), 415, 'tệp văn bản, bảng tính, trình chiếu hoặc PDF'],
+      ['broken', 400, 'Không đọc được tệp được chia sẻ. Ứng dụng nguồn có thể đã đóng; hãy chia sẻ lại. (Mã: SOURCE_UNAVAILABLE)'],
     ]
     for (const [body, status, text] of cases) {
       const res = await (await w.share(body))!
@@ -373,18 +535,29 @@ describe('sw share target', () => {
     }
   })
 
+  it('prunes expired entries whenever a share arrives', async () => {
+    const idb = new FakeIdb()
+    const w = loadWorker({ idb })
+    await (await w.share(form([shared('a.pdf')])))!
+    idb.seed('pending', { id: 'old', name: 'old.pdf', editor: 'pdf', expiresAt: Date.now() - 1 })
+    await (await w.share(form([shared('b.pdf')])))!
+    expect(rows(idb).map(r => r.name).sort()).toEqual(['a.pdf', 'b.pdf'])
+  })
+
   it('refuses a share posted from another site', async () => {
     const idb = new FakeIdb()
-    const res = await (await loadWorker({ idb }).share(form(shared('a.pdf')), 'https://evil.example/x'))!
+    const res = await (await loadWorker({ idb }).share(form([shared('a.pdf')]), 'https://evil.example/x'))!
     expect(res.status).toBe(403)
+    expect(await res.text()).toContain('(Mã: ACCESS_DENIED)')
     expect(idb.rows('pending')).toEqual([])
   })
 
-  it('says so when the device cannot hold the file', async () => {
+  it('says so when the device cannot hold the files', async () => {
     const idb = new FakeIdb()
     idb.failWrites = 'QuotaExceededError'
-    const res = await (await loadWorker({ idb }).share(form(shared('a.pdf'))))!
+    const res = await (await loadWorker({ idb }).share(form([shared('a.pdf')])))!
     expect(res.status).toBe(507)
+    expect(await res.text()).toContain('(Mã: QUOTA_EXCEEDED)')
   })
 
   it('leaves other POSTs to the network', async () => {

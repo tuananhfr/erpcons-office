@@ -3,7 +3,7 @@ import { MIME_BY_EXTENSION, withMimeTypes } from './mime-types.ts'
 
 const PICKER_EXTENSIONS = [
   'docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf', 'txt', 'md', 'html', 'htm', 'xml', 'json', 'csv', 'tsv',
-  'xlsx', 'xlsm', 'xls', 'xlsb', 'ods', 'pptx', 'potx', 'ppsx', 'pdf',
+  'xlsx', 'xlsm', 'xls', 'xlsb', 'ods', 'pptx', 'pptm', 'potx', 'ppsx', 'pdf',
   'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'jp2', 'ttf', 'otf', 'woff', 'woff2',
   'wav', 'mp3', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'aif', 'aiff', 'mp4', 'm4v', 'mov', 'webm', 'p12', 'pfx',
 ]

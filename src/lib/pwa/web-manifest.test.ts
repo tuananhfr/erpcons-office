@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { EDITORS, editorPath } from '../../config/editors.ts'
+import { MIME_BY_EXTENSION } from '../files/mime-types.ts'
 import { webManifest } from './web-manifest.ts'
 
 describe('webManifest', () => {
@@ -25,13 +26,28 @@ describe('webManifest', () => {
     expect(manifest.scope).toBe('/')
   })
 
-  it('registers each editor as an "Open with" handler for its own file type', () => {
-    expect(manifest.file_handlers).toMatchObject([
-      { action: '/van-ban/', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } },
-      { action: '/bang-tinh/', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } },
-      { action: '/trinh-chieu/', accept: { 'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'] } },
-      { action: '/pdf/', accept: { 'application/pdf': ['.pdf'] } },
-    ])
+  it('registers each editor as an "Open with" handler for every format it accepts, grouped by MIME type', () => {
+    const handlers = manifest.file_handlers as { action: string; accept: Record<string, string[]> }[]
+    expect(handlers.map((h) => h.action)).toEqual(EDITORS.map((e) => editorPath(e.slug)))
+    for (const [i, editor] of EDITORS.entries()) {
+      const extensions = new Set(Object.values(handlers[i].accept).flat())
+      expect([...extensions].sort()).toEqual(editor.accepts.map((ext) => `.${ext}`).sort())
+      for (const [mime, exts] of Object.entries(handlers[i].accept)) {
+        for (const ext of exts) expect(MIME_BY_EXTENSION[ext.slice(1)], ext).toContain(mime)
+      }
+    }
+    expect(handlers[0].accept['application/msword']).toEqual(['.doc', '.dot'])
+    expect(handlers[0].accept['application/rtf']).toEqual(['.rtf'])
+    expect(handlers[0].accept['text/rtf']).toEqual(['.rtf'])
+    expect(handlers[3].accept).toEqual({ 'application/pdf': ['.pdf'] })
+  })
+
+  it('never registers formats the editors refuse (legacy ppt/odp, html, images)', () => {
+    const handlers = manifest.file_handlers as { accept: Record<string, string[]> }[]
+    const target = (manifest as { share_target?: { params: { files: { accept: string[] }[] } } }).share_target
+    const all = [...handlers.flatMap((h) => [...Object.keys(h.accept), ...Object.values(h.accept).flat()]), ...(target?.params.files[0].accept ?? [])]
+    for (const banned of ['.ppt', '.odp', '.html', '.jpg', '.png', 'application/octet-stream', 'application/vnd.ms-powerpoint']) expect(all).not.toContain(banned)
+    expect(all.filter((value) => value.startsWith('image/'))).toEqual([])
   })
 
   it('provides a distinct local PNG icon for each file handler', () => {
@@ -55,13 +71,28 @@ describe('webManifest', () => {
     })
     expect(new Set(imageBytes).size).toBe(4)
   })
-  it('accepts every editor file type from the Android share sheet as one multipart "file" field', () => {
-    const target = (manifest as { share_target?: { action: string; method: string; enctype: string; params: { files: { name: string; accept: string[] }[] } } }).share_target
+  it('accepts every editor format from the Android share sheet as one multipart "file" field, by MIME type and extension', () => {
+    const target = (manifest as { share_target?: { action: string; method: string; enctype: string; params: { title?: string; text?: string; url?: string; files: { name: string; accept: string[] }[] } } }).share_target
     expect(target).toMatchObject({ action: '/share-target/', method: 'post', enctype: 'multipart/form-data' })
     expect(target?.params.files).toHaveLength(1)
     expect(target?.params.files[0].name).toBe('file')
-    for (const e of EDITORS) expect(target?.params.files[0].accept).toContain(e.extension)
-    expect(target?.params.files[0].accept).toContain('application/pdf')
+    const accept = target?.params.files[0].accept ?? []
+    expect(new Set(accept).size).toBe(accept.length)
+    for (const editor of EDITORS) {
+      for (const ext of editor.accepts) {
+        expect(accept).toContain(`.${ext}`)
+        for (const mime of MIME_BY_EXTENSION[ext]) expect(accept).toContain(mime)
+      }
+    }
+  })
+
+  it('takes link and text shares too, so sw.js can explain that a file is needed', () => {
+    const params = (manifest as { share_target?: { params: Record<string, unknown> } }).share_target?.params
+    expect(params).toMatchObject({ title: 'title', text: 'text', url: 'url' })
+  })
+
+  it('opens a share or "Open with" in a new window instead of navigating an editor away from its document', () => {
+    expect((manifest as { launch_handler?: unknown }).launch_handler).toEqual({ client_mode: 'navigate-new' })
   })
 
   it('offers a shortcut to every editor', () => {

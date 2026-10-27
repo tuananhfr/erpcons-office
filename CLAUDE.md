@@ -51,17 +51,24 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   `lang="vi"`, SEO tags, manifest, the 40px `.erp-shell` bar, and the canvas pushed below it.
   It is idempotent (`data-erpcons-shell`) and throws if the page shape changes upstream.
 - `editor-shell/*.js` are plain-ES5 IIFEs concatenated in order by `assets.ts`
-  (`shell → account → account-ui → viewport → file-picker → open-file → keys → drafts → drafts-ui → host-bridge → crash-guard`)
+  (`shell → account → account-ui → viewport → file-picker → intake → open-file → share → keys → drafts → drafts-ui → host-bridge → crash-guard`)
   into one inline `<script>`, after `window.erpEmbedHosts` (from `src/config/embed.ts`), `window.erpMimeTypes` (from
-  `src/lib/files/mime-types.ts`, shared with the landing picker) and, only with PI sign-in on, `window.erpPi`; no
+  `src/lib/files/mime-types.ts`, shared with the landing picker), `window.erpIntakeContract` (from
+  `src/lib/files/intake-contract.ts`) and, only with PI sign-in on, `window.erpPi`; no
   bundler, no TS. Tests run them in node against fakes (`fake-idb.ts`, `fake-browser.ts`, `fake-pi.ts`).
   - Phones: inject.ts adds `viewport-fit=cover, interactive-widget=resizes-content` to the fork's viewport meta;
     shell.css owns the safe-area vars (`--erp-inset-*`, zeroed when embedded) and `--erp-top`/`--erp-bottom`
     that the bar, canvas and overlays use. `viewport.js` sets `--erp-keyboard-h` from `visualViewport` (iOS
     keyboard); `file-picker.js` appends MIME types to rfd's extension-only `accept` before the native click (iOS).
-  - `open-file.js`: landing → editor file handoff via IndexedDB `erpcons-file-transfer-v1`
-    + `?open=<token>`, delivered as a synthetic `drop` on the canvas (see `docs/file-transfer.md`).
-    Also handles PWA `launchQueue` ("Open with").
+  - `intake.js`: `window.erpIntake` (also inlined into sw.js): states, error codes, the one code → Vietnamese
+    message table, signature sniffing, bidi stripping and queue pruning, all read from `erpIntakeContract`.
+    The contract (limits, accepted formats from each editor's `accepts` in `editors.ts`) is the single source for
+    the manifest, the landing picker, `pending-file.ts`, the worker and the `/nhan-tep/` batch page.
+  - `open-file.js`: landing/share → editor file handoff via IndexedDB `erpcons-file-transfer-v1`
+    + `?open=<id>[,<id>…]`, delivered as a synthetic `drop` on the canvas; bytes stay queued until the fork reports
+    `window.erpIntakeResult(name, size, ok)` (see `docs/file-transfer.md`). Also handles PWA `launchQueue` ("Open with").
+  - `share.js`: `window.erpCanShareFiles(mime?)` / `window.erpShare(bytes, name, mime)` for the forks' "Chia sẻ"
+    export (Web Share, download fallback; off when embedded).
   - `keys.js`: blocks browser defaults (Ctrl+R/L/D, F5…) eframe doesn't cancel; never clipboard keys.
   - Clipboard (web): no shell JS. Each `apps/<fork>-web/src/clipboard.rs` (Word, Grid, Deck) listens for `paste`
     in the capture phase (text/html, text/rtf, text/plain, images) and writes `ClipboardItem` on copy; the
@@ -83,8 +90,10 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
-    of that build is open. It also answers the manifest's Android `share_target` (POST `/share-target/`):
-    the shared file joins the same `pending` queue as the landing picker, then a 303 to `/<editor>/?open=<id>`.
+    of that build is open. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
+    files join the same `pending` queue as the landing picker under one `batchId`, then a 303 to
+    `/<editor>/?open=<id>` (exactly one valid file) or `/nhan-tep/?batch=<id>`. `assemble.mts` fills its
+    `/*__INTAKE__*/` placeholder with the contract and `intake.js`.
     `/dang-nhap/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.
 - Links between exported pages are plain `<a>` (static hosting, no RSC rewrites).

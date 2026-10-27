@@ -23,6 +23,7 @@ export const MIME_BY_EXTENSION: Readonly<Record<string, readonly string[]>> = {
   xlsb: ['application/vnd.ms-excel.sheet.binary.macroenabled.12'],
   ods: ['application/vnd.oasis.opendocument.spreadsheet'],
   pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+  pptm: ['application/vnd.ms-powerpoint.presentation.macroenabled.12'],
   potx: ['application/vnd.openxmlformats-officedocument.presentationml.template'],
   ppsx: ['application/vnd.openxmlformats-officedocument.presentationml.slideshow'],
   pdf: ['application/pdf'],

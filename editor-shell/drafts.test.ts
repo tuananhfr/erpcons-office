@@ -27,8 +27,12 @@ interface Drafts {
   ready(restore: (...args: unknown[]) => void): void
 }
 
-// Fake IndexedDB answers over a few macrotasks; give every chain time to settle.
-const flush = () => new Promise(resolve => setTimeout(resolve, 30))
+// Fake IndexedDB answers over a few zero-delay macrotasks (readwrite ones queue behind each other); a fixed delay
+// alone loses that race on a loaded machine, so also queue behind enough zero-delay hops.
+const flush = async () => {
+  await new Promise(resolve => setTimeout(resolve, 30))
+  for (let hop = 0; hop < 20; hop++) await new Promise(resolve => setTimeout(resolve, 0))
+}
 
 function page(idb: FakeIdb, { pathname = '/van-ban/', search = '', locks = [] as string[] | null, storage = {} as Record<string, unknown> } = {}) {
   const held: string[] = []

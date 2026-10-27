@@ -6,7 +6,7 @@ import { piConfig } from '../src/config/pi.ts'
 import { accountScript } from '../src/lib/account/account-script.ts'
 import { signInPages } from '../src/lib/account/sign-in-pages.ts'
 import { assetManifest, fillServiceWorker } from '../src/lib/build/asset-manifest.ts'
-import { loadShellAssets } from '../src/lib/editor-shell/assets.ts'
+import { loadShellAssets, serviceWorkerIntake } from '../src/lib/editor-shell/assets.ts'
 import { installEditor } from '../src/lib/build/assemble.ts'
 import { precompressDir } from '../src/lib/build/precompress.ts'
 import { REPO_ROOT, forkDist, workspaceRoot } from '../src/lib/build/workspace.ts'
@@ -42,7 +42,7 @@ fs.writeFileSync(path.join(out, 'sbom.cdx.json'), JSON.stringify(siteSbom(REPO_R
 
 // Hashes the files, so it changes exactly when out/ does (Next alone changes it every build); activate carries the old cache over.
 const manifest = assetManifest(out)
-fs.writeFileSync(path.join(out, 'sw.js'), fillServiceWorker(fs.readFileSync(path.join(shell, 'sw.js'), 'utf8'), manifest))
+fs.writeFileSync(path.join(out, 'sw.js'), fillServiceWorker(fs.readFileSync(path.join(shell, 'sw.js'), 'utf8'), manifest, serviceWorkerIntake(shell)))
 console.log(`sw.js build ${manifest.id}, ${manifest.urls.length} urls`)
 
 const { files } = precompressDir(out)
