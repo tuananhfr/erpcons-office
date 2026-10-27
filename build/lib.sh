@@ -21,6 +21,9 @@ use_target() {
   else
     export CARGO_TARGET_DIR="/target/wt/$(basename "$2")"
   fi
+  # prune.sh drops a target whose checkout is gone, and ranks targets by this file's mtime among others.
+  mkdir -p "$CARGO_TARGET_DIR" && printf '%s\n' "$2" > "$CARGO_TARGET_DIR/.erpcons-source"
+  bash "$(dirname "${BASH_SOURCE[0]}")/prune.sh" --protect "$CARGO_TARGET_DIR" || echo "warning: prune.sh failed" >&2
 }
 
 # parse_fork_args "$@": sets FORK, DIR and REST from `<fork> [--dir <worktree>] [other args...]`.

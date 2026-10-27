@@ -3,13 +3,14 @@
 #   build/run.sh gate wordcraft [--dir tmp/<worktree>]  -> build/gate.sh ...
 #   build/run.sh test wordcraft [--dir ...] <cargo test args>
 #   build/run.sh desktop-win wordcraft    -> build/desktop-win.sh wordcraft
+#   build/run.sh prune [--dry-run]        -> build/prune.sh (also runs before each fork step and hourly)
 #   build/run.sh bash                     -> any other command
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 # Docker Desktop needs a Windows path for the bind mount; `pwd -W` exists only in Git Bash.
 ws=$(cd "$here/../.." && { pwd -W 2>/dev/null || pwd; })
-[ $# -gt 0 ] || { sed -n '2,6p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,7p' "$0"; exit 2; }
 
 # The tag follows the Dockerfile, so an edited Dockerfile always gets a fresh image.
 image="erpcons-build:$(sha256sum "$here/Dockerfile" | cut -c1-12)"
@@ -31,5 +32,8 @@ MSYS_NO_PATHCONV=1 exec docker run --rm "${tty[@]}" \
   -v erpcons-npm:/root/.npm \
   -v erpcons-office-node-modules:/ws/erpcons-office/node_modules \
   -e CARGO_TARGET_DIR=/target \
+  -e CARGO_PROFILE_DEV_DEBUG=line-tables-only \
+  -e CARGO_PROFILE_TEST_DEBUG=line-tables-only \
+  -e ERPCONS_TARGET_BUDGET_GB \
   -w /ws \
   "$image" "$@"

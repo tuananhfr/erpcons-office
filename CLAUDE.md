@@ -135,6 +135,12 @@ a CRLF checkout leaks `\r` into `include_str!` data and breaks rustfmt and tests
   (`x86_64-pc-windows-msvc`, static CRT, icon/VERSIONINFO checked) into `<fork>/target/x86_64-pc-windows-msvc/release/`.
   Then on the host: `pwsh <fork>/packaging/windows/package.ps1 -Arch x64 -SkipBuild` (WiX 5.0.2 as a dotnet tool).
   The host is Windows 11 Home (no Windows containers), so WiX packaging cannot move into Docker.
+- `build/run.sh prune [--dry-run]`: keeps all cargo targets (the volume plus `target/` dirs of workspace checkouts) under
+  `ERPCONS_TARGET_BUDGET_GB` (120): drops targets whose checkout is gone, keeps the 2 newest builds of each test/bin
+  binary, then evicts least recently used targets. Targets locked by cargo or written in the last 30 min are left alone.
+  It runs from `use_target` before each fork step (at most every 30 min) and hourly from the Windows task
+  "ERPCons cargo prune" (log `build/logs/prune.log`). `run.sh` sets `CARGO_PROFILE_{DEV,TEST}_DEBUG=line-tables-only`:
+  full debuginfo made each test binary 0.4–0.9 GB.
 - Web release and deploy: the previous machine's WSL scripts (`release.sh`, `~/deploy-office.sh`,
   `~/rollback-office.sh`) are lost and not yet replaced. Production (`office.erpcons.ai`) is 69.62.73.66.
 
