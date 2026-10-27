@@ -28,11 +28,11 @@
       clearTimeout(doc.retry.timer)
       doc.retry.timer = null
     }
+    // The account the document was opened with owns its bytes, whoever is signed in now.
     function persist(doc, entry) {
-      var sub = deps.user()
-      if (!sub) return
+      if (!doc.sub) return
       deps.pending.put({
-        docId: doc.id, sub: sub, title: doc.title, format: doc.format, folderId: doc.folderId,
+        docId: doc.id, sub: doc.sub, title: doc.title, format: doc.format, folderId: doc.folderId,
         baseVersion: doc.version, baseEtag: doc.etag, savedAt: entry.savedAt, bytes: entry.bytes
       }).then(null, function () { console.warn('Online pending copy not stored') })
     }
@@ -41,6 +41,11 @@
       doc.pending = { bytes: bytes, revision: revision, awaited: true, savedAt: Date.now() }
       persist(doc, doc.pending)
       return doc.pending
+    }
+    // Signed out is not another account: apiFetch then refuses without a request and the user is asked to sign in.
+    function otherAccount(doc) {
+      var current = deps.user()
+      return Boolean(current) && current !== doc.sub
     }
     function conflictResult(doc) { return { status: 'conflict', latestVersion: doc.conflict.latestVersion } }
     function failed(retryable, message) { return { status: 'failed', retryable: retryable, message: message } }
@@ -103,6 +108,12 @@
       var entry = doc.pending
       if (!entry) return Promise.resolve({ status: 'saved', version: doc.version })
       clearRetry(doc)
+      if (otherAccount(doc)) {
+        // Another account's token must never carry these bytes; they wait in the pending store for their owner.
+        doc.error = { offline: true, retryable: true, message: messages.otherAccount }
+        changed()
+        return Promise.resolve({ status: 'offline' })
+      }
       doc.inflight += 1
       changed()
       function attempt(tries) {
@@ -163,6 +174,7 @@
         var doc = docs[meta.id] || (docs[meta.id] = { id: meta.id, chain: Promise.resolve(), inflight: 0, retry: { timer: null, attempt: 0 } })
         clearRetry(doc)
         doc.retry.attempt = 0
+        doc.sub = deps.user()
         doc.title = meta.title
         doc.format = meta.format
         doc.folderId = meta.folderId || null
@@ -178,6 +190,8 @@
         return doc
       },
       get: function (id) { return docs[id] || null },
+      /** True while an account other than the document's owner is signed in. */
+      otherAccount: function (id) { return Boolean(docs[id]) && otherAccount(docs[id]) },
       dirty: function (id, dirty) {
         var doc = docs[id]
         if (!doc) return

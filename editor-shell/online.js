@@ -63,6 +63,12 @@
     var current = account.user()
     return current ? current.id : null
   }
+  // The account this page opened its documents with; a popup sign-in never reloads, so another one can follow.
+  var pageSub = user()
+  function sameAccount() {
+    var current = user()
+    return !current || current === pageSub
+  }
 
   var api = online.createApi(account.apiFetch)
   var pending = online.createPendingStore(idb)
@@ -91,7 +97,7 @@
       }, READY_WAIT)
     }
   }
-  var opener = online.createOpener({ api: api, saver: saver, pending: pending, dialogs: dialogs, user: user, deliver: deliver, signIn: function () { return account.signIn() } })
+  var opener = online.createOpener({ api: api, saver: saver, pending: pending, dialogs: dialogs, user: user, sameAccount: sameAccount, deliver: deliver, signIn: function () { return account.signIn() } })
 
   function showDoc(id) {
     var next = new URLSearchParams(location.search)
@@ -166,12 +172,19 @@
   account.signOut = function () { return flush().then(function () { return signOut() }) }
 
   var signedIn = true
+  var otherAccount = null
   account.onChange(function (snapshot) {
     var now = snapshot.status === 'signed-in'
-    if (now && !signedIn) saver.resume()
+    if (now && !sameAccount()) {
+      if (!otherAccount) otherAccount = dialogs.otherAccount({ onReload: function () { location.reload() } })
+    } else if (now && (!signedIn || otherAccount)) {
+      if (otherAccount) otherAccount.close()
+      otherAccount = null
+      saver.resume()
+    }
     signedIn = now
   })
-  window.addEventListener('online', function () { saver.resume() })
+  window.addEventListener('online', function () { if (sameAccount()) saver.resume() })
   // The page may never come back from hidden (mobile tab switch, then kill); pagehide is the last chance.
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushFork() })
   window.addEventListener('pagehide', function () { flushFork() })

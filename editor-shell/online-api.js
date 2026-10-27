@@ -10,7 +10,8 @@
     signIn: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để lưu lên máy chủ.',
     busy: 'Máy chủ đang bận. Văn phòng sẽ tự lưu lại sau.',
     rejected: 'Máy chủ không nhận bản lưu này.',
-    failed: 'Không lưu được lên máy chủ. Hãy thử lại.'
+    failed: 'Không lưu được lên máy chủ. Hãy thử lại.',
+    otherAccount: 'Bạn đang đăng nhập bằng tài khoản khác. Hãy tải lại trang.'
   }
   online.messages = MESSAGES
 

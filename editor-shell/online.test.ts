@@ -427,6 +427,94 @@ describe('acknowledged (the shell retry stored the bytes)', () => {
   })
 })
 
+describe('another account signs in on the same page', () => {
+  const OTHER_ACCOUNT = 'Bạn đang đăng nhập bằng tài khoản khác'
+  // An unacknowledged copy of usr_an's edits, then the session ends and usr_binh signs in through the popup.
+  async function switched(direct = false) {
+    const page = await opened()
+    page.office.offline = true
+    page.host!.dirty(DOC_ID, true)
+    await page.host!.save(DOC_ID, bytes(7), { revision: 2, reason: 'auto' })
+    await page.settle()
+    page.office.offline = false
+    if (!direct) page.account.set('signed-out')
+    page.account.set('signed-in', 'usr_binh')
+    await page.settle()
+    return { page, sent: page.office.calls.length }
+  }
+
+  it.each([['after a sign-out', false], ['directly', true]])('%s: nothing is sent with the new account, the copy stays the first account\'s, and the page asks for a reload', async (_name, direct) => {
+    const { page, sent } = await switched(direct)
+    expect(page.dialogId()).toBe('other-account')
+    expect(page.dialog()?.querySelector('h2')?.textContent).toBe(OTHER_ACCOUNT)
+    expect(page.dialog()?.textContent).toContain('vẫn được giữ trên thiết bị này')
+    expect(actionLabels(page.dialog()!)).toEqual(['Tải lại trang'])
+    expect(pendingRows(page.idb)).toEqual([expect.objectContaining({ sub: 'usr_an', size: 1 })])
+
+    // The editor keeps saving: offline (it stays dirty), stored under the first account, never sent.
+    expect(await page.host!.save(DOC_ID, bytes(8, 8), { revision: 3, reason: 'auto' })).toEqual({ status: 'offline' })
+    await page.settle()
+    expect(pendingRows(page.idb)).toEqual([expect.objectContaining({ sub: 'usr_an', size: 2 })])
+    expect(badge(page)).toMatchObject({ state: 'LOCAL_ONLY', text: `Chưa lưu lên máy chủ · ${OTHER_ACCOUNT}. Hãy tải lại trang. · Báo cáo quý` })
+    page.fire('online')
+    await tick(page, 10 * 60 * 1000)
+    await page.online.flush()
+    expect(page.office.calls).toHaveLength(sent)
+    expect(page.office.version(DOC_ID)).toBe(1)
+    expect(page.acks).toEqual([])
+
+    click(page, 'Tải lại trang')
+    expect(page.location.reloads).toBe(1)
+  })
+
+  it('the first account signing in again closes the dialog and resumes as before', async () => {
+    const { page } = await switched()
+    page.account.set('signed-out')
+    page.account.set('signed-in', 'usr_an')
+    await page.settle()
+    expect(page.dialog()).toBeNull()
+    expect(page.office.version(DOC_ID)).toBe(2)
+    expect(page.acks).toEqual([{ docId: DOC_ID, revision: 2, version: 2 }])
+    expect(pendingRows(page.idb)).toEqual([])
+    expect(await page.host!.save(DOC_ID, bytes(9), { revision: 3, reason: 'auto' })).toEqual({ status: 'saved', version: 3 })
+  })
+
+  it('a conflict open at the switch: neither way out sends anything with the new account', async () => {
+    const page = await opened()
+    page.office.saveElsewhere(DOC_ID, bytes(4))
+    await page.host!.save(DOC_ID, bytes(7), { revision: 2, reason: 'auto' })
+    await page.settle()
+    expect(page.dialogId()).toBe('conflict')
+    const conflict = page.dialog()!
+    const sent = page.office.calls.length
+    page.account.set('signed-in', 'usr_binh')
+    await page.settle()
+    expect(page.dialogId()).toBe('other-account')
+    // A click that was already on its way to the replaced dialog.
+    buttonNamed(conflict, 'Lưu bản của tôi thành bản sao').click()
+    buttonNamed(conflict, 'Mở bản mới nhất').click()
+    await page.settle()
+    expect(page.office.calls).toHaveLength(sent)
+    expect(page.office.docs.size).toBe(1)
+    expect(pendingRows(page.idb)).toEqual([expect.objectContaining({ sub: 'usr_an' })])
+  })
+
+  it('an open retried after signing in as someone else sends nothing', async () => {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1))
+    office.rejections.push('unauthenticated')
+    const page = onlinePage({ office })
+    page.fork()
+    await page.settle()
+    expect(page.dialogId()).toBe('sign-in')
+    const sent = office.calls.length
+    page.account.state.sub = 'usr_binh'
+    click(page, 'Đăng nhập')
+    await page.settle()
+    expect(office.calls).toHaveLength(sent)
+    expect(page.opened).toEqual([])
+  })
+})
+
 describe('pending store', () => {
   it('holds the bytes with their base until the server acknowledges them', async () => {
     const page = await opened()
@@ -508,6 +596,7 @@ describe('pending store', () => {
     const page = await opened({ idb, office, account: { status: 'signed-in', sub: 'usr_binh' } })
     expect(page.dialog()).toBeNull()
     expect(list(page.opened[0].bytes)).toEqual([1, 2, 3])
+    expect(pendingRows(idb)).toEqual([expect.objectContaining({ sub: 'usr_an' })])
   })
 
   it('a copy waiting behind an in-flight save is rebased on it, so its own save is no conflict', async () => {

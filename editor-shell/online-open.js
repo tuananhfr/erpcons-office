@@ -19,7 +19,10 @@
     return outcome.message || messages.failed
   }
 
-  /** deps: { api, saver, pending, dialogs, user() → sub, deliver(doc), signIn() → Promise<snapshot> } */
+  /**
+   * deps: { api, saver, pending, dialogs, user() → sub, sameAccount() → false once another account signed in,
+   * deliver(doc), signIn() → Promise<snapshot> }
+   */
   online.createOpener = function (deps) {
     // Title and format come from the metadata; version and ETag from the bytes, which may be newer.
     function server(id) {
@@ -64,7 +67,10 @@
       })
     }
 
+    var OTHER_ACCOUNT = { kind: 'failed', retryable: false, message: online.messages.otherAccount }
+
     function load(id) {
+      if (!deps.sameAccount()) return Promise.resolve()
       return Promise.all([server(id), deps.pending.get(id)]).then(function (results) {
         var found = results[0]
         // A copy left by another account on this device is never shown.
@@ -96,6 +102,7 @@
     }
 
     function openLatest(id) {
+      if (!deps.sameAccount()) return Promise.resolve(OTHER_ACCOUNT)
       return server(id).then(function (found) {
         if (found.kind !== 'ok') return found
         return deps.saver.discard(id).then(function () {
@@ -108,6 +115,7 @@
     // The copy keeps the user's bytes; the original then goes back to its latest version, which settles the
     // conflict in editors that show one document at a time as well as in tabbed ones.
     function saveCopy(id, idempotencyKey) {
+      if (!deps.sameAccount()) return Promise.resolve(OTHER_ACCOUNT)
       var doc = deps.saver.get(id)
       if (!doc || !doc.conflict) return Promise.resolve({ kind: 'failed', retryable: false, message: online.messages.failed })
       var bytes = doc.conflict.bytes

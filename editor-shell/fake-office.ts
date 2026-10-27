@@ -120,9 +120,10 @@ export function fakeAccount(office: FakeOffice, state: FakeAccountState = { stat
     signIn: () => { account.signIns += 1; return Promise.resolve({ status: state.status }) },
     signOut: () => { account.signOuts += 1; state.status = 'signed-out'; return Promise.resolve({ status: 'signed-out' }) },
     apiFetch: office.apiFetch,
-    /** Changes the status and tells the listeners, as account.js does. */
-    set(status: FakeAccountState['status']) {
+    /** Changes the status (and the account, for a sign-in as someone else) and tells the listeners, as account.js does. */
+    set(status: FakeAccountState['status'], sub = state.sub) {
       state.status = status
+      state.sub = sub
       listeners.forEach(fn => fn({ status }))
     },
   }

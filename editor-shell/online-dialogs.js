@@ -163,6 +163,18 @@
         onEscape: close
       })
     },
+    // No way out but a reload or the first account signing in again: editing on would save nowhere.
+    otherAccount: function (handlers) {
+      return open({
+        id: 'other-account',
+        title: 'Bạn đang đăng nhập bằng tài khoản khác',
+        paragraphs: [
+          'Tài liệu trên trang này được mở bằng tài khoản trước. Văn phòng đã dừng lưu lên máy chủ để không lưu nhầm vào tài khoản đang đăng nhập.',
+          'Bản chưa lưu của tài khoản trước vẫn được giữ trên thiết bị này và sẽ được đề nghị khôi phục khi tài khoản đó mở lại tài liệu.'
+        ],
+        actions: [{ label: 'Tải lại trang', kind: 'primary', onClick: handlers.onReload }]
+      })
+    },
     signIn: function (handlers) {
       return open({
         id: 'sign-in',
