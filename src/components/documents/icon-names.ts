@@ -1,0 +1,32 @@
+/** Icons the documents page uses; the server page renders each from bootstrap-icons (Icon reads files at build). */
+export const DOC_ICONS = {
+  folder: 'folder-fill',
+  docx: 'file-earmark-word',
+  xlsx: 'file-earmark-spreadsheet',
+  pptx: 'file-earmark-slides',
+  pdf: 'file-earmark-pdf',
+  create: 'plus-lg',
+  upload: 'upload',
+  newFolder: 'folder-plus',
+  trash: 'trash3',
+  restore: 'arrow-counterclockwise',
+  more: 'three-dots-vertical',
+  crumb: 'chevron-right',
+  home: 'house',
+  rename: 'pencil',
+  move: 'folder-symlink',
+  open: 'box-arrow-up-right',
+  cloud: 'cloud-arrow-up',
+  warning: 'exclamation-triangle',
+  offline: 'wifi-off',
+  close: 'x-lg',
+  retry: 'arrow-clockwise',
+  done: 'check2-circle',
+  back: 'arrow-left',
+  progress: 'hourglass-split',
+  locked: 'person-lock',
+  empty: 'inbox',
+  failed: 'x-circle',
+} as const
+
+export type DocIconName = keyof typeof DOC_ICONS

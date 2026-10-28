@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import { Icon } from '@/components/Icon.tsx'
+import { OnlineInvite } from '@/components/landing/OnlineInvite.tsx'
 import { OpenFileButton } from '@/components/landing/OpenFileButton.tsx'
+import { siteFlags } from '@/config/site-flags.ts'
 
 export function Hero() {
   return <section className="erp-hero" aria-labelledby="hero-title">
@@ -14,6 +16,7 @@ export function Hero() {
           <a className="erp-btn erp-btn--secondary" href="#chuc-nang"><Icon name="grid" /> Chọn công cụ</a>
         </div>
         <p className="erp-hero__trust"><Icon name="shield-check" /> Không cần tài khoản <span>·</span> Tệp xử lý trên thiết bị</p>
+        {siteFlags().online && <OnlineInvite />}
       </div>
       <div className="erp-hero__art"><Image src="/illustrations/workspace.webp" alt="Góc làm việc bên cửa sổ, laptop, cây xanh và sổ tay." width={1536} height={1024} priority sizes="(max-width: 767px) 100vw, 60vw" /></div>
     </div>

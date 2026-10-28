@@ -3,6 +3,7 @@ import { Inter, Patrick_Hand } from 'next/font/google'
 import type { ReactNode } from 'react'
 import { RegisterServiceWorker } from '@/components/RegisterServiceWorker.tsx'
 import { piConfig } from '@/config/pi.ts'
+import { siteFlags } from '@/config/site-flags.ts'
 import { accountScript } from '@/lib/account/account-script.ts'
 import { CAPTURE_INSTALL_PROMPT } from '@/lib/pwa/install-prompt.ts'
 import { PWA_THEME_COLOR } from '@/lib/pwa/web-manifest.ts'
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: PWA_THEME_COLOR, width: 'device-width', initialScale: 1 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const pi = piConfig()
+  const pi = piConfig(siteFlags().pi)
   return (
     <html lang="vi" className={`${inter.variable} ${handwriting.variable}`}>
       <body>

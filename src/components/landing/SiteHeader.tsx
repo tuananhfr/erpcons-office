@@ -4,9 +4,9 @@ import { Icon } from '@/components/Icon.tsx'
 import { InstallAppButton } from '@/components/InstallAppButton.tsx'
 import { AccountMenu } from '@/components/landing/AccountMenu.tsx'
 import { DESKTOP_DOWNLOADS_ENABLED } from '@/config/desktop.ts'
-import { PI_ACCOUNT_ENABLED } from '@/config/pi.ts'
+import { siteFlags } from '@/config/site-flags.ts'
 
-type Page = 'home' | 'explore' | 'guide'
+type Page = 'home' | 'explore' | 'guide' | 'documents'
 
 function Navigation({ active }: { active: Page }) {
   return <>
@@ -15,6 +15,7 @@ function Navigation({ active }: { active: Page }) {
     {DESKTOP_DOWNLOADS_ENABLED && <a href="/#tai-ban-desktop">Tải về</a>}
     <a href="/kham-pha/" aria-current={active === 'explore' ? 'page' : undefined}>Khám phá</a>
     <a href="/huong-dan/" aria-current={active === 'guide' ? 'page' : undefined}>Hướng dẫn</a>
+    {siteFlags().online && <a href="/tai-lieu/" aria-current={active === 'documents' ? 'page' : undefined}>Tài liệu của tôi</a>}
   </>
 }
 
@@ -23,7 +24,7 @@ function Install({ variant }: { variant: 'header' | 'menu' }) {
 }
 
 function Account({ variant }: { variant: 'header' | 'menu' }) {
-  if (!PI_ACCOUNT_ENABLED) return null
+  if (!siteFlags().pi) return null
   return <AccountMenu variant={variant} icon={<Icon name="person" />} />
 }
 
