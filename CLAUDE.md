@@ -96,7 +96,13 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     defines `window.erpHost` v1 for a signed-in user on `/<editor>/?doc=<id>` (never when embedded). Pending
     unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`
     turns PI + online on in `assemble.mts`, and only together with `ERPCONS_ALLOW_LOCAL_PROVENANCE=1`, which build-info
-    records and the deploy refuses. `ERPCONS_API_PROXY=http://127.0.0.1:<port>` makes `npm run preview` proxy `/api/`.
+    records and the deploy refuses. `ERPCONS_LOCAL_PI_ISSUER=<origin>` (same guard) points PI at a local issuer such
+    as pi-mock. `src/config/site-flags.ts` resolves these flags for `next build` and `assemble.mts` alike (pass the env
+    to both). `ERPCONS_API_PROXY=http://127.0.0.1:<port>` makes `npm run preview` proxy `/api/`.
+  - "Tài liệu của tôi" `/tai-lieu/` (`app/tai-lieu/page.online.tsx`, `src/components/documents/`,
+    `src/lib/documents/`): `next.config.ts` adds the `.online.tsx` page extension only when the online flag is on, so
+    with it off the route and its code are not built (locked by `site-flags.test.ts`). The header link and the
+    landing's "Đăng nhập để lưu online" line follow the same flag.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab

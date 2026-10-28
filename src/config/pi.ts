@@ -28,12 +28,13 @@ export interface PiConfig {
   catalogKeys: Record<string, string>
 }
 
-export function piConfig(enabled: boolean = PI_ACCOUNT_ENABLED): PiConfig | null {
+/** `localIssuer` replaces the issuer and API base in local builds only (`buildFlags().piIssuer`). */
+export function piConfig(enabled: boolean = PI_ACCOUNT_ENABLED, localIssuer: string | null = null): PiConfig | null {
   if (!enabled) return null
   return {
     version: 1,
-    issuer: PI_ISSUER,
-    apiBase: PI_API_BASE,
+    issuer: localIssuer ?? PI_ISSUER,
+    apiBase: localIssuer ?? PI_API_BASE,
     clientId: PI_CLIENT_ID,
     scopes: PI_SCOPES.join(' '),
     signInPath: PI_SIGN_IN_PATH,

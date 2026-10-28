@@ -31,7 +31,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: PWA_THEME_COLOR, width: 'device-width', initialScale: 1 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const pi = piConfig(siteFlags().pi)
+  const flags = siteFlags()
+  const pi = piConfig(flags.pi, flags.piIssuer)
   return (
     <html lang="vi" className={`${inter.variable} ${handwriting.variable}`}>
       <body>
