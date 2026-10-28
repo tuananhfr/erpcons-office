@@ -5,8 +5,13 @@ import { ROOT_VIEW, parseView, viewHash, viewState, type View } from '@/lib/docu
 
 const current = (): View => parseView(window.location.hash, window.history.state)
 
-/** The folder or trash view in the URL fragment, with back/forward support. */
-export function useHashView(): [View, (view: View) => void] {
+const urlOf = (view: View) => `${window.location.pathname}${window.location.search}${viewHash(view)}`
+
+/**
+ * The folder or trash view in the URL fragment, with back/forward support. `replace` rewrites the current entry
+ * (a path looked up for a link), so back and reload find the names there.
+ */
+export function useHashView(): { view: View; navigate: (view: View) => void; replace: (view: View) => void } {
   const [view, setView] = useState<View>(ROOT_VIEW)
   useEffect(() => {
     const sync = () => setView(current())
@@ -19,9 +24,12 @@ export function useHashView(): [View, (view: View) => void] {
     }
   }, [])
   const navigate = useCallback((next: View) => {
-    const url = `${window.location.pathname}${window.location.search}${viewHash(next)}`
-    window.history.pushState(viewState(next, window.history.state), '', url)
+    window.history.pushState(viewState(next, window.history.state), '', urlOf(next))
     setView(next)
   }, [])
-  return [view, navigate]
+  const replace = useCallback((next: View) => {
+    window.history.replaceState(viewState(next, window.history.state), '', urlOf(next))
+    setView(next)
+  }, [])
+  return { view, navigate, replace }
 }

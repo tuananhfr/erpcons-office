@@ -1,5 +1,5 @@
 import { problem, problemFromError, problemFromResponse } from './problem.ts'
-import type { ApiFetch, DocumentItem, Folder, Format, Kind, Page, Quota, Result } from './types.ts'
+import type { ApiFetch, DocumentItem, Folder, FolderPath, Format, Kind, Page, Quota, Result } from './types.ts'
 
 const BASE = '/api/v1'
 const PAGE_SIZE = 50
@@ -17,6 +17,14 @@ const count = (value: unknown): number | null => (typeof value === 'number' && N
 function folderOf(raw: unknown): Folder | null {
   if (!isRaw(raw) || !text(raw.id) || text(raw.name) === null) return null
   return { id: raw.id as string, parentId: text(raw.parent_id), name: raw.name as string, trashedAt: text(raw.trashed_at), updatedAt: text(raw.updated_at) ?? '' }
+}
+
+function folderPathOf(raw: unknown): FolderPath | null {
+  if (!isRaw(raw) || !Array.isArray(raw.ancestors)) return null
+  const folder = folderOf(raw.folder)
+  const ancestors = raw.ancestors.map(folderOf)
+  if (!folder || ancestors.includes(null)) return null
+  return { folder, ancestors: ancestors as Folder[] }
 }
 
 function documentOf(raw: unknown): DocumentItem | null {
@@ -76,6 +84,8 @@ export function createDocumentsApi(apiFetch: ApiFetch) {
   }
   const none = () => true as const
   const get = { method: 'GET', headers: { Accept: 'application/json' } }
+  // Purge takes no body; the key makes a retry after a lost 204 harmless.
+  const purge = (key: string): RequestInit => ({ method: 'POST', headers: { Accept: 'application/json', 'Idempotency-Key': key } })
   const send = (method: string, body?: unknown, key?: string): RequestInit => ({
     method,
     headers: key ? { ...JSON_HEADERS, 'Idempotency-Key': key } : JSON_HEADERS,
@@ -87,6 +97,7 @@ export function createDocumentsApi(apiFetch: ApiFetch) {
     children: (folderId: string | null, cursor: string | null = null) =>
       call(`/folders/${folderId ? segment(folderId) : 'root'}/children${query(cursor)}`, get, pageOf),
     trash: (cursor: string | null = null) => call(`/trash${query(cursor)}`, get, pageOf),
+    folder: (id: string) => call(`/folders/${segment(id)}`, get, folderPathOf),
 
     createFolder: (parentId: string | null, name: string, key: string) =>
       call('/folders', send('POST', { parent_id: parentId, name }, key), folderOf),
@@ -94,6 +105,7 @@ export function createDocumentsApi(apiFetch: ApiFetch) {
     moveFolder: (id: string, parentId: string | null) => call(`/folders/${segment(id)}`, send('PATCH', { parent_id: parentId }), folderOf),
     trashFolder: (id: string) => call(`/folders/${segment(id)}`, { method: 'DELETE' }, none),
     restoreFolder: (id: string) => call(`/folders/${segment(id)}/restore`, { method: 'POST', headers: { Accept: 'application/json' } }, folderOf),
+    purgeFolder: (id: string, key: string) => call(`/folders/${segment(id)}/purge`, purge(key), none),
 
     createBlank: (kind: Kind, title: string, folderId: string | null, key: string) =>
       call('/documents', send('POST', { kind, title, folder_id: folderId }, key), documentOf),
@@ -108,6 +120,7 @@ export function createDocumentsApi(apiFetch: ApiFetch) {
     moveDocument: (id: string, folderId: string | null) => call(`/documents/${segment(id)}`, send('PATCH', { folder_id: folderId }), documentOf),
     trashDocument: (id: string) => call(`/documents/${segment(id)}`, { method: 'DELETE' }, none),
     restoreDocument: (id: string) => call(`/documents/${segment(id)}/restore`, { method: 'POST', headers: { Accept: 'application/json' } }, documentOf),
+    purgeDocument: (id: string, key: string) => call(`/documents/${segment(id)}/purge`, purge(key), none),
   }
 }
 

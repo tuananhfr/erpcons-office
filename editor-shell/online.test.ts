@@ -569,6 +569,15 @@ describe('pending store', () => {
     expect(pendingRows(idb)).toHaveLength(1)
   })
 
+  it('drops a copy the server already holds (its save landed after the page lost the answer) without asking', async () => {
+    const { idb, office } = await leftBehind(o => o.saveElsewhere(DOC_ID, bytes(7, 7)))
+    const page = await opened({ idb, office })
+    expect(page.dialog()).toBeNull()
+    expect(page.opened[0]).toMatchObject({ docId: DOC_ID, version: 2 })
+    expect(list(page.opened[0].bytes)).toEqual([7, 7])
+    expect(pendingRows(idb)).toEqual([])
+  })
+
   it('"Mở bản trên máy chủ" drops the copy and opens the server version', async () => {
     const { idb, office } = await leftBehind()
     const page = await opened({ idb, office })
@@ -727,6 +736,15 @@ describe('leaving the page', () => {
     expect(done).toBe(false)
     await tick(page, 1)
     expect(done).toBe(true)
+  })
+
+  it('beforeunload with edits asks the editor to flush before the page hides, not when everything is saved', async () => {
+    const page = await opened()
+    page.fire('beforeunload')
+    expect(page.flushes).toBe(0)
+    page.host!.dirty(DOC_ID, true)
+    expect(page.fire('beforeunload').defaultPrevented).toBe(true)
+    expect(page.flushes).toBe(1)
   })
 
   it('pagehide and a hidden tab ask the editor to flush', async () => {

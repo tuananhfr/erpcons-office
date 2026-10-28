@@ -23,6 +23,12 @@ export interface DocumentItem {
   updatedAt: string
 }
 
+/** `GET /folders/{id}`: the folder and its ancestors from the top level down to its parent. */
+export interface FolderPath {
+  folder: Folder
+  ancestors: Folder[]
+}
+
 export interface Page {
   folders: Folder[]
   documents: DocumentItem[]

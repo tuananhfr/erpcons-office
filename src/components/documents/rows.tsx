@@ -4,6 +4,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import { formatBytes, formatUpdated, trashDaysLeft, trashNote } from '@/lib/documents/display.ts'
 import { documentUrl, kindInfo } from '@/lib/documents/formats.ts'
 import type { DocumentItem, Folder, Page } from '@/lib/documents/types.ts'
+import type { DocIconName } from './icon-names.ts'
 import type { Row } from './ItemList.tsx'
 import type { MoveTarget } from './MoveDialog.tsx'
 import { plainClick } from './plain-click.ts'
@@ -35,18 +36,18 @@ export function folderRows(page: Page, openFolder: (folder: Folder) => void, men
   return [...folders, ...documents]
 }
 
-/** Rows of the trash: nothing opens from there; the one action is restore. */
-export function trashRows(page: Page, restore: (target: MoveTarget) => ReactNode): Row[] {
+/** Rows of the trash: nothing opens from there; each row offers restore and permanent delete. */
+export function trashRows(page: Page, actions: (target: MoveTarget, icon: DocIconName) => ReactNode): Row[] {
   const now = Date.now()
   const folders = page.folders.map((folder): Row => ({
     key: `f:${folder.id}`, icon: 'folder', name: folder.name, type: 'Thư mục', size: '',
     updated: folder.trashedAt ? formatUpdated(folder.trashedAt) : '', note: trashNote(trashDaysLeft(folder.trashedAt, now)),
-    action: restore(targetOfFolder(folder)),
+    action: actions(targetOfFolder(folder), 'folder'),
   }))
   const documents = page.documents.map((doc): Row => ({
     key: `d:${doc.id}`, icon: doc.format, name: doc.title, type: kindInfo(doc.format).label, size: formatBytes(doc.size),
     updated: doc.trashedAt ? formatUpdated(doc.trashedAt) : '', note: trashNote(trashDaysLeft(doc.trashedAt, now)),
-    action: restore(targetOfDocument(doc)),
+    action: actions(targetOfDocument(doc), doc.format),
   }))
   return [...folders, ...documents]
 }

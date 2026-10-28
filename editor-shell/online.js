@@ -190,6 +190,9 @@
   window.addEventListener('pagehide', function () { flushFork() })
   window.addEventListener('beforeunload', function (event) {
     if (!saver.busy()) return
+    // A save started at pagehide is cancelled with the page a few ms later, often before it leaves the browser;
+    // from here it has the whole navigation (and any prompt) to get out.
+    flushFork()
     event.preventDefault()
     event.returnValue = ''
   })

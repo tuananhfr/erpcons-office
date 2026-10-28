@@ -11,6 +11,13 @@
     var room = TITLE_MAX - COPY_SUFFIX.length
     return (chars.length > room ? chars.slice(0, room).join('').trim() : title) + COPY_SUFFIX
   }
+  function noop() {}
+  function sameBytes(a, b) {
+    if (a.length !== b.length) return false
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+    return true
+  }
+
   online.outcomeMessage = function (outcome) {
     var messages = online.messages
     if (outcome.kind === 'notFound') return messages.notFound
@@ -96,7 +103,10 @@
             }
           })
         }
-        if (record) return offer(id, record, found)
+        // A save at unload can land after the page lost the answer that would have dropped its copy: restoring those
+        // same bytes against their old base would only raise a false conflict.
+        if (record && !sameBytes(record.bytes, found.bytes)) return offer(id, record, found)
+        if (record) return deps.pending.remove(id).then(null, noop).then(function () { showFound(id, found) })
         showFound(id, found)
       })
     }

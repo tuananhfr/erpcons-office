@@ -107,10 +107,46 @@ describe('documents API: paths, methods and headers', () => {
     ])
   })
 
+  it('looks a folder up by id with its ancestors, top level first', async () => {
+    const PARENT = '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+    const { api, calls } = fake(() => json(200, { folder: folder(FOLDER_ID, 'Phụ lục', PARENT), ancestors: [folder(PARENT, 'Hợp đồng')] }))
+    const result = await api.folder(FOLDER_ID)
+    expect(calls.map((c) => [c.init.method, c.path, header(c, 'Accept'), header(c, 'Idempotency-Key')])).toEqual([
+      ['GET', `/api/v1/folders/${FOLDER_ID}`, 'application/json', null],
+    ])
+    expect(result.ok && result.value.folder).toMatchObject({ id: FOLDER_ID, name: 'Phụ lục', parentId: PARENT })
+    expect(result.ok && result.value.ancestors.map((f) => f.name)).toEqual(['Hợp đồng'])
+  })
+
+  it('refuses a folder answer without a readable folder or ancestors list', async () => {
+    const lookup = (body: unknown) => fake(() => json(200, body)).api.folder(FOLDER_ID)
+    expect(await lookup({ folder: folder(FOLDER_ID, 'X') })).toMatchObject({ ok: false, problem: { kind: 'failed' } })
+    expect(await lookup({ folder: { id: FOLDER_ID }, ancestors: [] })).toMatchObject({ ok: false, problem: { kind: 'failed' } })
+    expect(await lookup({ folder: folder(FOLDER_ID, 'X'), ancestors: [{ name: 'no id' }] })).toMatchObject({ ok: false, problem: { kind: 'failed' } })
+  })
+
+  it('purges with POST …/purge, an Idempotency-Key and no body, and reads the 204', async () => {
+    const { api, calls } = fake(() => json(204, null))
+    expect(await api.purgeDocument(DOC_ID, 'key-doc')).toEqual({ ok: true, value: true })
+    expect(await api.purgeFolder(FOLDER_ID, 'key-folder')).toEqual({ ok: true, value: true })
+    expect(calls.map((c) => [c.init.method, c.path, header(c, 'Idempotency-Key'), c.init.body ?? null])).toEqual([
+      ['POST', `/api/v1/documents/${DOC_ID}/purge`, 'key-doc', null],
+      ['POST', `/api/v1/folders/${FOLDER_ID}/purge`, 'key-folder', null],
+    ])
+  })
+
+  it('answers a purge or lookup 404 with the one not-found sentence', async () => {
+    const { api } = fake(() => error(404, 'NOT_FOUND'))
+    expect(await api.purgeDocument(DOC_ID, 'k')).toMatchObject({ ok: false, problem: { kind: 'notFound', message: MESSAGES.notFound } })
+    expect(await api.folder(FOLDER_ID)).toMatchObject({ ok: false, problem: { kind: 'notFound', message: MESSAGES.notFound } })
+  })
+
   it('never builds a path outside /api/v1/, even from an odd id', async () => {
     const { api, calls } = fake(() => json(200, doc(DOC_ID, 'Y')))
     await api.renameDocument('../../me', 'x')
-    expect(calls[0].path).toBe('/api/v1/documents/..%2F..%2Fme')
+    await api.folder('../me')
+    await api.purgeFolder('../../me', 'k')
+    expect(calls.map((c) => c.path)).toEqual(['/api/v1/documents/..%2F..%2Fme', '/api/v1/folders/..%2Fme', '/api/v1/folders/..%2F..%2Fme/purge'])
   })
 })
 

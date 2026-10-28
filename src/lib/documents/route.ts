@@ -27,7 +27,7 @@ const isCrumb = (value: unknown): value is Crumb =>
 // Kept under one key of `history.state`: Next's router keeps its own entries there too.
 const STATE_KEY = 'erpDocs'
 
-/** `state` is `history.state`: folder names are kept there, since the API has no call that returns a folder by id. */
+/** `state` is `history.state`: folder names are kept there, so moving around never asks the server for them again. */
 export function parseView(hash: string, state: unknown): View {
   if (hash === TRASH_HASH) return { kind: 'trash' }
   if (!hash.startsWith(FOLDER_PREFIX)) return ROOT_VIEW
