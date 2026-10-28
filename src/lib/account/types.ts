@@ -59,7 +59,10 @@ export interface ErpAccount {
   user(): AccountUser | null
   orgs(): AccountOrg[]
   activeOrg(): AccountOrg | null
-  /** `null` switches to the personal context. Resolves once tokens, identity and entitlements follow. */
+  /**
+   * `null` switches to the personal context. Opens the PI ID popup (call it from a click handler): PI switches
+   * organization only by signing in again. Resolves when the popup is done; the active org is the one PI chose.
+   */
   selectOrg(orgId: string | null): Promise<AccountSnapshot>
   entitlements(): AccountEntitlement[]
   /** Never blocks: answers from cached state and refreshes stale entitlements in the background. */

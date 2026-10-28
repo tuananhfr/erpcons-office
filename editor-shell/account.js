@@ -1,15 +1,19 @@
 (function () {
-  // Contract: erpcons-account/docs/contract.openapi.yaml (OIDC, errors), products.md §4 (allowed), ADR 0002/0006.
+  // Contract: erpcons-account/docs/contract.openapi.yaml (OIDC, errors), products.md §4 (allowed), ADR 0002/0006,
+  // bridged to what the real PI Platform (pi_id module) serves.
   var API_VERSION = 1
   var PRODUCT_BY_PATH = { 'van-ban': 'vanban', 'bang-tinh': 'bangtinh', 'trinh-chieu': 'trinhchieu', pdf: 'pdf' }
   var PRODUCTS = ['vanban', 'bangtinh', 'trinhchieu', 'pdf']
   var FEATURE_ID = /^(vanban|bangtinh|trinhchieu|pdf)\.[a-z0-9_]+(\.[a-z0-9_]+)*$/
   var OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
+  // PI ignores an `org_hint` of any other shape (AuthorizationServer::validateAuthorize).
+  var ORG_HINT = /^[0-9a-f-]{36}$/
   var PINNED_FREE = /\.(view|export)$/
   var SESSION_KEY = 'erpcons-pi-session'
   var PROFILE_KEY = 'erpcons-pi-profile'
   var CATALOG_KEY = 'erpcons-pi-catalog:'
   var PENDING_KEY = 'erpcons-pi-pending'
+  var SIGNED_OUT_KEY = 'erpcons-pi-signed-out'
   var LANGUAGE_KEY = 'erpcons-ui-language'
   var CHANNEL = 'erpcons-pi'
   var LOCK = 'erpcons-pi-refresh'
@@ -28,10 +32,11 @@
     state_mismatch: 'Phiên đăng nhập không hợp lệ hoặc đã quá hạn. Hãy đăng nhập lại.',
     nonce_mismatch: 'Phản hồi đăng nhập không hợp lệ. Hãy đăng nhập lại.',
     invalid_id_token: 'Phản hồi đăng nhập không hợp lệ. Hãy đăng nhập lại.',
+    issuer_mismatch: 'Phản hồi đăng nhập không hợp lệ. Hãy đăng nhập lại.',
     session_expired: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
     insufficient_scope: 'Cần đăng nhập lại để cấp đủ quyền cho Văn phòng.',
     user_suspended: 'Tài khoản PI ID đang bị tạm khóa. Bạn vẫn dùng được mọi tính năng miễn phí.',
-    membership_inactive: 'Bạn không còn là thành viên của tổ chức này. Đã chuyển về tài khoản cá nhân.',
+    membership_inactive: 'Bạn không còn là thành viên của tổ chức này. Hãy đăng nhập lại.',
     unknown_org: 'Không tìm thấy tổ chức này trong tài khoản của bạn.',
     forbidden: 'Tài khoản chưa được dùng tính năng trả phí. Các tính năng miễn phí vẫn dùng bình thường.',
     quota_exceeded: 'Đã dùng hết hạn mức của gói hiện tại.',
@@ -148,59 +153,43 @@
     if (value === null || value === undefined || !/^\d+$/.test(String(value).trim())) return null
     return parseInt(value, 10)
   }
-  var KNOWN_CODES = {
-    400: ['invalid_request'],
-    401: ['unauthenticated'],
-    403: ['insufficient_scope', 'membership_inactive', 'user_suspended', 'forbidden'],
-    429: ['rate_limited', 'quota_exceeded'],
-    503: ['dependency_unavailable']
+  // PI's API envelope is `{ok:false, message, code?}` with UPPERCASE codes; any other code falls back to the status.
+  var PI_CODES = {
+    403: { ACCOUNT_LOCKED: 'user_suspended', MEMBERSHIP_INACTIVE: 'membership_inactive', INSUFFICIENT_SCOPE: 'insufficient_scope' }
   }
-  // Clients branch on `code`; an unknown code falls back to its HTTP status (contract §2).
   function problemCode(status, body) {
     var code = body && typeof body.code === 'string' ? body.code : null
-    if (code && KNOWN_CODES[status] && KNOWN_CODES[status].indexOf(code) !== -1) return code
+    if (code && PI_CODES[status] && hasOwn(PI_CODES[status], code)) return PI_CODES[status][code]
     if (status === 401) return 'unauthenticated'
     if (status === 403) return 'forbidden'
     if (status === 429) return 'rate_limited'
     if (status >= 500) return 'dependency_unavailable'
     return 'invalid_request'
   }
-  function api(path, token) {
+  function api(url, token) {
     var headers = { Accept: 'application/json' }
     if (token) headers.Authorization = 'Bearer ' + token
-    return send(config.apiBase.replace(/\/$/, '') + path, { method: 'GET', headers: headers }).then(function (response) {
+    return send(url, { method: 'GET', headers: headers }).then(function (response) {
       return readBody(response).then(function (body) {
         if (response.ok) return body
         var code = problemCode(response.status, body)
-        console.warn('PI request failed', path, response.status, code, response.headers && response.headers.get('X-Correlation-Id'))
+        console.warn('PI request failed', url, response.status, code, response.headers && response.headers.get('X-Correlation-Id'))
         throw failure(code, response.status, retryAfterOf(response))
       })
     })
   }
+  function apiPath(path) { return config.apiBase.replace(/\/$/, '') + path }
 
-  var discovery = null
-  function discover() {
-    if (discovery) return discovery
-    var loading = send(config.issuer.replace(/\/$/, '') + '/.well-known/openid-configuration', { method: 'GET', headers: { Accept: 'application/json' } })
-      .then(function (response) {
-        return readBody(response).then(function (doc) {
-          var methods = doc && doc.code_challenge_methods_supported
-          if (response.status === 429) throw failure('rate_limited', 429, retryAfterOf(response))
-          if (response.status >= 500) throw failure('dependency_unavailable', response.status, retryAfterOf(response))
-          if (!response.ok || !doc || doc.issuer !== config.issuer || typeof doc.authorization_endpoint !== 'string'
-            || typeof doc.token_endpoint !== 'string' || !Array.isArray(methods) || methods.indexOf('S256') === -1) throw failure('discovery_failed')
-          return doc
-        })
-      })
-    discovery = loading
-    loading.then(null, function () { discovery = null })
-    return loading
+  // PI serves its discovery document without CORS, so the endpoints come from the site config (src/config/pi.ts).
+  function endpoint(name) {
+    var url = config[name]
+    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) throw failure('discovery_failed')
+    return url
   }
 
-  function tokenRequest(fields, endpoint) {
-    var target = endpoint ? Promise.resolve(endpoint) : discover().then(function (doc) { return doc.token_endpoint })
-    return target.then(function (url) {
-      return send(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: query(fields) })
+  function tokenRequest(fields) {
+    return Promise.resolve().then(function () {
+      return send(endpoint('tokenEndpoint'), { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: query(fields) })
     }).then(function (response) {
       return readBody(response).then(function (body) {
         if (response.ok) {
@@ -285,26 +274,28 @@
     if (close) close.addEventListener('click', closePage)
   }
 
+  // The opener passes PI's own parameters: `org_hint` picks an organization, `prompt=select_account` shows PI's
+  // organization page (the only way to pick personal), `prompt=login` asks for credentials after a sign-out.
   function startPage() {
     wireClose()
-    var org = search.get('org_context')
-    if (org !== 'personal' && !OPAQUE_ID.test(org || '')) org = null
+    var hint = search.get('org_hint')
+    var prompt = search.get('prompt')
     var locale = search.get('ui_locales') === 'en' ? 'en' : 'vi'
     var verifier = randomToken(32)
     var state = randomToken(16)
     var nonce = randomToken(16)
-    Promise.all([discover(), pkceChallenge(verifier)]).then(function (results) {
-      var doc = results[0]
+    pkceChallenge(verifier).then(function (challenge) {
+      var authorize = endpoint('authorizationEndpoint')
       // The popup keeps the verifier and state to itself (ADR 0002); the callback runs in the same window.
-      var pending = { v: 1, state: state, nonce: nonce, verifier: verifier, org_context: org, token_endpoint: doc.token_endpoint, created_at: now() }
+      var pending = { v: 1, state: state, nonce: nonce, verifier: verifier, created_at: now() }
       if (!writeJson(storage('sessionStorage'), PENDING_KEY, pending)) throw failure('storage')
       var fields = {
         response_type: 'code', client_id: config.clientId, redirect_uri: redirectUri(), scope: config.scopes,
-        state: state, nonce: nonce, code_challenge: results[1], code_challenge_method: 'S256', ui_locales: locale
+        state: state, nonce: nonce, code_challenge: challenge, code_challenge_method: 'S256', ui_locales: locale
       }
-      if (org) fields.org_context = org
-      var endpoint = doc.authorization_endpoint
-      location.replace(endpoint + (endpoint.indexOf('?') === -1 ? '?' : '&') + query(fields))
+      if (hint && ORG_HINT.test(hint)) fields.org_hint = hint
+      if (prompt === 'login' || prompt === 'select_account') fields.prompt = prompt
+      location.replace(authorize + (authorize.indexOf('?') === -1 ? '?' : '&') + query(fields))
     }).then(null, function (error) {
       announce({ type: 'sign-in-failed', error: error.code || 'sign_in_failed' })
       pageMessage(errorInfo(error.code || 'sign_in_failed').message, true)
@@ -326,33 +317,49 @@
       pageMessage(errorInfo(reason).message, true)
     }
     if (!pending || pending.v !== 1 || !state || pending.state !== state || now() - pending.created_at > PENDING_TTL) return fail('state_mismatch')
+    // RFC 9207: PI names itself in the redirect; another issuer means a mixed-up response.
+    var iss = search.get('iss')
+    if (iss !== null && iss !== config.issuer) return fail('issuer_mismatch')
     if (denied) {
       announce({ type: 'sign-in-failed', error: denied === 'access_denied' ? 'cancelled' : 'sign_in_failed' })
       if (denied === 'access_denied') return closePage()
       return pageMessage(MESSAGES.sign_in_failed, true)
     }
     if (!code) return fail('sign_in_failed')
-    tokenRequest({ grant_type: 'authorization_code', code: code, redirect_uri: redirectUri(), client_id: config.clientId, code_verifier: pending.verifier }, pending.token_endpoint)
+    var issued = null
+    tokenRequest({ grant_type: 'authorization_code', code: code, redirect_uri: redirectUri(), client_id: config.clientId, code_verifier: pending.verifier })
       .then(function (body) {
+        issued = body
         var claims = idTokenClaims(body.id_token, pending.nonce)
         if (!local) throw failure('storage')
-        return withLock(function () {
-          var gen = randomToken(9)
-          var stored = writeJson(local, SESSION_KEY, { v: 1, refresh_token: body.refresh_token, gen: gen, sub: claims.sub, org_context: pending.org_context && pending.org_context !== 'personal' ? pending.org_context : null })
-          if (!stored) throw failure('storage')
-          writeJson(local, PROFILE_KEY, {
-            v: 1, sub: claims.sub,
-            user: { id: claims.sub, name: typeof claims.name === 'string' ? claims.name : '', email: typeof claims.email === 'string' ? claims.email : null },
-            orgs: []
+        // PI's ID token has no org_context and PI may pick an organization itself: /me tells which one it chose.
+        return api(endpoint('meEndpoint'), body.access_token).then(function (raw) {
+          var me = meFromPi(raw)
+          if (!me || me.user_id !== claims.sub) throw failure('invalid_response')
+          return withLock(function () {
+            var previous = readSession()
+            var gen = randomToken(9)
+            var session = { v: 1, refresh_token: body.refresh_token, gen: gen, sub: me.user_id, org_context: me.org_context, login: randomToken(9) }
+            if (!writeJson(local, SESSION_KEY, session)) throw failure('storage')
+            writeJson(local, PROFILE_KEY, profileOf(me))
+            removeKey(local, SIGNED_OUT_KEY)
+            issued = null
+            // The access token travels to the other tabs in memory only, never through storage.
+            announce({ type: 'tokens', gen: gen, access_token: body.access_token, expires_at: expiresAt(body) })
+            return previous
           })
-          // The access token travels to the other tabs in memory only, never through storage.
-          announce({ type: 'tokens', gen: gen, access_token: body.access_token, expires_at: expiresAt(body) })
         })
+      })
+      .then(function (previous) {
+        // An organization switch replaces a live session: its token family would otherwise stay valid for 30 days.
+        return previous ? revoke(previous.refresh_token) : null
       })
       .then(function () {
         pageMessage(SIGNED_IN_TEXT, false)
         closePage()
       }, function (error) {
+        // Tokens PI issued but no session kept: their family must not outlive this failed sign-in.
+        if (issued) revoke(issued.refresh_token)
         fail(error.code === 'invalid_grant' ? 'session_expired' : error.code || 'sign_in_failed')
       })
   }
@@ -406,45 +413,41 @@
     })
   }
 
-  // org: undefined keeps the token's context; 'personal' or an org_id switches it (ADR 0008).
-  // force: always ask the server, even when a peer's fresh access token would do.
-  function rotate(org, force) {
+  // PI keeps the organization of a token family fixed: a refresh never switches it (selectOrg signs in again).
+  function rotate() {
     var seen = readSession()
     var seenGen = seen && seen.gen
     return withLock(function () {
       var session = readSession()
       if (!session) throw failure('signed_out')
       takeOffered()
-      if (org === undefined && !force && accessValid()) return state.access.token
+      if (accessValid()) return state.access.token
       // Another tab rotated while this one waited for the lock: its broadcast carries the new access token.
-      if (org === undefined && !force && session.gen !== seenGen) {
+      if (session.gen !== seenGen) {
         return waitForAccess(session.gen).then(function (token) {
           if (token) return token
           var latest = readSession()
           if (!latest) throw failure('signed_out')
-          return refreshWith(latest, org)
+          return refreshWith(latest)
         })
       }
-      return refreshWith(session, org)
+      return refreshWith(session)
     })
   }
-  function refreshWith(session, org) {
-    var fields = { grant_type: 'refresh_token', refresh_token: session.refresh_token, client_id: config.clientId }
-    if (org !== undefined) fields.org_context = org
-    return tokenRequest(fields).then(function (body) {
+  function refreshWith(session) {
+    return tokenRequest({ grant_type: 'refresh_token', refresh_token: session.refresh_token, client_id: config.clientId }).then(function (body) {
       var latest = readSession()
       if (!latest || latest.gen !== session.gen) throw failure('signed_out')
       var gen = randomToken(9)
-      var orgContext = org === undefined ? session.org_context : org === 'personal' ? null : org
-      writeJson(local, SESSION_KEY, { v: 1, refresh_token: body.refresh_token, gen: gen, sub: session.sub, org_context: orgContext })
+      writeJson(local, SESSION_KEY, { v: 1, refresh_token: body.refresh_token, gen: gen, sub: session.sub, org_context: session.org_context || null, login: session.login })
       var expires = expiresAt(body)
       adopt(gen, body.access_token, expires)
       announce({ type: 'tokens', gen: gen, access_token: body.access_token, expires_at: expires })
       sessionChanged()
       return body.access_token
     }, function (error) {
-      // Plain refresh: rotation reuse or expiry. An org switch's invalid_grant is decided by selectOrg.
-      if (error.code === 'invalid_grant' && org === undefined) {
+      // Rotation reuse, expiry, or PI's per-grant checks (lock, consent, membership, MFA): the family is revoked.
+      if (error.code === 'invalid_grant') {
         localSignOut('session_expired')
         throw failure('session_expired')
       }
@@ -454,7 +457,7 @@
   function getAccess() {
     if (accessValid()) return Promise.resolve(state.access.token)
     if (!refreshing) {
-      refreshing = rotate(undefined)
+      refreshing = rotate()
       refreshing.then(function () { refreshing = null }, function () { refreshing = null })
     }
     return refreshing
@@ -468,26 +471,46 @@
     })
   }
 
+  // PI's GET /api/v1/id/me `{ok, user:{id, displayName, email, status}, organizations, orgContext}` in Office's
+  // model (contract `Me`); null when the body is not that shape.
+  function meFromPi(body) {
+    var user = body && body.ok === true ? body.user : null
+    if (!user || typeof user.id !== 'string' || !OPAQUE_ID.test(user.id) || !Array.isArray(body.organizations)) return null
+    var org = body.orgContext
+    if (org !== null && org !== undefined && (typeof org !== 'string' || !OPAQUE_ID.test(org))) return null
+    return {
+      user_id: user.id,
+      display_name: typeof user.displayName === 'string' ? user.displayName : '',
+      // Staff-created and phone-only PI accounts have an empty email.
+      email: typeof user.email === 'string' && user.email ? user.email : null,
+      status: user.status === 'ACTIVE' ? 'active' : 'suspended',
+      org_context: org || null,
+      memberships: body.organizations.filter(function (o) { return o && typeof o.id === 'string' }).map(function (o) {
+        return { org_id: o.id, name: o.name, role: o.myRole, status: typeof o.myStatus === 'string' ? o.myStatus.toLowerCase() : null }
+      })
+    }
+  }
+  function profileOf(me) {
+    var orgs = me.memberships.filter(function (m) { return m.status === 'active' && OPAQUE_ID.test(m.org_id) })
+      .map(function (m) { return { id: m.org_id, name: typeof m.name === 'string' ? m.name : m.org_id, role: typeof m.role === 'string' ? m.role : null } })
+    return { v: 1, sub: me.user_id, user: { id: me.user_id, name: me.display_name, email: me.email }, orgs: orgs }
+  }
+
   function fetchMe() {
     var session = readSession()
     if (!session) return Promise.resolve()
-    return withAuth(function (token) { return api('/v1/me', token) }).then(function (me) {
-      if (!me || typeof me.user_id !== 'string' || !Array.isArray(me.memberships)) throw failure('invalid_response')
+    return withAuth(function (token) { return api(endpoint('meEndpoint'), token) }).then(function (body) {
+      var me = meFromPi(body)
+      if (!me) throw failure('invalid_response')
       var current = readSession()
       if (!current || current.sub !== session.sub) return
       if (me.user_id !== current.sub) {
-        console.error('PI /v1/me returned another user than the session')
+        console.error('PI /me returned another user than the session')
         throw failure('invalid_response')
       }
       if (me.status === 'suspended') return localSignOut('user_suspended')
-      if ((me.org_context || null) !== (current.org_context || null)) console.warn('PI org_context differs from the requested one')
-      var orgs = me.memberships.filter(function (m) { return m && m.status === 'active' && typeof m.org_id === 'string' && OPAQUE_ID.test(m.org_id) })
-        .map(function (m) { return { id: m.org_id, name: typeof m.name === 'string' ? m.name : m.org_id, role: typeof m.role === 'string' ? m.role : null } })
-      writeJson(local, PROFILE_KEY, {
-        v: 1, sub: me.user_id,
-        user: { id: me.user_id, name: typeof me.display_name === 'string' ? me.display_name : '', email: typeof me.email === 'string' ? me.email : null },
-        orgs: orgs
-      })
+      if (me.org_context !== (current.org_context || null)) console.warn('PI orgContext differs from the session')
+      writeJson(local, PROFILE_KEY, profileOf(me))
       changed()
     })
   }
@@ -504,7 +527,7 @@
     var session = readSession()
     if (!session || !product) return Promise.resolve()
     var identity = identityOf(session)
-    return withAuth(function (token) { return api('/v1/me/entitlements?product_id=' + encodeURIComponent(product), token) }).then(function (body) {
+    return withAuth(function (token) { return api(apiPath('/v1/me/entitlements?product_id=' + encodeURIComponent(product)), token) }).then(function (body) {
       var current = readSession()
       if (!current || identityOf(current) !== identity) return
       if (!saneEntitlements(body, current.org_context)) {
@@ -587,7 +610,7 @@
     })
   }
   function fetchCatalog() {
-    return api('/v1/products/' + encodeURIComponent(product) + '/feature-catalog', null).then(function (body) {
+    return api(apiPath('/v1/products/' + encodeURIComponent(product) + '/feature-catalog'), null).then(function (body) {
       return verifyCatalog(body && body.catalog, state.catalog ? state.catalog.version : 0)
     }).then(function (catalog) {
       if (!catalog) {
@@ -632,10 +655,8 @@
     var code = error.code
     if (code === 'signed_out' || code === 'session_expired') return
     if (code === 'insufficient_scope' || code === 'user_suspended') return localSignOut(code)
-    if (code === 'membership_inactive') {
-      selectOrg(null).then(function () { setError('membership_inactive') })
-      return
-    }
+    // PI refuses every refresh of this family too, and a popup cannot open outside a click: sign in again.
+    if (code === 'membership_inactive') return dropSession(code)
     if (code === 'network' || code === 'rate_limited' || code === 'dependency_unavailable' || code === 'unauthenticated') {
       wait = backoff[key] || (backoff[key] = { attempt: 0 })
       wait.attempt += 1
@@ -663,15 +684,24 @@
     state.error = errorInfo(code, retryAfter)
     changed()
   }
+  // Only a pinned catalog can make a feature pro; until then no entitlement is fetched (PI has none for Office yet).
+  function hasProFeature() {
+    return Object.keys(BUILTIN).some(function (feature) { return feature.indexOf(product + '.') === 0 && tier(feature) === 'pro' })
+  }
   function loadAccount() {
     run('me')
-    if (product) run('entitlements')
+    if (product && hasProFeature()) run('entitlements')
   }
   function sessionChanged() {
     takeOffered()
     var session = readSession()
     var identity = identityOf(session)
-    if (identity === known) return changed()
+    // Rotation keeps `login`; only the popup's callback writes a new one (also when PI kept the same organization).
+    var signedIn = Boolean(pendingSignIn && session && (session.login || '') !== pendingSignIn.login)
+    if (identity === known) {
+      if (signedIn) finishSignIn(null)
+      return changed()
+    }
     known = identity
     state.entitlements = null
     resetRetries()
@@ -679,7 +709,7 @@
       state.access = null
       return changed()
     }
-    if (pendingSignIn) finishSignIn(null)
+    if (signedIn) finishSignIn(null)
     state.error = null
     changed()
     loadAccount()
@@ -759,7 +789,7 @@
     var current = state.entitlements && session && state.entitlements.identity === identityOf(session) ? state.entitlements.list : []
     cached = freeze({
       version: API_VERSION,
-      status: !enabled ? 'disabled' : pendingSignIn ? 'signing-in' : session ? 'signed-in' : 'signed-out',
+      status: !enabled ? 'disabled' : session ? 'signed-in' : pendingSignIn ? 'signing-in' : 'signed-out',
       user: session ? (profile ? { id: profile.user.id, name: profile.user.name, email: profile.user.email } : { id: session.sub, name: '', email: null }) : null,
       orgs: orgs,
       activeOrg: active,
@@ -802,9 +832,8 @@
     try { language = String(local.getItem(LANGUAGE_KEY) || '') } catch (e) { language = '' }
     return /^en\b/i.test(language) ? 'en' : 'vi'
   }
-  // Must run inside the click handler: popups opened later are blocked.
-  function signIn() {
-    if (!enabled || readSession()) return Promise.resolve(snapshot())
+  // Must run inside the click handler: popups opened later are blocked. `params` go to PI's authorize request.
+  function openPopup(params, session) {
     if (pendingSignIn) {
       try { pendingSignIn.popup.focus() } catch (e) { /* Already closing. */ }
       return pendingSignIn.promise
@@ -814,34 +843,50 @@
       return Promise.resolve(snapshot())
     }
     var popup = null
-    try { popup = window.open(config.signInPath + '?' + query({ ui_locales: uiLocale() }), POPUP_NAME, 'popup=yes,width=480,height=680') } catch (e) { popup = null }
+    var fields = Object.assign({ ui_locales: uiLocale() }, params)
+    try { popup = window.open(config.signInPath + '?' + query(fields), POPUP_NAME, 'popup=yes,width=480,height=680') } catch (e) { popup = null }
     if (!popup) {
       setError('popup_blocked')
       return Promise.resolve(snapshot())
     }
     var resolve
     var promise = new Promise(function (r) { resolve = r })
-    pendingSignIn = { popup: popup, resolve: resolve, promise: promise, closedSeen: false, timer: setInterval(watchPopup, POPUP_POLL) }
+    pendingSignIn = {
+      popup: popup, resolve: resolve, promise: promise, closedSeen: false, timer: setInterval(watchPopup, POPUP_POLL),
+      login: session ? session.login || '' : null
+    }
     state.error = null
     changed()
     return promise
   }
+  function signIn() {
+    if (!enabled || readSession()) return Promise.resolve(snapshot())
+    // PI's own session (12 h) would otherwise sign the same account straight back in after a sign-out.
+    return openPopup(readJson(local, SIGNED_OUT_KEY) ? { prompt: 'login' } : {}, null)
+  }
   function revoke(refreshToken) {
-    return discover().then(function (doc) {
-      if (typeof doc.revocation_endpoint !== 'string') return
-      return send(doc.revocation_endpoint, {
+    return Promise.resolve().then(function () {
+      return send(endpoint('revocationEndpoint'), {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: query({ token: refreshToken, token_type_hint: 'refresh_token', client_id: config.clientId })
       })
     }).then(noop, noop)
   }
+  function dropSession(code) {
+    var session = readSession()
+    localSignOut(code)
+    if (session) revoke(session.refresh_token)
+  }
   // Local state goes first, so a slow or failed revocation never leaves the user signed in (contract §1).
   function signOut() {
     if (!enabled) return Promise.resolve(snapshot())
     var session = readSession()
+    if (session) writeJson(local, SIGNED_OUT_KEY, true)
     localSignOut(null)
     return (session ? revoke(session.refresh_token) : Promise.resolve()).then(function () { return snapshot() })
   }
+  // PI switches organization only through its authorize page (`org_hint`; personal is a pick on its organization
+  // page), never on refresh. Opens the popup, so it must run inside the click handler too.
   function selectOrg(orgId) {
     var session = enabled ? readSession() : null
     if (!session) return Promise.resolve(snapshot())
@@ -853,16 +898,7 @@
       setError('unknown_org')
       return Promise.resolve(snapshot())
     }
-    state.error = null
-    return rotate(target).then(function () {
-      // rotate() already started these for the new context; this only waits for them.
-      return Promise.all([run('me'), product ? run('entitlements') : null])
-    }, function (error) {
-      if (error.code !== 'invalid_grant') return setError(error.code || 'sign_in_failed', error.retryAfter)
-      // The platform answers invalid_grant for an inactive membership; a plain refresh tells that apart from a dead
-      // session (which then signs out).
-      return rotate(undefined, true).then(function () { setError('membership_inactive') }, noop)
-    }).then(function () { return snapshot() })
+    return openPopup(target === 'personal' ? { prompt: 'select_account' } : { org_hint: target }, session)
   }
 
   // --- Office API (docs/erp-host.md) -----------------------------------------------------------------------

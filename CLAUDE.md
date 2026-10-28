@@ -86,7 +86,9 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     `src/lib/account/types.ts`, read later by the forks); without `window.erpPi` or when embedded it is a guest with
     built-in tiers and no network. Popup sign-in (`/dang-nhap/`, `/dang-nhap/callback/`, written by assemble only when
     enabled; same script), refresh token in localStorage (rotated under Web Locks), access token in memory, shared
-    with other tabs over BroadcastChannel. The landing inlines the same file from `app/layout.tsx`.
+    with other tabs over BroadcastChannel. The landing inlines the same file from `app/layout.tsx`. Bridged to the real PI
+    Platform: endpoints come from `window.erpPi` (PI discovery has no CORS), the active org from PI's `/api/v1/id/me`,
+    and an org switch re-opens the popup with `org_hint` (PI never switches on refresh).
     `account-ui.js` fills the bar slot inject.ts adds only when enabled. `erpAccount.apiFetch(path, init)` is the only
     way to call the Office API: same-origin `/api/v1/…` paths only (throws otherwise, before any request), access
     token attached, one refresh + retry on 401, then `unauthenticated`.

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { LOCAL_ONLINE_ENV, LOCAL_PI_ISSUER_ENV, ONLINE_ENABLED, buildFlags } from './online.ts'
-import { PI_ACCOUNT_ENABLED, PI_API_BASE, PI_ISSUER, piConfig } from './pi.ts'
+import { PI_ACCOUNT_ENABLED, PI_API_BASE, PI_ISSUER, piConfig, piEndpoints } from './pi.ts'
 
 const repo = (file: string) => fs.readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), 'utf8')
 
@@ -64,8 +64,9 @@ describe('local PI issuer', () => {
     }
   })
 
-  it('replaces the issuer and the API base of the PI config, nothing else', () => {
-    expect(piConfig(true, mock)).toEqual({ ...piConfig(true)!, issuer: mock, apiBase: mock })
+  it('replaces the issuer, its endpoints and the API base of the PI config, nothing else', () => {
+    expect(piConfig(true, mock)).toEqual({ ...piConfig(true)!, issuer: mock, apiBase: mock, ...piEndpoints(mock) })
+    expect(piConfig(true, mock)!.meEndpoint).toBe(`${mock}/api/v1/id/me`)
     expect(piConfig(true)).toMatchObject({ issuer: PI_ISSUER, apiBase: PI_API_BASE })
     expect(piConfig(false, mock)).toBeNull()
   })

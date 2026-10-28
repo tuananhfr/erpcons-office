@@ -16,7 +16,7 @@ export interface BuildFlags {
   online: boolean
   /** Set when the flags come from the local override instead of the constants above. */
   localOverride: boolean
-  /** Issuer origin replacing `PI_ISSUER` and `PI_API_BASE` (local builds only), or null. */
+  /** Issuer origin replacing `PI_ISSUER`, its endpoints and `PI_API_BASE` (local builds only), or null. */
   piIssuer: string | null
 }
 
