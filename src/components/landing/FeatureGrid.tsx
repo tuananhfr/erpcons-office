@@ -20,7 +20,7 @@ export function FeatureGrid() {
         {/* The name comes from the visible text, not aria-label, so it always contains it (WCAG 2.5.3 label in name). */}
         <a href={editorPath(editor.slug)} target="_blank" rel="noopener" className="erp-feature__link">
           <span className="erp-feature__preview" aria-hidden="true"><Icon name={previews[editor.slug]} /></span>
-          <Image className="erp-feature__logo" src={`/brand/office/${editor.slug}.png`} width={96} height={96} alt="" />
+          <Image className="erp-feature__logo" src={`/brand/office/${editor.slug}-256.png`} width={96} height={96} alt="" />
           <span className="erp-feature__body"><strong>{editor.name}</strong>{' '}<span className="erp-feature__ext">{editor.extension.slice(1).toUpperCase()}</span>{' '}<span className="erp-sr-only">(tab mới)</span></span>
           <span className="erp-feature__arrow" aria-hidden="true"><Icon name="chevron-right" /></span>
         </a>

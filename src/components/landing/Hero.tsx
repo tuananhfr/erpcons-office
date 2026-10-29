@@ -15,7 +15,8 @@ export function Hero() {
         </div>
         <p className="erp-hero__trust"><Icon name="shield-check" /> Không cần tài khoản <span>·</span> Tệp xử lý trên thiết bị</p>
       </div>
-      <div className="erp-hero__art"><Image src="/illustrations/workspace.webp" alt="Góc làm việc bên cửa sổ, laptop, cây xanh và sổ tay." width={1536} height={1024} priority sizes="(max-width: 767px) 100vw, 60vw" /></div>
+      {/* Lazy, not preloaded: the art is display:none on phones, where a preload stole bandwidth from the H1 (mobile LCP). */}
+      <div className="erp-hero__art"><Image src="/illustrations/workspace.webp" alt="Góc làm việc bên cửa sổ, laptop, cây xanh và sổ tay." width={1536} height={1024} loading="lazy" fetchPriority="high" sizes="(max-width: 767px) 100vw, 60vw" /></div>
     </div>
   </section>
 }
