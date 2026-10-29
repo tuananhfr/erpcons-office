@@ -7,13 +7,15 @@ import { FeatureGrid } from './FeatureGrid.tsx'
 describe('FeatureGrid', () => {
   it('keeps four accessible editor links opening in separate tabs', () => {
     const html = renderToStaticMarkup(createElement(FeatureGrid))
-    const anchors = html.match(/<a\b[^>]*>/g) ?? []
+    const anchors = html.match(/<a\b[^>]*>[\s\S]*?<\/a>/g) ?? []
     expect(anchors).toHaveLength(4)
     for (const editor of EDITORS) {
-      const link = anchors.find(anchor => anchor.includes(`href="${editorPath(editor.slug)}"`))
+      const link = anchors.find(anchor => anchor.includes(`href="${editorPath(editor.slug)}"`)) ?? ''
       expect(link).toContain('target="_blank"')
       expect(link).toContain('rel="noopener"')
-      expect(link).toContain(`aria-label="Mở ${editor.name} (tab mới)"`)
+      expect(link).not.toContain('aria-label')
+      const name = link.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+      expect(name).toBe(`${editor.name} ${editor.extension.slice(1).toUpperCase()} (tab mới)`)
     }
   })
 })
