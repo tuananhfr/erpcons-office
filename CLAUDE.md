@@ -80,7 +80,9 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     `?embed=erpcons`), where the host page owns recovery.
   - `host-bridge.js`: ERP embedding (`?embed=erpcons&parent=<origin>`, origin must be in
     `erpEmbedHosts`): postMessage protocol v1 in `docs/erp-embed.md`. It identifies the document
-    by file name only, so two open documents with the same name are ambiguous.
+    by file name only, so two open documents with the same name are ambiguous. With `&v=2` it also defines its own
+    `window.erpHost` v2 and speaks protocol v2 (AutoSave, `save-result`, `set-mode`, `flush`) once the editor registers
+    with it; an editor build that never registers gets v1.
   - `account.js`: optional PI ID sign-in (contract in sibling `erpcons-account/docs/`), behind
     `PI_ACCOUNT_ENABLED` in `src/config/pi.ts` (on, issuer `https://platform.pih.vn`). Always installs
     `window.erpAccount` v1 (shape in

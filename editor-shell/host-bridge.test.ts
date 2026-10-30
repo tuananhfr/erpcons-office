@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
 import { describe, expect, it } from 'vitest'
+import { ManualClock, settle } from './fake-browser.ts'
 
 const openFile = fs.readFileSync(fileURLToPath(new URL('open-file.js', import.meta.url)), 'utf8')
 const bridge = fs.readFileSync(fileURLToPath(new URL('host-bridge.js', import.meta.url)), 'utf8')
@@ -13,7 +14,7 @@ interface Posted { data: Record<string, unknown>; origin: string; transfer?: unk
 interface Delivery { files: { name: string }[]; name: string; done?: () => void; cleanup?: () => void }
 
 // Runs open-file.js then host-bridge.js in one realm whose global is also `window`, like a page.
-export function harness({ search = embedSearch(), path = '/bang-tinh/', hosts = [ERP] as string[] | null } = {}) {
+export function harness({ search = embedSearch(), path = '/bang-tinh/', hosts = [ERP] as string[] | null, clock = null as ManualClock | null } = {}) {
   const posted: Posted[] = []
   const listeners: Record<string, ((event: unknown) => void)[]> = {}
   const classes = new Set<string>()
@@ -42,6 +43,7 @@ export function harness({ search = embedSearch(), path = '/bang-tinh/', hosts = 
     addEventListener: (type: string, listener: (event: unknown) => void) => { (listeners[type] ||= []).push(listener) },
     setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
   }
+  if (clock) Object.assign(context, { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, setInterval: clock.setInterval, clearInterval: clock.clearInterval })
   if (hosts) context.erpEmbedHosts = hosts
   context.window = context
   vm.createContext(context)
@@ -331,5 +333,314 @@ describe('reporting unsaved work', () => {
     expect(dirty()).toEqual([true])
     drafts.remove('tab|doc-1')
     expect(dirty()).toEqual([true, false])
+  })
+})
+
+const v2Search = (parentOrigin = ERP) => `?embed=erpcons&v=2&parent=${encodeURIComponent(parentOrigin)}`
+export const msg2 = (type: string, payload: Record<string, unknown> = {}) => ({ ns: 'erp-office', v: 2, type, ...payload })
+
+type SaveResult = Record<string, unknown>
+interface ErpHost {
+  version: number
+  ready: (handlers: Record<string, unknown>) => void
+  save: (docId: string, bytes: Uint8Array, options: { revision: number; reason: string }) => Promise<SaveResult>
+  opened: (docId: string, ok: boolean, reason?: string) => void
+  closed: (docId: string) => void
+}
+
+// A v2 page with a fake editor that registers with erpHost the way the forks on feat/online-v2 do.
+function v2Page({ search = v2Search(), withFlush = true } = {}) {
+  const clock = new ManualClock()
+  const page = harness({ search, path: '/van-ban/', clock })
+  const calls: unknown[][] = []
+  const flushes: (() => void)[] = []
+  const editor: Record<string, unknown> = {
+    open: (doc: unknown) => { calls.push(['open', doc]) },
+    setMode: (...args: unknown[]) => { calls.push(['setMode', ...args]) },
+    acknowledged: (...args: unknown[]) => { calls.push(['acknowledged', ...args]) },
+  }
+  if (withFlush) editor.flush = () => new Promise<void>(resolve => { calls.push(['flush']); flushes.push(resolve) })
+  const host = page.context.erpHost as ErpHost | undefined
+  const drafts = page.context.erpDrafts as { ready: (restore: unknown) => void }
+  return { ...page, clock, calls, flushes, editor, host: host!, drafts, register: () => host!.ready(editor) }
+}
+
+const sampleDoc = (overrides: Record<string, unknown> = {}) => ({
+  docId: 'tpl-1', name: 'Mẫu hợp đồng.docx', format: 'docx', bytes: new ArrayBuffer(4), revision: 3, mode: 'edit', canDownload: true, ...overrides,
+})
+const lastSave = (page: ReturnType<typeof v2Page>) => page.posted.filter(entry => entry.data.type === 'save').at(-1)!
+
+describe('protocol v2 activation', () => {
+  it('keeps v1 without v=2: no erpHost and ready v1 at once', () => {
+    const page = harness({ path: '/van-ban/' })
+    expect(page.context.erpHost).toBeUndefined()
+    expect(page.posted).toEqual([{ data: msg('ready', { editor: 'van-ban' }), origin: ERP, transfer: [] }])
+  })
+
+  it('stays inert for a parent outside the allow list', () => {
+    const page = v2Page({ search: v2Search('https://evil.test') })
+    expect(page.context.erpHost).toBeUndefined()
+    expect(page.context.erpEmbed).toBeUndefined()
+    expect(page.posted).toHaveLength(0)
+  })
+
+  it('offers erpHost v2 and announces ready v2 once the editor registers', () => {
+    const page = v2Page()
+    expect(page.host.version).toBe(2)
+    expect(page.posted).toHaveLength(0)
+    expect(page.classes.has('erp-embedded')).toBe(true)
+    page.register()
+    page.drafts.ready(() => {})
+    page.clock.advance(200000)
+    expect(page.posted).toEqual([{ data: msg2('ready', { editor: 'van-ban', host: true }), origin: ERP, transfer: [] }])
+  })
+
+  it('falls back to v1 when the editor starts without registering with erpHost', () => {
+    const page = v2Page()
+    page.drafts.ready(() => {})
+    page.clock.advance(1499)
+    expect(page.posted).toHaveLength(0)
+    page.clock.advance(1)
+    expect(page.posted).toEqual([{ data: msg('ready', { editor: 'van-ban' }), origin: ERP, transfer: [] }])
+    page.register()
+    expect(page.types()).toEqual(['ready'])
+    page.openAccepted('a.docx')
+    expect(page.calls).toEqual([])
+    expect(page.posted.at(-1)!.data).toEqual(msg('opened', { name: 'a.docx' }))
+  })
+
+  it('falls back to v1 when the editor never starts', () => {
+    const page = v2Page()
+    page.clock.advance(119999)
+    expect(page.posted).toHaveLength(0)
+    page.clock.advance(1)
+    expect(page.posted.map(entry => entry.data)).toEqual([msg('ready', { editor: 'van-ban' })])
+  })
+
+  it('reads nothing from the ERP before deciding the protocol', () => {
+    const page = v2Page()
+    page.send(msg2('open', { doc: sampleDoc() }))
+    page.send(msg('open', { name: 'a.docx', bytes: new ArrayBuffer(1) }))
+    page.register()
+    expect(page.calls).toEqual([])
+    expect(page.delivered).toHaveLength(0)
+  })
+})
+
+describe('protocol v2 documents', () => {
+  it('opens the ERP document through erpHost with its mode and reports opened', () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('open', { doc: sampleDoc({ mode: 'view', canDownload: false }) }))
+    expect(page.delivered).toHaveLength(0)
+    expect(page.calls).toHaveLength(1)
+    const [kind, doc] = page.calls[0] as [string, Record<string, unknown>]
+    expect(kind).toBe('open')
+    expect(doc).toMatchObject({ docId: 'tpl-1', version: 3, title: 'Mẫu hợp đồng.docx', format: 'docx', mode: 'view', canDownload: false })
+    expect(doc.bytes).toBeInstanceOf(Uint8Array)
+    expect((doc.bytes as Uint8Array).byteLength).toBe(4)
+    page.host.opened('tpl-1', true)
+    expect(page.posted.at(-1)).toEqual({ data: msg2('opened', { name: 'Mẫu hợp đồng.docx' }), origin: ERP, transfer: [] })
+  })
+
+  it('leaves mode and canDownload to the editor default when the ERP omits them, and derives the format', () => {
+    const page = v2Page()
+    page.register()
+    const doc: Record<string, unknown> = sampleDoc({ format: undefined })
+    delete doc.mode
+    delete doc.canDownload
+    page.send(msg2('open', { doc }))
+    const given = page.calls[0][1] as Record<string, unknown>
+    expect(given.format).toBe('docx')
+    expect('mode' in given).toBe(false)
+    expect('canDownload' in given).toBe(false)
+  })
+
+  it('rejects an open without a docId, a name or bytes', () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('open', { doc: sampleDoc({ docId: 7 }) }))
+    page.send(msg2('open', { doc: sampleDoc({ bytes: 'x' }) }))
+    page.send(msg2('open', { doc: sampleDoc({ name: null }) }))
+    page.send(msg2('open', {}))
+    expect(page.calls).toEqual([])
+  })
+
+  it('reports open-failed with a readable reason', () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('open', { doc: sampleDoc() }))
+    page.host.opened('tpl-1', false, 'unsupported')
+    const last = page.posted.at(-1)!.data
+    expect(last).toMatchObject({ ns: 'erp-office', v: 2, type: 'open-failed' })
+    expect(String(last.reason)).toContain('Mẫu hợp đồng.docx')
+  })
+
+  it('posts closed once when the ERP document closes', () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('open', { doc: sampleDoc() }))
+    page.host.opened('tpl-1', true)
+    page.host.closed('tpl-1')
+    const editorClosed = page.context.erpEditorClosed as () => void
+    editorClosed()
+    page.host.closed('tpl-1')
+    expect(page.posted.filter(entry => entry.data.type === 'closed').map(entry => entry.data)).toEqual([msg2('closed')])
+  })
+
+  it('ignores v1 messages once v2 is chosen', () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg('open', { name: 'a.docx', bytes: new ArrayBuffer(1) }))
+    expect(page.delivered).toHaveLength(0)
+    expect(page.calls).toEqual([])
+  })
+
+  it('sends crashed and other shell posts as v2', () => {
+    const page = v2Page()
+    page.register()
+    const embedded = page.context.erpEmbed as { post: (type: string, payload: object) => void }
+    embedded.post('crashed', {})
+    expect(page.posted.at(-1)!.data).toEqual(msg2('crashed'))
+  })
+
+  it('does not report dirty in v2', () => {
+    const page = v2Page()
+    page.register()
+    const drafts = page.context.erpDrafts as { put: (...args: unknown[]) => void }
+    drafts.put('k', 'local.docx', 'docx', new Uint8Array(1))
+    expect(page.types()).not.toContain('dirty')
+  })
+
+  it('applies set-mode to the editor', () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('set-mode', { docId: 'tpl-1', mode: 'view', canDownload: false }))
+    page.send(msg2('set-mode', { docId: 42, mode: 'edit' }))
+    expect(page.calls).toEqual([['setMode', 'tpl-1', 'view', false]])
+  })
+})
+
+describe('protocol v2 saving', () => {
+  const saving = (reason = 'auto') => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('open', { doc: sampleDoc() }))
+    const bytes = new Uint8Array([1, 2, 3])
+    let result: SaveResult | null = null
+    void page.host.save('tpl-1', bytes, { revision: 7, reason }).then(value => { result = value })
+    return { page, bytes, save: lastSave(page), result: () => result }
+  }
+
+  it('forwards an editor save and resolves it with saved', async () => {
+    const { page, bytes, save, result } = saving('manual')
+    expect(save.data).toMatchObject({ ns: 'erp-office', v: 2, type: 'save', docId: 'tpl-1', revision: 7, reason: 'manual' })
+    expect(typeof save.data.id).toBe('string')
+    expect(Object.keys(save.data).sort()).toEqual(['bytes', 'docId', 'id', 'ns', 'reason', 'revision', 'type', 'v'])
+    expect([...new Uint8Array(save.data.bytes as ArrayBuffer)]).toEqual([1, 2, 3])
+    expect(save.data.bytes).not.toBe(bytes.buffer)
+    expect(save.transfer).toEqual([save.data.bytes])
+    await settle()
+    expect(result()).toBeNull()
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'saved', version: 4 } }))
+    await settle()
+    expect(result()).toEqual({ status: 'saved', version: 4 })
+  })
+
+  it('passes a conflict through', async () => {
+    const { page, save, result } = saving()
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'conflict', latestVersion: 9 } }))
+    await settle()
+    expect(result()).toEqual({ status: 'conflict', latestVersion: 9 })
+  })
+
+  it('passes a failure through with its message', async () => {
+    const { page, save, result } = saving()
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'failed', retryable: false, message: 'Mẫu đang bị khoá' } }))
+    await settle()
+    expect(result()).toEqual({ status: 'failed', retryable: false, message: 'Mẫu đang bị khoá' })
+  })
+
+  it('turns an answer outside the contract into a non-retryable failure', async () => {
+    const { page, save, result } = saving()
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'done' } }))
+    await settle()
+    expect(result()).toMatchObject({ status: 'failed', retryable: false })
+    expect(String((result() as SaveResult).message)).not.toBe('')
+  })
+
+  it('resolves offline when the ERP does not answer in time, and acknowledges a late saved', async () => {
+    const { page, save, result } = saving()
+    page.clock.advance(59999)
+    await settle()
+    expect(result()).toBeNull()
+    page.clock.advance(1)
+    await settle()
+    expect(result()).toEqual({ status: 'offline' })
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'saved', version: 5 } }))
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'saved', version: 5 } }))
+    expect(page.calls.filter(call => call[0] === 'acknowledged')).toEqual([['acknowledged', 'tpl-1', 7, 5]])
+  })
+
+  it('acknowledges a save the ERP answered offline and stored on its own retry', async () => {
+    const { page, save, result } = saving()
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'offline' } }))
+    await settle()
+    expect(result()).toEqual({ status: 'offline' })
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'offline' } }))
+    expect(page.calls.filter(call => call[0] === 'acknowledged')).toEqual([])
+    page.send(msg2('save-result', { id: save.data.id, result: { status: 'saved', version: 6 } }))
+    expect(page.calls.filter(call => call[0] === 'acknowledged')).toEqual([['acknowledged', 'tpl-1', 7, 6]])
+  })
+
+  it('ignores answers from another origin, another window, another version or another save', async () => {
+    const { page, save, result } = saving()
+    const saved = msg2('save-result', { id: save.data.id, result: { status: 'saved', version: 4 } })
+    page.send(saved, { origin: 'https://evil.test' })
+    page.send(saved, { source: {} })
+    page.send({ ...saved, v: 1 })
+    page.send({ ...saved, ns: 'cn-embed' })
+    page.send(msg2('save-result', { id: 'someone-else', result: { status: 'saved', version: 4 } }))
+    await settle()
+    expect(result()).toBeNull()
+    page.send(saved)
+    await settle()
+    expect(result()).toEqual({ status: 'saved', version: 4 })
+  })
+
+  it('replies flushed after the saves the editor hands over during flush', async () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('flush', { id: 'f-1' }))
+    expect(page.calls).toEqual([['flush']])
+    void page.host.save('tpl-1', new Uint8Array([9]), { revision: 2, reason: 'flush' })
+    await settle()
+    expect(page.types()).not.toContain('flushed')
+    page.flushes[0]()
+    await settle()
+    expect(page.types().slice(-2)).toEqual(['save', 'flushed'])
+    expect(page.posted.at(-1)!.data).toEqual(msg2('flushed', { id: 'f-1' }))
+  })
+
+  it('replies flushed after 10 s when the editor flush never settles', async () => {
+    const page = v2Page()
+    page.register()
+    page.send(msg2('flush', { id: 'f-2' }))
+    page.clock.advance(9999)
+    await settle()
+    expect(page.types()).not.toContain('flushed')
+    page.clock.advance(1)
+    expect(page.posted.at(-1)!.data).toEqual(msg2('flushed', { id: 'f-2' }))
+    page.flushes[0]()
+    await settle()
+    expect(page.types().filter(type => type === 'flushed')).toHaveLength(1)
+  })
+
+  it('replies flushed at once when the editor has no flush handler', async () => {
+    const page = v2Page({ withFlush: false })
+    page.register()
+    page.send(msg2('flush', { id: 'f-3' }))
+    await settle()
+    expect(page.posted.at(-1)!.data).toEqual(msg2('flushed', { id: 'f-3' }))
   })
 })

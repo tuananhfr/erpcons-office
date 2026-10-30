@@ -17,7 +17,8 @@ is signed in and the page URL carries `?doc=<document_id>`. The fork checks once
 window.erpHost && window.erpHost.version === 1
 ```
 
-Absent or another version: the fork behaves as today. `erpHost` and the ERP embed bridge are never active together.
+Absent or another version: the fork behaves as today. `online.js` never defines `erpHost` on an embedded page; there,
+with `&v=2`, `host-bridge.js` offers its own `erpHost` v2 that forwards to the ERP page (`docs/erp-embed.md`, protocol v2).
 
 ## Shell → editor
 
