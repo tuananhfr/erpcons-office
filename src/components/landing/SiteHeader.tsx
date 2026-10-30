@@ -11,7 +11,7 @@ type Page = 'home' | 'explore' | 'guide' | 'documents' | 'signup'
 
 function Navigation({ active }: { active: Page }) {
   return <>
-    <a href="/" aria-current={active === 'home' ? 'page' : undefined}>Trang chủ</a>
+    <a className="erp-nav-home" href="/" aria-current={active === 'home' ? 'page' : undefined}>Trang chủ</a>
     <a href="/#chuc-nang">Công cụ</a>
     {DESKTOP_DOWNLOADS_ENABLED && <a href="/#tai-ban-desktop">Tải về</a>}
     <a href="/kham-pha/" aria-current={active === 'explore' ? 'page' : undefined}>Khám phá</a>
@@ -39,7 +39,8 @@ export function SiteHeader({ active = 'home' }: { active?: Page }) {
       <div className="erp-header-actions">
         <Install variant="header" />
         <Account variant="header" />
-        <a className="erp-header-link" href="https://erpcons.ai/">ERPCons - Construction OS <Icon name="arrow-up-right" /></a>
+        {/* Next to the account entry it never fits on one line; the menu and the footer keep the link. */}
+        {!siteFlags().pi && <a className="erp-header-link" href="https://erpcons.ai/">ERPCons - Construction OS <Icon name="arrow-up-right" /></a>}
       </div>
       <details className="erp-mobile-menu">
         <summary aria-label="Mở menu điều hướng"><Icon name="list" /></summary>

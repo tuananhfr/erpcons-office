@@ -35,4 +35,13 @@ describe('SiteHeader account entry', () => {
     const html = renderToStaticMarkup(createElement(SiteHeader))
     expect(html.match(/<a class="erp-account__sign-up" href="\/dang-ky\/">Đăng ký<\/a>/g)).toHaveLength(2)
   })
+
+  it('moves the ERPCons link out of the bar next to the account entry, keeping it in the menu', () => {
+    const actions = (html: string) => html.slice(html.indexOf('erp-header-actions'), html.indexOf('erp-mobile-menu'))
+    expect(actions(renderToStaticMarkup(createElement(SiteHeader)))).toContain('erp-header-link')
+    flag.enabled = true
+    const html = renderToStaticMarkup(createElement(SiteHeader))
+    expect(actions(html)).not.toContain('https://erpcons.ai/')
+    expect(html.slice(html.indexOf('erp-mobile-menu'))).toContain('href="https://erpcons.ai/"')
+  })
 })
