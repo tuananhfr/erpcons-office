@@ -23,12 +23,23 @@ unset ERPCONS_PI_API_BASE
 # Static CRT like package.ps1: the installers ship no VC++ redistributable.
 export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-C target-feature=+crt-static"
 
-echo "==> cargo xwin build $fork $(git rev-parse --short HEAD) for $target (PI $ERPCONS_PI_ISSUER)"
-cargo xwin build --release --locked --target "$target" -p "$fork" -p "$fork-cli"
-
 out="$dir/target/$target/release"
+packages=("$fork" "$fork-cli")
+if [ "$fork" = pdfcraft ]; then
+  # pdfcraft-cli edits PDFs without the PI licence gate the app enforces, so its installers ship the app alone.
+  packages=("$fork")
+  # A CLI left by an earlier build must not reach `package.ps1 -SkipBuild` of a commit that still packages it.
+  rm -f "$out/$fork-cli.exe"
+fi
+package_args=()
+for package in "${packages[@]}"; do package_args+=(-p "$package"); done
+
+echo "==> cargo xwin build ${packages[*]} $(git rev-parse --short HEAD) for $target (PI $ERPCONS_PI_ISSUER)"
+cargo xwin build --release --locked --target "$target" "${package_args[@]}"
+
 mkdir -p "$out"
-for exe in "$fork.exe" "$fork-cli.exe"; do
+for package in "${packages[@]}"; do
+  exe="$package.exe"
   src="$CARGO_TARGET_DIR/$target/release/$exe"
   [ -f "$src" ] || die "missing $src"
   # A dynamic CRT import means crt-static was lost (cargo-xwin owns the target's rustflags too).
