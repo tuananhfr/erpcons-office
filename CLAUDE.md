@@ -111,6 +111,11 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     extension only when the online flag is on, so with it off the route and its code are not built (locked by
     `site-flags.test.ts`). The share link's token is memory-only (never stored, logged or put in the page URL). The header link and the
     landing's "Đăng nhập để lưu online" line follow the same flag.
+  - Sign-up `/dang-ky/` and `/dang-ky/xac-minh/` (`app/dang-ky/**/page.online.tsx`, `src/components/signup/`,
+    `src/lib/signup/`): same online flag. Plain same-origin `fetch` to `/api/v1/signup` (no PI token, never
+    `apiFetch`); the form rules mirror the server's `crates/signup/src/input.rs`. The verification token arrives as
+    `#token=`, is removed from the address bar at once and kept in memory only. With PI sign-in on, the desktop
+    download section shows "Đăng nhập để tải" until signed in (a courtesy gate: installers stay public).
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab

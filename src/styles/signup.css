@@ -1,0 +1,82 @@
+/* /dang-ky/ and /dang-ky/xac-minh/: the sign-up form and its states. Site tokens only. */
+.erp-signup { --erp-danger: #b01324; padding-block: 40px 72px; }
+.erp-signup__intro { max-width: 640px; margin-bottom: 28px; }
+.erp-signup__intro h1 { margin: 0 0 8px; font-size: clamp(30px, 3.6vw, 42px); font-weight: 800; line-height: 1.15; letter-spacing: -.05em; }
+.erp-signup__intro p { margin: 0; color: var(--erp-text-2); }
+
+.erp-signup__layout { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 360px); gap: 40px; align-items: start; }
+.erp-signup__card { padding: 32px; border: 1px solid var(--erp-border); border-radius: var(--erp-radius-lg); background: #fff; box-shadow: 0 12px 32px #0826740d; }
+.erp-signup__card > .erp-signup-status { padding: 0; border: 0; background: none; }
+
+.erp-signup__form { display: grid; gap: 20px; }
+.erp-signup__field { display: grid; gap: 6px; }
+.erp-signup__label { font-size: 15px; font-weight: 650; line-height: 1.45; }
+.erp-signup__input { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid #a9bfd8; border-radius: var(--erp-radius-sm); background: #fff; color: var(--erp-text); font-size: 16px; line-height: 1.5; }
+.erp-signup__input:focus-visible { outline: 3px solid var(--erp-focus); outline-offset: 1px; border-color: var(--erp-focus); }
+.erp-signup__input[aria-invalid="true"] { border-color: var(--erp-danger); }
+.erp-signup__hint, .erp-signup__error { margin: 0; font-size: 14px; line-height: 1.5; }
+.erp-signup__hint { color: var(--erp-text-2); }
+.erp-signup__error { color: var(--erp-danger); font-weight: 600; }
+
+.erp-signup__password { position: relative; }
+.erp-signup__password .erp-signup__input { padding-right: 56px; }
+.erp-signup__reveal { position: absolute; top: 2px; right: 2px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--erp-radius-sm); background: none; color: var(--erp-text-2); font-size: 20px; }
+.erp-signup__reveal:hover { background: var(--erp-surface-2); color: var(--erp-text); }
+.erp-signup__reveal:focus-visible { outline-offset: -3px; }
+
+/* Off-screen rather than display:none, which some bots skip. */
+.erp-signup__trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+.erp-signup__summary { padding: 16px 20px; border: 1px solid #f2c4c8; border-left: 4px solid var(--erp-danger); border-radius: var(--erp-radius-md); background: #fffafa; }
+.erp-signup__summary:focus { outline: 3px solid var(--erp-focus); outline-offset: 2px; }
+.erp-signup__summary-title { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--erp-danger); font-size: 16px; }
+.erp-signup__summary ul { margin: 0; padding-left: 28px; }
+.erp-signup__summary a { color: var(--erp-danger); font-weight: 600; }
+
+.erp-signup__notice { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 14px; border-radius: var(--erp-radius-md); background: #fdecea; color: var(--erp-danger); font-size: 15px; line-height: 1.5; }
+.erp-signup__notice .erp-icon-wrap { padding-top: 3px; }
+.erp-signup__notice--block { flex-basis: 100%; }
+.erp-signup__submit { width: 100%; }
+.erp-signup .erp-btn:disabled { cursor: progress; opacity: .7; }
+.erp-signup__email { overflow-wrap: anywhere; }
+
+.erp-signup__aside { padding-top: 8px; }
+.erp-signup__aside h2 { margin: 0 0 12px; font-size: 18px; letter-spacing: -.02em; }
+.erp-signup__steps { display: grid; gap: 10px; margin: 0 0 24px; padding-left: 22px; color: var(--erp-text-2); }
+.erp-signup__steps strong { color: var(--erp-text); }
+.erp-signup__fact { display: flex; gap: 12px; margin: 0 0 24px; padding: 14px 16px; border-radius: var(--erp-radius-md); background: var(--erp-surface-2); color: var(--erp-text-2); font-size: 14px; line-height: 1.55; }
+.erp-signup__fact .erp-icon-wrap { padding-top: 2px; color: var(--erp-blue); font-size: 18px; }
+.erp-signup__existing { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 20px; border-top: 1px solid var(--erp-border); }
+.erp-signup__existing p { margin: 0; font-weight: 600; }
+.erp-signup__existing .erp-btn { min-height: 44px; padding: 8px 18px; font-size: 15px; }
+
+.erp-signup-status { display: grid; justify-items: start; gap: 4px; padding: 40px 32px; border: 1px solid var(--erp-border); border-radius: var(--erp-radius-lg); background: linear-gradient(135deg, #fff 55%, var(--erp-bg)); }
+.erp-signup--verify .erp-signup-status { max-width: 680px; }
+.erp-signup-status[data-tone="error"] { border-color: #f2c4c8; background: #fffafa; }
+.erp-signup-status__icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 12px; border-radius: var(--erp-radius-md); background: #e9f5ff; color: var(--erp-blue); font-size: 26px; }
+.erp-signup-status[data-tone="success"] .erp-signup-status__icon { background: #e7f6ef; color: var(--erp-green); }
+.erp-signup-status[data-tone="error"] .erp-signup-status__icon { background: #fdecea; color: var(--erp-danger); }
+.erp-signup-status__title { margin: 0; font-size: 21px; line-height: 1.35; letter-spacing: -.025em; }
+.erp-signup-status__title:focus { outline: none; } /* focused only by script to move the reading point; not in tab order */
+.erp-signup-status__body { max-width: 62ch; color: var(--erp-text-2); font-size: 15px; line-height: 1.6; }
+.erp-signup-status__body p { margin: 6px 0 0; }
+.erp-signup-status__body strong { color: var(--erp-text); }
+.erp-signup-status__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.erp-signup-status__actions .erp-btn { min-height: 48px; padding: 10px 20px; font-size: 15px; }
+.erp-signup-status[aria-busy="true"] .erp-signup-status__icon { color: var(--erp-text-2); }
+@media (prefers-reduced-motion: no-preference) {
+  .erp-signup-status[aria-busy="true"] .erp-signup-status__icon .erp-icon { animation: erp-signup-wait 1.6s ease-in-out infinite; }
+}
+@keyframes erp-signup-wait { 50% { transform: rotate(180deg); } }
+
+@media (max-width: 1023px) {
+  .erp-signup__layout { grid-template-columns: minmax(0, 1fr); max-width: 640px; gap: 32px; }
+}
+@media (max-width: 767px) {
+  .erp-signup { padding-block: 28px 56px; }
+  .erp-signup__card { padding: 20px; }
+  .erp-signup-status { padding: 28px 20px; }
+  .erp-signup__card > .erp-signup-status { padding: 0; }
+  .erp-signup-status__actions { width: 100%; }
+  .erp-signup-status__actions .erp-btn { flex: 1 1 160px; }
+}

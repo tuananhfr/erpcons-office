@@ -16,6 +16,7 @@ export function SignInPanel({ snapshot }: { snapshot: AccountSnapshot }) {
       <a className="erp-btn erp-btn--secondary" href="/">Dùng bản Free</a>
     </>}>
     <p>Tài liệu lưu online nằm trên máy chủ ERPCons, để bạn mở lại ở thiết bị khác bằng tài khoản PI ID.</p>
+    <p>Chưa có tài khoản PI ID? <a href="/dang-ky/">Đăng ký miễn phí</a></p>
     <p>Bản Free vẫn không cần tài khoản: tệp mở từ máy được xử lý ngay trên thiết bị và không gửi lên máy chủ.</p>
     {snapshot.error && <p className="erp-docs-status__error" role="alert">{snapshot.error.message}</p>}
   </StatusPanel>

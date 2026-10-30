@@ -6,7 +6,8 @@ import { AccountMenu } from '@/components/landing/AccountMenu.tsx'
 import { DESKTOP_DOWNLOADS_ENABLED } from '@/config/desktop.ts'
 import { siteFlags } from '@/config/site-flags.ts'
 
-type Page = 'home' | 'explore' | 'guide' | 'documents'
+// `signup` has no navigation entry, so nothing is marked current.
+type Page = 'home' | 'explore' | 'guide' | 'documents' | 'signup'
 
 function Navigation({ active }: { active: Page }) {
   return <>
@@ -24,8 +25,9 @@ function Install({ variant }: { variant: 'header' | 'menu' }) {
 }
 
 function Account({ variant }: { variant: 'header' | 'menu' }) {
-  if (!siteFlags().pi) return null
-  return <AccountMenu variant={variant} icon={<Icon name="person" />} />
+  const flags = siteFlags()
+  if (!flags.pi) return null
+  return <AccountMenu variant={variant} icon={<Icon name="person" />} signupHref={flags.online ? '/dang-ky/' : null} />
 }
 
 export function SiteHeader({ active = 'home' }: { active?: Page }) {
