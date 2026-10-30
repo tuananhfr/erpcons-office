@@ -94,21 +94,28 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     token attached, one refresh + retry on 401, then `unauthenticated`.
   - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (off;
     needs `PI_ACCOUNT_ENABLED` too). Only then `assets.ts` adds `ONLINE_SCRIPTS` before `host-bridge.js`: parts
-    `online-backoff/api/pending/state/dialogs/saver/open.js` on `window.erpOnline`, composed by `online.js`, which
-    defines `window.erpHost` v1 for a signed-in user on `/<editor>/?doc=<id>` (never when embedded). Pending
+    `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/host/bar/panel/link.js` on `window.erpOnline`,
+    composed by `online.js`, which defines `window.erpHost` v2 for a signed-in user on `/<editor>/?doc=<id>`
+    (`&version=<seq>` read-only) and, via `online-link.js`, for anyone on the public link `/<editor>/#link=<token>`
+    (never when embedded). The bar's "Chia sẻ" / "Lịch sử" open `/tai-lieu/chia-se/` and `/tai-lieu/lich-su/` (the same
+    React dialogs as `/tai-lieu/`) in a same-origin frame that answers by `postMessage` (`online-panel.js`). Phase 2
+    has no live channel: `online-watch.js` re-reads the document every 30 s while visible. Pending
     unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`
     turns PI + online on in `assemble.mts`, and only together with `ERPCONS_ALLOW_LOCAL_PROVENANCE=1`, which build-info
     records and the deploy refuses. `ERPCONS_LOCAL_PI_ISSUER=<origin>` (same guard) points PI at a local issuer such
     as pi-mock. `src/config/site-flags.ts` resolves these flags for `next build` and `assemble.mts` alike (pass the env
     to both). `ERPCONS_API_PROXY=http://127.0.0.1:<port>` makes `npm run preview` proxy `/api/`.
   - "Tài liệu của tôi" `/tai-lieu/` (`app/tai-lieu/page.online.tsx`, `src/components/documents/`,
-    `src/lib/documents/`): `next.config.ts` adds the `.online.tsx` page extension only when the online flag is on, so
-    with it off the route and its code are not built (locked by `site-flags.test.ts`). The header link and the
+    `src/lib/documents/`; tabs folder / `#chia-se` "Được chia sẻ với tôi" / `#thung-rac`; share dialog in `share/`,
+    version history in `versions/`, the editor's frame pages in `panel/`): `next.config.ts` adds the `.online.tsx` page
+    extension only when the online flag is on, so with it off the route and its code are not built (locked by
+    `site-flags.test.ts`). The share link's token is memory-only (never stored, logged or put in the page URL). The header link and the
     landing's "Đăng nhập để lưu online" line follow the same flag.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
-    of that build is open. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
+    of that build is open. The public view link keeps its token in the fragment (`#link=`, removed from the address bar
+    at once, sent only as `X-Link-Token`), so no request or cache key carries it. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
     files join the same `pending` queue as the landing picker under one `batchId`, then a 303 to
     `/nhan-tep/?batch=<id>`, which waits for the user's click. Only a same-origin referrer with exactly one valid
     file goes straight to `/<editor>/?open=<id>`: the OS share sheet and a cross-site page that strips its referrer

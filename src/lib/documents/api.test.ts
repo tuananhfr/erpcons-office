@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDocumentsApi } from './api.ts'
+import { documentOf } from './parse.ts'
 import { MESSAGES } from './problem.ts'
 
 const FOLDER_ID = '0b8f3a52-5d9e-4c1f-9a51-2f4a9d6c7e10'
@@ -23,7 +24,7 @@ function json(status: number, body: unknown, headers: Record<string, string> = {
 
 const header = (call: Call, name: string) => new Headers(call.init.headers).get(name)
 const folder = (id: string, name: string, parent: string | null = null) => ({ id, parent_id: parent, name, state: 'ACTIVE', trashed_at: null, created_at: '2026-10-27T08:00:00Z', updated_at: '2026-10-27T09:00:00Z' })
-const doc = (id: string, title: string, format = 'docx', kind = 'word') => ({ id, folder_id: null, title, kind, format, size: 2048, version: 3, save_state: 'SERVER_DURABLE', state: 'ACTIVE', trashed_at: null, created_at: '2026-10-27T08:00:00Z', updated_at: '2026-10-27T09:00:00Z' })
+const doc = (id: string, title: string, format = 'docx', kind = 'word') => ({ id, folder_id: null, title, kind, format, size: 2048, version: 3, save_state: 'SERVER_DURABLE', state: 'ACTIVE', trashed_at: null, created_at: '2026-10-27T08:00:00Z', updated_at: '2026-10-27T09:00:00Z', role: 'owner', owner_name: 'An', shared: true, can_download: true, can_share: true })
 const error = (status: number, code: string, retryable = false, headers: Record<string, string> = {}) =>
   json(status, { code, message_vi: 'Thông báo từ máy chủ', request_id: 'req_1', retryable }, headers)
 
@@ -42,7 +43,7 @@ describe('documents API: paths, methods and headers', () => {
       ok: true,
       value: {
         folders: [{ id: FOLDER_ID, parentId: null, name: 'Hợp đồng', trashedAt: null, updatedAt: '2026-10-27T09:00:00Z' }],
-        documents: [{ id: DOC_ID, folderId: null, title: 'Báo cáo', kind: 'word', format: 'docx', size: 2048, version: 3, trashedAt: null, updatedAt: '2026-10-27T09:00:00Z' }],
+        documents: [{ id: DOC_ID, folderId: null, title: 'Báo cáo', kind: 'word', format: 'docx', size: 2048, version: 3, trashedAt: null, updatedAt: '2026-10-27T09:00:00Z', role: 'owner', ownerName: 'An', shared: true, canDownload: true, canShare: true }],
         nextCursor: 'c2',
       },
     })
@@ -197,5 +198,14 @@ describe('documents API: errors', () => {
     expect(await problemOf(new Response('not json', { status: 200 }))).toMatchObject({ kind: 'failed', retryable: true })
     expect(await problemOf(json(200, { folders: [{ id: FOLDER_ID }], documents: [], next_cursor: null }))).toMatchObject({ kind: 'failed' })
     expect(await problemOf(json(200, { folders: [], documents: [doc(DOC_ID, 'x', 'doc', 'word')], next_cursor: null }))).toMatchObject({ kind: 'failed' })
+  })
+})
+
+describe('can_share', () => {
+  it('is read from the document; a server without it leaves the role to decide', () => {
+    expect(documentOf({ ...doc(DOC_ID, 'A'), role: 'editor', can_share: false })?.canShare).toBe(false)
+    expect(documentOf({ ...doc(DOC_ID, 'A'), can_share: true })?.canShare).toBe(true)
+    const { can_share: _absent, ...older } = doc(DOC_ID, 'A')
+    expect(documentOf({ ...older, role: 'editor' })?.canShare).toBe(true)
   })
 })

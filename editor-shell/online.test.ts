@@ -34,9 +34,9 @@ function badge(page: Page) {
 function pendingRows(idb: FakeIdb) { return idb.rows('pending') }
 
 describe('activation', () => {
-  it('installs a frozen erpHost v1 for a signed-in user on /<editor>/?doc=<id>', () => {
+  it('installs a frozen erpHost v2 for a signed-in user on /<editor>/?doc=<id>', () => {
     const page = onlinePage()
-    expect(page.host?.version).toBe(1)
+    expect(page.host?.version).toBe(2)
     expect(Object.isFrozen(page.host)).toBe(true)
     expect(Object.keys(page.host!).sort()).toEqual(['closed', 'dirty', 'opened', 'ready', 'save', 'version'])
   })
@@ -522,7 +522,8 @@ describe('pending store', () => {
     await page.host!.save(DOC_ID, bytes(7), { revision: 2, reason: 'auto' })
     await page.settle()
     expect(pendingRows(page.idb)).toEqual([expect.objectContaining({
-      v: 1, docId: DOC_ID, sub: 'usr_an', title: 'Báo cáo quý', format: 'docx', baseVersion: 1, baseEtag: page.office.etag(DOC_ID, 1), size: 1,
+      v: 2, docId: DOC_ID, sub: 'usr_an', title: 'Báo cáo quý', format: 'docx', baseVersion: 1, baseEtag: page.office.etag(DOC_ID, 1), size: 1,
+      role: 'owner', canDownload: true,
     })])
     page.office.offline = false
     page.fire('online')

@@ -115,6 +115,8 @@ describe('loadShellAssets', () => {
     expect(loadShellAssets(shellDir, [], piConfig(true), false).script).not.toContain(marker)
     const on = loadShellAssets(shellDir, [], piConfig(true), true).script
     for (const name of ONLINE_SCRIPTS) expect(on).toContain(fs.readFileSync(`${shellDir}${name}`, 'utf8').trim())
+    expect(loadShellAssets(shellDir, [], piConfig(true), true).online).toBe(true)
+    expect(loadShellAssets(shellDir, [], piConfig(true), false).online).toBe(false)
   })
 
   it('runs the online parts after account.js and the transfer notice, online.js last of them, before the host bridge', () => {

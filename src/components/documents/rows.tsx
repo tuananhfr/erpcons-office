@@ -13,7 +13,7 @@ export const targetOfFolder = (folder: Folder): MoveTarget => ({ kind: 'folder',
 export const targetOfDocument = (doc: DocumentItem): MoveTarget => ({ kind: 'document', id: doc.id, name: doc.title, parentId: doc.folderId })
 
 /** Rows of a folder: folders open in place, documents open their editor (`/<editor>/?doc=<id>`). */
-export function folderRows(page: Page, openFolder: (folder: Folder) => void, menu: (target: MoveTarget, open: () => void) => ReactNode): Row[] {
+export function folderRows(page: Page, openFolder: (folder: Folder) => void, menu: (target: MoveTarget, open: () => void, doc?: DocumentItem) => ReactNode): Row[] {
   const folders = page.folders.map((folder): Row => {
     const href = `#thu-muc=${folder.id}`
     return {
@@ -30,7 +30,8 @@ export function folderRows(page: Page, openFolder: (folder: Folder) => void, men
     const href = documentUrl(doc)
     return {
       key: `d:${doc.id}`, icon: doc.format, name: doc.title, href, type: kindInfo(doc.format).label,
-      updated: formatUpdated(doc.updatedAt), size: formatBytes(doc.size), action: menu(targetOfDocument(doc), () => window.location.assign(href)),
+      updated: formatUpdated(doc.updatedAt), size: formatBytes(doc.size), shared: doc.shared,
+      action: menu(targetOfDocument(doc), () => window.location.assign(href), doc),
     }
   })
   return [...folders, ...documents]

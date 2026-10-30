@@ -10,7 +10,11 @@
   function noop() {}
   function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms) }) }
 
-  /** deps: { api, pending, backoff, user() → sub, onChange(docs), onConflict(doc), onAcknowledged(id, revision, version) } */
+  /**
+   * deps: { api, pending, backoff, user() → sub, onChange(docs), onConflict(doc), onAcknowledged(id, revision, version),
+   * onAccessLost(doc, kind), viewOnly }; kind is 'forbidden' (still visible, no longer editable) or 'notFound'.
+   * viewOnly: the page shows an old version (`&version=`), which nothing may ever be saved over.
+   */
   online.createSaver = function (deps) {
     var messages = online.messages
     var docs = {}
@@ -33,7 +37,7 @@
       if (!doc.sub) return
       deps.pending.put({
         docId: doc.id, sub: doc.sub, title: doc.title, format: doc.format, folderId: doc.folderId,
-        baseVersion: doc.version, baseEtag: doc.etag, savedAt: entry.savedAt, bytes: entry.bytes
+        baseVersion: doc.version, baseEtag: doc.etag, role: doc.role, canDownload: doc.canDownload, savedAt: entry.savedAt, bytes: entry.bytes
       }).then(null, function () { console.warn('Online pending copy not stored') })
     }
     // awaited: the save() call that handed these bytes over has not had its answer yet.
@@ -67,7 +71,7 @@
         doc.retry.attempt = 0
         if (doc.pending === entry) {
           doc.pending = null
-          deps.pending.remove(doc.id).then(null, noop)
+          deps.pending.remove(doc.sub, doc.id).then(null, noop)
         } else if (doc.pending) {
           // A newer copy waits behind this save: its base is now the version just written, not a conflict.
           persist(doc, doc.pending)
@@ -93,9 +97,16 @@
         clearRetry(doc)
         return failed(true, messages.signIn)
       }
-      if (outcome.kind === 'notFound') {
-        doc.error = { retryable: false, message: messages.notFound }
-        return failed(false, messages.notFound)
+      if (outcome.kind === 'notFound' || outcome.kind === 'forbidden') {
+        // Access was removed while the document was open: the bytes stay in the pending store for a copy.
+        var message = outcome.kind === 'notFound' ? messages.notFound : messages.forbidden
+        doc.error = { retryable: false, message: message }
+        // The flushes of the downgrade that follows are refused too; the user hears about it once.
+        var first = !doc.accessLost
+        doc.accessLost = outcome.kind
+        clearRetry(doc)
+        if (first && deps.onAccessLost) deps.onAccessLost(doc, outcome.kind)
+        return failed(false, message)
       }
       doc.error = { retryable: outcome.retryable, message: outcome.message }
       if (outcome.retryable) scheduleRetry(doc, outcome.retryAfter)
@@ -151,7 +162,10 @@
 
     function save(id, bytes, options) {
       var doc = docs[id]
+      if (deps.viewOnly) return Promise.resolve(failed(false, messages.readOnly))
       if (!doc || !doc.open || !bytes || !ArrayBuffer.isView(bytes)) return Promise.resolve(failed(false, NOT_OPEN))
+      // Read-only saves nothing, except the flush of edits made before a downgrade (docs/erp-host.md, rule 13).
+      if (doc.mode !== 'edit' && !(doc.downgraded && options && options.reason === 'flush')) return Promise.resolve(failed(false, messages.readOnly))
       // The editor may reuse its wasm memory as soon as the call returns.
       var copy = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
       var entry = keep(doc, copy, revisionOf(options))
@@ -180,6 +194,12 @@
         doc.folderId = meta.folderId || null
         doc.version = meta.version
         doc.etag = meta.etag
+        doc.mode = meta.mode || 'edit'
+        doc.canDownload = meta.canDownload !== false
+        doc.canShare = meta.canShare !== false
+        doc.role = meta.role || 'owner'
+        doc.accessLost = null
+        doc.downgraded = false
         doc.open = true
         doc.dirty = false
         doc.pending = null
@@ -190,12 +210,29 @@
         return doc
       },
       get: function (id) { return docs[id] || null },
+      /** Access changed while open (erpHost v2 setMode); a downgraded document keeps its edits until they are flushed. */
+      setAccess: function (id, mode, canDownload, role) {
+        var doc = docs[id]
+        if (!doc) return
+        if (doc.mode === 'edit' && mode !== 'edit') doc.downgraded = true
+        doc.mode = mode
+        doc.canDownload = canDownload !== false
+        if (role) doc.role = role
+        changed()
+      },
+      /** The owner's "editors can share" switch, seen on a refresh; it changes no mode. */
+      setCanShare: function (id, canShare) {
+        var doc = docs[id]
+        if (!doc || doc.canShare === (canShare !== false)) return
+        doc.canShare = canShare !== false
+        changed()
+      },
       /** True while an account other than the document's owner is signed in. */
       otherAccount: function (id) { return Boolean(docs[id]) && otherAccount(docs[id]) },
       dirty: function (id, dirty) {
         var doc = docs[id]
         if (!doc) return
-        doc.dirty = Boolean(dirty)
+        doc.dirty = (doc.mode === 'edit' || doc.downgraded) && Boolean(dirty)
         changed()
       },
       closed: function (id) {
@@ -217,7 +254,14 @@
           clearRetry(doc)
           changed()
         }
-        return deps.pending.remove(id).then(null, noop)
+        return deps.pending.remove(doc && doc.sub ? doc.sub : deps.user(), id).then(null, noop)
+      },
+      /** The document is gone for this user, as a refused save would have found out. */
+      markLost: function (id, kind) {
+        var doc = docs[id]
+        if (!doc) return
+        doc.accessLost = kind
+        changed()
       },
       /** Retries every waiting copy now: back online, or signed in again. */
       resume: function () {

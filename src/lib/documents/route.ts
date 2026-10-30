@@ -1,5 +1,5 @@
 /**
- * The page's place lives in the URL fragment (`#thu-muc=<id>`, `#thung-rac`): it survives a reload and the back
+ * The page's place lives in the URL fragment (`#thu-muc=<id>`, `#chia-se`, `#thung-rac`): it survives a reload and the back
  * button, and never reaches the server's access log the way a query string would.
  */
 export interface Crumb {
@@ -9,15 +9,18 @@ export interface Crumb {
 
 export type View =
   | { kind: 'folder'; folderId: string | null; trail: Crumb[] }
+  | { kind: 'shared' }
   | { kind: 'trash' }
 
 export const ROOT_VIEW: View = { kind: 'folder', folderId: null, trail: [] }
 const FOLDER_PREFIX = '#thu-muc='
 const TRASH_HASH = '#thung-rac'
+const SHARED_HASH = '#chia-se'
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function viewHash(view: View): string {
   if (view.kind === 'trash') return TRASH_HASH
+  if (view.kind === 'shared') return SHARED_HASH
   return view.folderId ? `${FOLDER_PREFIX}${view.folderId}` : ''
 }
 
@@ -30,6 +33,7 @@ const STATE_KEY = 'erpDocs'
 /** `state` is `history.state`: folder names are kept there, so moving around never asks the server for them again. */
 export function parseView(hash: string, state: unknown): View {
   if (hash === TRASH_HASH) return { kind: 'trash' }
+  if (hash === SHARED_HASH) return { kind: 'shared' }
   if (!hash.startsWith(FOLDER_PREFIX)) return ROOT_VIEW
   const folderId = hash.slice(FOLDER_PREFIX.length)
   if (!ID.test(folderId)) return ROOT_VIEW

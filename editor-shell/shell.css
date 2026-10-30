@@ -178,7 +178,14 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__save-status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .erp-shell__save-doc { flex: 1 1 4em; min-width: 4em; max-width: max-content; overflow: hidden; text-overflow: ellipsis; }
 .erp-shell__save-doc::before { content: "·"; margin: 0 0.4em; }
-@media (max-width: 767px) { .erp-shell__save .erp-shell__draft-full { display: none; } }
+/* The state never shrinks below its own words (an error may, its title has it all). Under 1024 px the bar also
+   holds the nav or menu and the document buttons, so the state takes its short form and the name stays in the title. */
+.erp-shell__save:not(.erp-shell__draft--alert) { min-width: auto; overflow: visible; }
+@media (max-width: 1023px) {
+  .erp-shell__save { flex: none; }
+  .erp-shell__save .erp-shell__draft-full { display: none; }
+  .erp-shell__save .erp-shell__draft-short { display: inline; }
+}
 /* A long save or draft caption gives way first: the nav, the editor name and the menu would otherwise wrap. */
 .erp-shell__nav, .erp-shell__current, .erp-shell__menu { flex: none; white-space: nowrap; }
 @media (max-width: 479px) { .erp-shell__save { gap: 4px; } }
@@ -234,3 +241,46 @@ html.erp-embedded .erp-shell { display: none; }
   .erp-shell__sign-in { width: 32px; padding: 0; }
   .erp-shell__sign-in-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* Online document access (online-mode.js, online-bar.js, online-panel.js). Bar controls stay 32px tall like the
+   account slot; the labels drop to icons where the bar has no room. */
+.erp-shell__mode {
+  flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px;
+  background: #e8eef9; color: #1d3f7a; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap;
+}
+.erp-shell__mode[hidden] { display: none; }
+.erp-shell__online { flex: none; display: flex; align-items: center; gap: 6px; }
+.erp-shell__online[hidden], .erp-shell__online-btn[hidden] { display: none; }
+.erp-shell__online-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; height: 32px; padding: 0 12px;
+  border: 1px solid var(--erp-border); border-radius: 6px; background: var(--erp-surface); color: var(--erp-ink);
+  font-weight: 600; font-size: 13px; line-height: 1; font-family: inherit; white-space: nowrap; cursor: pointer;
+}
+.erp-shell__online-btn:hover { background: var(--erp-surface-2); }
+.erp-shell__online-btn:focus-visible { outline: 2px solid var(--erp-focus); outline-offset: 2px; }
+.erp-shell__online-btn:active { transform: translateY(1px); }
+/* The site's action blue: white on #0960ea is 5.2:1. */
+.erp-shell__online-btn--primary { border-color: #0960ea; background: #0960ea; color: #fff; }
+.erp-shell__online-btn--primary:hover { background: #0750c4; }
+.erp-shell__online-icon { display: inline-flex; }
+@media (max-width: 1023px) {
+  .erp-shell__online-btn:not(.erp-shell__online-btn--primary) { width: 32px; padding: 0; }
+  .erp-shell__online-btn:not(.erp-shell__online-btn--primary) .erp-shell__online-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+/* An online document adds the save state, badge and buttons to a bar sized for the Free tier. What gives way, widest
+   first: the brand words (the logo stays), then the editor name (it is in the menu and the tab title), then the gaps. */
+@media (max-width: 1023px) {
+  .erp-shell:has(.erp-shell__save:not([hidden]), .erp-shell__mode:not([hidden]), .erp-shell__online:not([hidden])) .erp-shell__brand span { display: none; }
+}
+@media (max-width: 767px) {
+  .erp-shell:has(.erp-shell__save:not([hidden]), .erp-shell__mode:not([hidden]), .erp-shell__online:not([hidden])) .erp-shell__current { display: none; }
+}
+@media (max-width: 479px) {
+  .erp-shell__online-btn--primary { width: 32px; padding: 0; }
+  .erp-shell__online-btn--primary .erp-shell__online-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .erp-shell__mode { padding: 0 8px; }
+  .erp-shell:has(.erp-shell__save:not([hidden]), .erp-shell__mode:not([hidden]), .erp-shell__online:not([hidden])) { gap: 8px; }
+}
+/* Over the editor, under the online dialogs (900): the frame draws its own backdrop and dialog. */
+.erp-online-panel { position: fixed; inset: 0; z-index: 880; }
+.erp-online-panel__frame { display: block; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }

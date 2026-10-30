@@ -1,0 +1,169 @@
+/* Sharing and version history (/tai-lieu/ and the editor's panel frames). Same tokens and shapes as documents.css:
+   radius 6 for fields, 10 for rows and chips' container, pill only for chips, tags and switches. */
+
+.erp-docs-dialog--wide { width: min(600px, calc(100vw - 32px)); }
+.erp-docs-dialog__head-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.erp-docs-dialog__text { margin: 0; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.erp-docs-dialog--wide .erp-docs-dialog__head h2 { overflow-wrap: anywhere; }
+
+/* The panel pages sit in a transparent frame over the editor: only the dialog and its backdrop paint. */
+html:has(.erp-docs-panel), body:has(.erp-docs-panel) { background: transparent; }
+.erp-docs.erp-docs-panel { max-width: none; padding: 0; }
+
+/* Tabs: "Được chia sẻ với tôi" and its dot. */
+.erp-docs-tabs a { position: relative; }
+.erp-docs-tabs__dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--erp-crimson); }
+
+/* Rows: the "Mới" tag, the shared mark, the owner. */
+.erp-docs-row__line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.erp-docs-row__line .erp-docs-row__name { min-width: 0; }
+.erp-docs-row[data-new] .erp-docs-row__name { font-weight: 750; }
+.erp-docs-row__new { padding: 1px 8px; border-radius: 999px; background: #fdecee; color: #a30d1a; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.erp-docs-row__shared { display: inline-flex; color: var(--erp-text-2); font-size: 15px; }
+.erp-docs-row__owner { overflow-wrap: anywhere; }
+
+/* Share dialog. */
+.erp-share { gap: 16px; }
+.erp-share-section { display: grid; gap: 8px; }
+.erp-share-section__title { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.45; }
+.erp-share-error { display: grid; justify-items: start; gap: 10px; padding: 14px 16px; border: 1px solid #f2c4c8; border-radius: var(--erp-radius-md); background: #fffafa; }
+.erp-share-error p { margin: 0; color: #7a0d19; font-size: 14px; line-height: 1.55; }
+.erp-share-status { min-height: 0; margin: 0; color: var(--erp-green); font-size: 14px; font-weight: 600; line-height: 1.5; }
+.erp-share-status:empty { display: none; }
+/* The invite row reserves no error line: the people list follows right under it. */
+.erp-share-invite .erp-docs-field__error:empty { min-height: 0; }
+.erp-share-status[data-tone="error"] { color: var(--erp-danger); }
+
+.erp-share-invite { display: grid; gap: 6px; }
+.erp-share-invite__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.erp-share-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 48px; padding: 6px 8px; border: 1px solid #a9bfd8; border-radius: var(--erp-radius-sm); background: #fff; cursor: text; }
+.erp-share-chips:focus-within { outline: 3px solid var(--erp-focus); outline-offset: 1px; border-color: var(--erp-focus); }
+.erp-share-chips[data-invalid] { border-color: var(--erp-danger); }
+.erp-share-chips__input { flex: 1 1 140px; min-width: 0; min-height: 34px; padding: 4px 6px; border: 0; background: none; color: var(--erp-text); font: inherit; font-size: 16px; line-height: 1.5; }
+.erp-share-chips__input:focus { outline: none; }
+.erp-share-chip { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 2px 2px 2px 10px; border-radius: 999px; background: var(--erp-surface-2); font-size: 14px; line-height: 1.5; }
+.erp-share-chip__text { min-width: 0; overflow-wrap: anywhere; }
+.erp-share-chip__remove { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--erp-text-2); cursor: pointer; }
+.erp-share-chip__remove:hover { background: #dbe7f4; color: var(--erp-text); }
+.erp-share-chip__remove .erp-icon { width: 12px; height: 12px; }
+.erp-share-select { min-height: 48px; max-width: 100%; padding: 8px 32px 8px 12px; border: 1px solid #a9bfd8; border-radius: var(--erp-radius-sm); background: #fff; color: var(--erp-text); font: inherit; font-size: 15px; line-height: 1.4; cursor: pointer; }
+.erp-share-select:focus-visible { outline: 3px solid var(--erp-focus); outline-offset: 1px; }
+.erp-share-select:disabled { cursor: progress; opacity: .7; }
+.erp-share-select--plain { min-height: 40px; padding-left: 8px; margin-left: -8px; border-color: transparent; background-color: transparent; font-weight: 650; }
+.erp-share-select--plain:hover { background-color: var(--erp-surface-2); }
+.erp-share-invite__notify { display: grid; gap: 6px; padding-top: 2px; }
+.erp-share-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; line-height: 1.45; cursor: pointer; }
+.erp-share-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--erp-blue); }
+.erp-share-optional { color: var(--erp-text-2); font-weight: 400; }
+.erp-share-invite__message { min-height: 88px; resize: vertical; }
+
+/* No scroll box of its own: it would clip a person's menu; the dialog scrolls instead. */
+.erp-share-people { display: grid; margin: 0; padding: 0; list-style: none; }
+.erp-share-person { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; }
+.erp-share-person + .erp-share-person { border-top: 1px solid #edf3f9; }
+.erp-share-person__avatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #e7f5ff; color: var(--erp-blue); font-size: 16px; font-weight: 700; line-height: 1; }
+.erp-share-person__avatar[data-owner] { background: var(--erp-text); color: #fff; }
+.erp-share-person[data-pending] .erp-share-person__avatar { border: 1px dashed #a9bfd8; background: #fff; color: var(--erp-text-2); }
+.erp-share-person__main { min-width: 0; }
+.erp-share-person__name { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; }
+.erp-share-person__meta { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; color: var(--erp-text-2); font-size: 13px; line-height: 1.5; }
+.erp-share-person__meta:empty { display: none; }
+.erp-share-person__meta span { overflow-wrap: anywhere; }
+.erp-share-person__pending { color: var(--erp-warning); font-weight: 600; }
+.erp-share-person__expiry { color: var(--erp-text); }
+.erp-share-person__role { color: var(--erp-text-2); font-size: 14px; line-height: 1.45; white-space: nowrap; }
+.erp-share-person__controls { display: flex; align-items: center; gap: 2px; }
+.erp-share-person__controls .erp-share-select { min-height: 40px; }
+.erp-share-expiry { display: grid; gap: 4px; margin-top: 8px; }
+.erp-share-expiry__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.erp-share-expiry__row .erp-docs-field__input { flex: 1 1 160px; width: auto; min-height: 44px; }
+.erp-docs .erp-share-expiry__row .erp-btn { min-height: 44px; }
+
+.erp-share-general { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.erp-share-general__icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--erp-surface-2); color: var(--erp-text-2); font-size: 18px; }
+.erp-share-general[data-enabled] .erp-share-general__icon { background: #e4f7ef; color: var(--erp-green); }
+.erp-share-general__main { min-width: 0; }
+.erp-share-general__value { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.45; }
+.erp-share-general__helper { margin: 0; color: var(--erp-text-2); font-size: 13px; line-height: 1.5; }
+.erp-share-general__note { margin: 4px 0 0; padding: 6px 10px; border-radius: var(--erp-radius-sm); background: var(--erp-surface-2); color: var(--erp-text); font-size: 13px; line-height: 1.5; }
+.erp-share-general__role { align-self: start; color: var(--erp-text-2); font-size: 14px; line-height: 1.45; white-space: nowrap; }
+/* On the line of the access select (40px high), not centred on the whole block with its helper and note. */
+.erp-share-general__role--select { line-height: 40px; }
+
+.erp-share-footer { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--erp-border); }
+.erp-share-footer > .erp-btn { margin-left: auto; }
+.erp-share-copy { display: grid; gap: 8px; min-width: 0; flex: 1 1 260px; }
+.erp-share-copy__buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.erp-share-copy__reset { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; }
+.erp-share-copy__reset .erp-icon { width: 14px; height: 14px; }
+.erp-share-copy__hint { margin: 0; align-self: center; color: var(--erp-text-2); font-size: 14px; line-height: 1.5; }
+.erp-share-copy__confirm { padding: 12px 14px; border: 1px solid #f2c4c8; border-radius: var(--erp-radius-md); background: #fff5f5; }
+.erp-share-copy__confirm p { margin: 0; color: #7a0d19; font-size: 14px; line-height: 1.55; }
+.erp-share-copy__manual { min-height: 44px; font-size: 14px; }
+
+.erp-share-settings { gap: 12px; }
+.erp-share-settings__list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.erp-share-switch { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 16px; align-items: start; padding: 12px 0; cursor: pointer; }
+.erp-share-settings__list li + li .erp-share-switch { border-top: 1px solid #edf3f9; }
+.erp-share-switch input { position: absolute; top: 12px; right: 0; width: 44px; height: 24px; margin: 0; opacity: 0; cursor: pointer; }
+.erp-share-switch__track { grid-column: 2; grid-row: 1; position: relative; width: 44px; height: 24px; margin-top: 2px; border-radius: 999px; background: #a9bfd8; transition: background-color 150ms ease-out; }
+.erp-share-switch__track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #08267433; transition: transform 150ms ease-out; }
+.erp-share-switch input:checked + .erp-share-switch__track { background: var(--erp-blue); }
+.erp-share-switch input:checked + .erp-share-switch__track::after { transform: translateX(20px); }
+.erp-share-switch input:focus-visible + .erp-share-switch__track { outline: 3px solid var(--erp-focus); outline-offset: 2px; }
+.erp-share-switch input:disabled + .erp-share-switch__track { opacity: .6; }
+.erp-share-switch__text { grid-column: 1; grid-row: 1; display: grid; gap: 2px; }
+.erp-share-switch__label { font-size: 15px; font-weight: 650; line-height: 1.45; }
+.erp-share-switch__hint { color: var(--erp-text-2); font-size: 13px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) {
+  .erp-share-switch__track, .erp-share-switch__track::after { transition: none; }
+}
+
+/* Version history. */
+.erp-versions { gap: 12px; }
+.erp-versions__doc { margin: -4px 0 0; color: var(--erp-text-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+/* No scroll box of its own: it would clip the owner's version menu; the dialog scrolls instead. */
+.erp-versions__list { display: grid; margin: 0; padding: 0; border: 1px solid var(--erp-border); border-radius: var(--erp-radius-md); list-style: none; }
+.erp-versions-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; padding: 10px 8px 10px 14px; }
+.erp-versions-row + .erp-versions-row { border-top: 1px solid #edf3f9; }
+.erp-versions-row[data-current] { background: var(--erp-bg); }
+/* The list no longer clips its rows, so the shaded first row follows its rounded corners itself. */
+.erp-versions-row:first-child { border-top-left-radius: inherit; border-top-right-radius: inherit; }
+.erp-versions-row__main { min-width: 0; }
+.erp-versions-row__title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 15px; font-weight: 650; line-height: 1.45; }
+.erp-versions-row__tag { padding: 1px 8px; border-radius: 999px; background: #e4f7ef; color: #0e6b4a; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.erp-versions-row__meta { display: flex; flex-wrap: wrap; gap: 0 12px; margin: 2px 0 0; color: var(--erp-text-2); font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.erp-versions-row__meta span { overflow-wrap: anywhere; }
+.erp-versions-row__actions { display: flex; align-items: center; gap: 2px; }
+/* The last rows sit at the dialog's bottom edge: their menu opens upwards, over the rows above. */
+.erp-versions-row .erp-docs-menu__list { top: auto; bottom: calc(100% + 4px); }
+.erp-docs .erp-versions-row__restore { min-height: 40px; margin-left: 4px; padding: 6px 12px; font-size: 14px; }
+.erp-versions-confirm { grid-column: 1 / -1; padding: 12px 14px; border: 1px solid #c9d9ec; border-radius: var(--erp-radius-md); background: #fff; }
+.erp-versions-confirm p { margin: 0; font-size: 14px; line-height: 1.55; }
+.erp-versions-confirm[data-tone="danger"] { border-color: #f1b8bf; background: #fff7f8; }
+.erp-versions .erp-docs-list__more { padding: 4px 0 0; border-top: 0; }
+
+@media (max-width: 767px) {
+  .erp-docs-tabs a { padding-inline: 8px; gap: 6px; white-space: nowrap; }
+  .erp-docs-tabs__long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .erp-share-person { grid-template-columns: 36px minmax(0, 1fr); }
+  .erp-share-person__avatar { width: 36px; height: 36px; }
+  .erp-share-person__controls, .erp-share-person__role { grid-column: 2; justify-self: start; }
+  .erp-share-person__controls { margin-left: -2px; }
+  .erp-share-general { grid-template-columns: 36px minmax(0, 1fr); }
+  .erp-share-general__icon { width: 36px; height: 36px; }
+  .erp-share-general__role, .erp-share-general__role--select { grid-column: 2; line-height: 1.45; }
+}
+
+@media (max-width: 479px) {
+  /* "Bất kỳ ai có đường liên kết" fits the narrow column only a size smaller. */
+  .erp-share-select--plain { max-width: calc(100% + 8px); padding-right: 28px; font-size: 14px; }
+  /* Three tabs fit one line at 360 px only without their icons. */
+  .erp-docs-tabs .erp-icon { display: none; }
+  .erp-share-invite__row { grid-template-columns: 1fr; }
+  .erp-share-invite__row .erp-share-select { width: 100%; }
+  .erp-docs .erp-versions-row__restore { width: 40px; padding: 0; margin-left: 0; }
+  .erp-versions-row__restore-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .erp-versions-row { grid-template-columns: 1fr; }
+  .erp-versions-row__actions { justify-content: flex-end; margin: -4px -4px 0 0; }
+}

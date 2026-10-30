@@ -27,6 +27,17 @@ export const DOC_ICONS = {
   locked: 'person-lock',
   empty: 'inbox',
   failed: 'x-circle',
+  share: 'share',
+  shared: 'people',
+  history: 'clock-history',
+  link: 'link-45deg',
+  gear: 'gear',
+  globe: 'globe2',
+  lock: 'lock',
+  download: 'download',
+  view: 'eye',
+  check: 'check2',
+  leave: 'person-dash',
 } as const
 
 export type DocIconName = keyof typeof DOC_ICONS

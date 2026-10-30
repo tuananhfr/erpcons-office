@@ -13,6 +13,10 @@ export const MESSAGES: Readonly<Record<ProblemKind, string>> = {
   invalid: 'Yêu cầu không hợp lệ. Hãy kiểm tra lại tên rồi thử lại.',
   busy: 'Máy chủ đang bận. Hãy thử lại sau giây lát.',
   failed: 'Không thực hiện được thao tác. Hãy thử lại.',
+  forbidden: 'Bạn không có quyền thực hiện thao tác này với tài liệu.',
+  conflict: 'Tài liệu vừa có phiên bản mới. Hãy xem lại danh sách rồi thử lại.',
+  shareLimit: 'Tài liệu đã được chia sẻ với số người tối đa (500).',
+  currentVersion: 'Không thể xoá phiên bản hiện tại.',
 }
 
 const RETRYABLE: ReadonlySet<ProblemKind> = new Set(['offline', 'busy'])
@@ -43,9 +47,13 @@ export async function problemFromResponse(response: Response): Promise<Problem> 
   if (status === 404) return problem('notFound')
   const { code, retryable } = await codeOf(response)
   if (status === 409 && code === 'NAME_TAKEN') return problem('nameTaken')
+  if (status === 409 && code === 'VERSION_CONFLICT') return problem('conflict')
+  if (status === 409 && code === 'VERSION_IS_CURRENT') return problem('currentVersion')
+  if (status === 403) return problem('forbidden')
   if (status === 413) return problem(code === 'QUOTA_EXCEEDED' ? 'quota' : 'tooLarge')
   if (status === 422) {
     if (code === 'FOLDER_CYCLE') return problem('cycle')
+    if (code === 'TOO_MANY_PERMISSIONS') return problem('shareLimit')
     if (code === 'UNSUPPORTED_TYPE' || code === 'INVALID_SIGNATURE') return problem('unsupported')
     // A key reused with another body: the caller drops the key, so trying again is safe.
     if (code === 'IDEMPOTENCY_MISMATCH') return problem('failed', null, true)

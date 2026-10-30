@@ -6,7 +6,12 @@ import { useEffect, type RefObject } from 'react'
 export function useDismiss(open: boolean, root: RefObject<HTMLElement | null>, close: (refocus: boolean) => void) {
   useEffect(() => {
     if (!open) return
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close(true) }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      // Inside a modal <dialog> (the share dialog's person menu) the same Escape would also close the dialog.
+      event.preventDefault()
+      close(true)
+    }
     const onPointer = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) close(false) }
     window.addEventListener('keydown', onKey)
     document.addEventListener('pointerdown', onPointer)

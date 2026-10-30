@@ -22,12 +22,21 @@ describe('Office API calls', () => {
     const { office, api } = setup()
     expect(await api.getDocument(DOC_ID)).toEqual({
       kind: 'ok', etag: office.etag(DOC_ID, 1),
-      doc: { id: DOC_ID, title: 'Báo cáo quý', format: 'docx', version: 1, folderId: 'f0f0f0f0-0000-4000-8000-000000000001' },
+      doc: { id: DOC_ID, title: 'Báo cáo quý', format: 'docx', version: 1, folderId: 'f0f0f0f0-0000-4000-8000-000000000001', role: 'owner', canDownload: true, canShare: true, ownerName: 'Nguyễn Văn An' },
     })
     const content = await api.getContent(DOC_ID)
     expect(content).toMatchObject({ kind: 'ok', etag: office.etag(DOC_ID, 1), version: 1 })
     expect([...(content.bytes as Uint8Array)]).toEqual([1, 2, 3])
     expect(office.calls.map(c => [c.method, c.path])).toEqual([['GET', `/api/v1/documents/${DOC_ID}`], ['GET', `/api/v1/documents/${DOC_ID}/content`]])
+  })
+
+  it('reads can_share; a server without it leaves the role to decide', () => {
+    const { office } = setup()
+    const online = onlinePage({ office, scripts: ['online-api.js'] }).window.erpOnline as { documentOf(body: unknown): Record<string, unknown> | null }
+    const body = { id: DOC_ID, title: 'Báo cáo', format: 'docx', version: 1, role: 'editor' }
+    expect(online.documentOf({ ...body, can_share: false })).toMatchObject({ canShare: false })
+    expect(online.documentOf({ ...body, can_share: true })).toMatchObject({ canShare: true })
+    expect(online.documentOf(body)).toMatchObject({ canShare: true })
   })
 
   it('answers notFound for a missing document without anything that tells why', async () => {

@@ -163,6 +163,54 @@
         onEscape: close
       })
     },
+    // A save answered 403/404: the owner changed or removed this user's access while the document was open.
+    accessLost: function (title, kind, handlers) {
+      return open({
+        id: 'access-lost',
+        title: kind === 'notFound' ? 'Bạn không còn quyền mở tài liệu này' : 'Bạn không còn quyền chỉnh sửa tài liệu này',
+        paragraphs: [
+          'Thay đổi gần nhất của bạn chưa được lưu vào ' + quoted(title) + '. Bản đó vẫn được giữ trên thiết bị này.',
+          'Bạn có thể lưu bản của mình thành một tài liệu mới trong Tài liệu của tôi.'
+        ],
+        actions: [
+          { label: 'Lưu bản của tôi thành bản sao', kind: 'primary', onClick: handlers.onCopy },
+          { label: 'Bỏ bản của tôi', kind: 'quiet', onClick: handlers.onDiscard },
+          { label: 'Đóng', kind: 'quiet', onClick: close }
+        ],
+        onEscape: close
+      })
+    },
+    // Explicit sign-out while this device still holds the account's unsaved bytes (they are not shown to anyone else).
+    signOutPending: function (handlers) {
+      return open({
+        id: 'sign-out-pending',
+        title: 'Còn thay đổi chưa lưu lên máy chủ. Xoá khi đăng xuất?',
+        paragraphs: [
+          'Thiết bị này còn giữ bản chưa lưu của tài khoản này. Nếu giữ lại, bản đó chỉ hiện lại khi bạn đăng nhập và mở tài liệu, trong tối đa 30 ngày.'
+        ],
+        actions: [
+          { label: 'Xoá và đăng xuất', kind: 'primary', onClick: handlers.onDelete },
+          { label: 'Giữ lại và đăng xuất', kind: 'quiet', onClick: handlers.onKeep },
+          { label: 'Huỷ', kind: 'quiet', onClick: handlers.onCancel }
+        ],
+        onEscape: handlers.onCancel
+      })
+    },
+    // The public link (link) or a viewer's access went away. `initial`: nothing was shown yet; otherwise the page
+    // keeps what it shows and nothing newer will come.
+    gone: function (link, initial) {
+      var paragraph = link
+        ? (initial ? 'Đường liên kết sai, đã bị tắt hoặc đã được thay bằng đường liên kết mới. Hãy hỏi lại người chia sẻ.'
+          : 'Chủ tài liệu đã tắt hoặc đổi đường liên kết. Nội dung trên trang là bản bạn đã mở trước đó.')
+        : 'Bạn không còn quyền xem tài liệu này. Nội dung trên trang là bản bạn đã mở trước đó.'
+      return open({
+        id: 'gone',
+        title: link ? 'Đường liên kết này không còn dùng được' : online.messages.notFound,
+        paragraphs: [paragraph],
+        actions: [{ label: 'Về trang chủ', kind: 'primary', href: '/' }, { label: 'Đóng', kind: 'quiet', onClick: close }],
+        onEscape: close
+      })
+    },
     // No way out but a reload or the first account signing in again: editing on would save nowhere.
     otherAccount: function (handlers) {
       return open({

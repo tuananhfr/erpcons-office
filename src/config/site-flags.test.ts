@@ -29,13 +29,15 @@ describe('site flags of the Next pages', () => {
 
 describe('/tai-lieu/ is absent from a build with online documents off', () => {
   it('has its page only as page.online.tsx', () => {
-    expect(fs.readdirSync(path.join(root, 'app/tai-lieu'))).toEqual(['page.online.tsx'])
+    const pages = walk('app/tai-lieu')
+    expect(pages).toEqual(['app/tai-lieu/chia-se/page.online.tsx', 'app/tai-lieu/lich-su/page.online.tsx', 'app/tai-lieu/page.online.tsx'])
   })
 
   it('is the only importer of the online page code and its styles', () => {
     const importers = sources.filter((file) => !ONLINE_DIRS.some((dir) => file.startsWith(dir)))
-      .filter((file) => /@\/(components|lib)\/documents\/|styles\/documents\.css/.test(read(file)))
-    expect(importers).toEqual(['app/tai-lieu/page.online.tsx'])
+      .filter((file) => /@\/(components|lib)\/documents\/|styles\/documents(-sharing)?\.css/.test(read(file)))
+    // The two panel pages are the share dialog and the version history the editor shows in a frame.
+    expect(importers).toEqual(['app/tai-lieu/chia-se/page.online.tsx', 'app/tai-lieu/lich-su/page.online.tsx', 'app/tai-lieu/page.online.tsx'])
   })
 
   it('reaches the landing only through server components behind the flag', () => {

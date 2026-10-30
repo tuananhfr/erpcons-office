@@ -14,7 +14,7 @@ function Gate() {
     return current ? current.apiFetch(path, init) : Promise.reject(Object.assign(new Error('signed_out'), { code: 'signed_out' }))
   }, [])
   if (!snapshot) return <div className="erp-docs"><div className="erp-docs__head"><div className="erp-docs__title"><h1>Tài liệu của tôi</h1></div></div><ListSkeleton /></div>
-  if (snapshot.status === 'signed-in') return <Workspace key={snapshot.user?.id ?? ''} apiFetch={apiFetch} />
+  if (snapshot.status === 'signed-in') return <Workspace key={snapshot.user?.id ?? ''} apiFetch={apiFetch} userId={snapshot.user?.id ?? null} />
   return <div className="erp-docs">
     <div className="erp-docs__head"><div className="erp-docs__title"><h1>Tài liệu của tôi</h1></div></div>
     {snapshot.status === 'disabled' ? <UnavailablePanel /> : <SignInPanel snapshot={snapshot} />}

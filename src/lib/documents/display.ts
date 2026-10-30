@@ -38,3 +38,20 @@ export function trashNote(daysLeft: number | null): string {
   if (daysLeft === null) return ''
   return daysLeft === 0 ? 'Sắp bị xoá hẳn' : `Tự xoá hẳn sau ${daysLeft} ngày`
 }
+
+/** "12/10/2026". */
+export function formatDate(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
+}
+
+/** A version's time: "Hôm nay, 14:05", "Hôm qua, 09:30" or "14:05, 12/10/2026" (versions need the hour every day). */
+export function formatMoment(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const time = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(date)
+  if (sameDay(date, now)) return `Hôm nay, ${time}`
+  if (sameDay(date, new Date(now.getTime() - DAY_MS))) return `Hôm qua, ${time}`
+  return `${time}, ${formatDate(iso)}`
+}

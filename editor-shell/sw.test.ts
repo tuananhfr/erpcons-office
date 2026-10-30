@@ -172,6 +172,12 @@ describe('sw classify', () => {
     expect(classify(new URL('https://id.pi.invalid/v1/me/entitlements?product_id=vanban'), 'GET', 'cors', origin)).toBe('bypass')
   })
 
+  it('never handles the public view link API; the link page itself carries its token only in the fragment', () => {
+    expect(classify(at('/api/v1/link'), 'GET', 'cors', origin)).toBe('bypass')
+    expect(classify(at('/api/v1/link/content'), 'GET', 'cors', origin)).toBe('bypass')
+    expect(classify(at('/van-ban/'), 'GET', 'navigate', origin)).toBe('network-first')
+  })
+
   it('keeps build and manifest placeholders for assemble to fill in', () => {
     expect(SOURCE).toContain('__BUILD_ID__')
     expect(SOURCE).toContain('/*__ASSET_MANIFEST__*/[]')

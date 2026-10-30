@@ -107,10 +107,14 @@ type SaveResult =
 - Calls the API only through `erpAccount.apiFetch(path, init)`, which attaches the access token, refreshes it once on
   401, and refuses any URL that is not a same-origin `/api/v1/` path, so the token can never be sent elsewhere.
 - Remembers the `revision` of the bytes it retries and calls the editor's `acknowledged` when that retry is stored.
-- Keeps the last unacknowledged bytes of each host document in its own IndexedDB pending store (keyed by `docId`,
-  with the base version and its ETag) until `saved`, so a crash or a lost connection never loses them (spec §07 "local checkpoint",
-  T07). On the next open of that document it offers them back ("Có bản chưa lưu lên máy chủ"): saving them uses the
-  stored base version, so a newer server version still surfaces as a conflict.
+- Keeps the last unacknowledged bytes of each host document in its own IndexedDB pending store (keyed by the account
+  and the document, `[sub, docId]`, with the base version, its ETag and the last known role and `canDownload`) until
+  `saved`, so a crash or a lost connection never loses them (spec §07 "local checkpoint", T07). On the next open of that
+  document by the same account it offers them back ("Có bản chưa lưu lên máy chủ"): saving them uses the stored base
+  version, so a newer server version still surfaces as a conflict. Offline, they reopen with the stored role (read-only
+  when none was stored). A document the account can no longer open still offers them as a copy ("Lưu bản của tôi thành
+  bản sao", or "Bỏ bản của tôi"). Records expire after 30 days; an explicit sign-out with records left asks whether to
+  delete them.
 - Shows the save state from spec §07 next to the title: `LOCAL_ONLY` "Chưa lưu lên máy chủ", `SAVING` "Đang lưu…",
   `SERVER_DURABLE` "Đã lưu", `ERROR` with the message.
 - Asks before unload while any document is dirty or a save is in flight (T06).
@@ -119,6 +123,91 @@ type SaveResult =
 
 Read-only and comment-only modes (phase 2, ACL), presence and co-editing, saving a local file into the online store
 from inside the editor, format conversion on upload, the desktop apps.
+
+## v2 (phase 2): access modes
+
+Status: approved plan `tmp/briefs/office-online-v2/plan.md` (2026-10-29). Co-editing and comment calls are added to this
+section in later milestones; until then v2 is v1 plus the calls below.
+
+The shell sets `erpHost.version = 2`. A v2 fork accepts `1` or `2`; with `1` everything below is absent and the
+document is editable as in v1.
+
+### Shell → editor
+
+```js
+erpHost.ready({
+  open(doc) {},          // doc adds: mode, canDownload, preserveView (below)
+  flush() {},
+  acknowledged(docId, revision, version) {},
+  setMode(docId, mode, canDownload) {},   // v2: access changed while the document is open
+  setUser(user) {},      // v2: { id, name } of the signed-in PI account, or null for an anonymous link viewer
+})
+```
+
+- `doc.mode`: `'edit' | 'comment' | 'view'`, absent = `'edit'`. In phase 2 `'comment'` behaves like `'view'` for the
+  document content; server comments arrive in a later milestone. In-file comments (DOCX/XLSX/PPTX comments, PDF
+  annotations) are content and are read-only in both.
+- `doc.canDownload`: absent = `true`. `false` disables Save As, Export, Print and copying document content to the
+  clipboard (as Google Docs does for viewers and commenters when the owner turns it off).
+- `doc.preserveView`: `true` when `open` reloads a newer version of a document already open (a viewer catching up).
+  The fork replaces the content in the same tab and keeps what the user was looking at as far as it still exists:
+  Văn bản the first visible block and the selection, Bảng tính the active sheet, the selection and the top-left cell,
+  Trình chiếu the current slide and the selection, PDF the page and the zoom.
+- `setMode` applies the same rules as `doc.mode` / `doc.canDownload` to an open document without reloading it.
+  The fork never discards edits on its own: a downgrade first commits any edit still held in an inline editor (notes,
+  cell editor, text box, comment field) as one undo step, then switches. Downgrade sequence in the shell: `flush()`,
+  `setMode(…)`, then `flush()` again when the fork reports the document dirty, so text that was still being typed
+  reaches the server or, if access is gone, the pending store and "Lưu bản của tôi thành bản sao".
+- `setUser` names the author the fork writes into anything it creates for this user (comments, revision marks) instead
+  of the local preference name. Called before the first `open` and on account changes.
+
+### Rules in `view` and `comment` mode
+
+12. **Nothing can change the document.** Every mutating path is refused at the engine's single edit entry point, and
+    the UI does not offer it: typing and IME, ribbon and menu commands, paste, drag and drop (including files),
+    context-menu edits, find-and-replace, undo/redo, form fields and annotations, inline editors (cells, text boxes).
+    Navigation, selection, zoom, find, view switches and (when `canDownload`) copy, Save As, Export and Print still work.
+13. **No save traffic.** AutoSave never runs and Ctrl+S does nothing beyond the fork's usual "read-only" notice. A
+    document opened in `view`/`comment` never becomes dirty and `flush` resolves at once for it. One exception: a
+    document downgraded while dirty keeps those edits, stays dirty, and `flush` hands it to `save` (reason `flush`)
+    under rules 1–6 until it is `saved` or stopped by a conflict or a non-retryable failure; nothing new can make it
+    dirty.
+14. **A visible state.** The fork shows its read-only look (disabled editing commands; Văn bản may use Read Mode); the
+    shell adds the badge "Chỉ xem" next to the title. Until web comments (M5), `comment` reads as view only: the
+    badge also says "Chỉ xem", and the shell's and the fork's notice say "Nhận xét trên web sẽ có sau, hiện chỉ xem
+    được". The shell's "Chia sẻ" button is for owners and editors only, and only while the document's `can_share`
+    is not false (an editor loses it when the owner turns "editors can share" off).
+15. **Logs** as rule 7.
+
+### Shell responsibilities added in v2
+
+- Reads the caller's `role` from `GET /api/v1/documents/{id}` (or `GET /api/v1/link`) and maps it: owner, editor →
+  `edit`; commenter → `comment`; viewer, link → `view`. `canDownload` and `can_share` come from the same response,
+  and every refresh applies them again.
+- A 403/404 answer to a save means access was removed: the shell keeps the bytes in its pending store, calls
+  `setMode(docId, 'view', …)`, and offers "Lưu bản của tôi thành bản sao" into the user's own root folder.
+- Every downgrade (role change seen on refresh, or the 403/404 above) follows the sequence in `setMode`: `flush()`,
+  `setMode`, and a second `flush()` when the document is still dirty; a 403/404 on that save ends in the same offer.
+- Phase 2 has no live channel, so while the page is visible the shell re-reads the document every 30 s: a changed role
+  or `canDownload` becomes `setMode` (after `flush()` when it is a downgrade and edits are in hand), a newer version
+  reaches a reader as `open` with `preserveView`, and a removed permission ends in a "not found" notice.
+- `/<editor>/?doc=<id>&version=<seq>` opens that version in `view` mode (the history's "Xem"); nothing is saved.
+- `/<editor>/#link=<token>` (public view link): no sign-in, `setUser(null)` whoever is signed in, `mode: 'view'`, every
+  save answers `failed`; "Tải về" in the shell bar when `canDownload`. The token is only ever in the fragment, which
+  reaches no server log or Referer: the shell removes any `#link=` fragment with `history.replaceState` first, on every
+  page and before any request, keeps the token in memory only (no storage, no logs) and sends it as `X-Link-Token` to
+  `GET /api/v1/link` and `/api/v1/link/content`. The history entry of the original navigation still holds it, so a
+  link ends only by expiry or reset. Signing in on that page continues on `/<editor>/?doc=<id>` when the account has
+  its own access to the document, and stays on the link view otherwise. The editor pages carry
+  `<meta name="referrer" content="no-referrer">` when online documents are on.
+- `&version=<seq>`: the shell tracks that version with no ETag and refuses every save on the page.
+
+### Tests each fork adds (v2)
+
+Headless tests that every edit entry point is refused in `view` and in `comment` (one test per command family plus key
+input, paste and drop), that `setMode` both ways keeps the document and its undo history intact, that `canDownload:
+false` disables Save As / Export / Print / copy, that `preserveView` keeps the listed view state, and that `setUser`
+becomes the author of a new in-file comment in `edit` mode.
 
 ## Tests each fork adds
 

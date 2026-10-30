@@ -1,8 +1,10 @@
 (function () {
   // The Office API calls the shell makes (erpcons-office-server/docs/openapi.yaml), mapped to plain outcomes:
-  // ok, saved, conflict, notFound, offline, signIn, failed { retryable, message, retryAfter }.
+  // ok, saved, conflict, notFound, forbidden, offline, signIn, failed { retryable, message, retryAfter }.
   var online = window.erpOnline = window.erpOnline || {}
   var FORMATS = ['docx', 'xlsx', 'pptx', 'pdf']
+  var ROLES = ['owner', 'editor', 'commenter', 'viewer', 'link']
+  var LINK_TOKEN = /^[A-Za-z0-9_-]{43}$/
   var MESSAGE_MAX = 300
   var MESSAGES = {
     notFound: 'Không tìm thấy tài liệu hoặc bạn không có quyền mở',
@@ -11,6 +13,8 @@
     busy: 'Máy chủ đang bận. Văn phòng sẽ tự lưu lại sau.',
     rejected: 'Máy chủ không nhận bản lưu này.',
     failed: 'Không lưu được lên máy chủ. Hãy thử lại.',
+    forbidden: 'Bạn không có quyền chỉnh sửa tài liệu này.',
+    readOnly: 'Tài liệu đang mở ở chế độ chỉ xem nên không lưu lên máy chủ.',
     otherAccount: 'Bạn đang đăng nhập bằng tài khoản khác. Hãy tải lại trang.'
   }
   online.messages = MESSAGES
@@ -33,8 +37,17 @@
   }
   function documentOf(body) {
     if (!body || typeof body.id !== 'string' || typeof body.title !== 'string' || FORMATS.indexOf(body.format) === -1 || !positive(body.version)) return null
-    return { id: body.id, title: body.title, format: body.format, version: body.version, folderId: typeof body.folder_id === 'string' ? body.folder_id : null }
+    return {
+      id: body.id, title: body.title, format: body.format, version: body.version, folderId: typeof body.folder_id === 'string' ? body.folder_id : null,
+      // An unknown role gets the least access; the server refuses anything more anyway.
+      role: ROLES.indexOf(body.role) === -1 ? 'viewer' : body.role,
+      canDownload: body.can_download !== false,
+      // Absent from servers before can_share: fall back to the role alone.
+      canShare: body.can_share !== false,
+      ownerName: typeof body.owner_name === 'string' ? body.owner_name : ''
+    }
   }
+  online.documentOf = documentOf
   var MALFORMED = { kind: 'failed', retryable: true, message: MESSAGES.failed, retryAfter: null }
 
   // Rejections of erpAccount.apiFetch carry account.js codes; a refused URL is a bug and must surface.
@@ -55,6 +68,7 @@
       var code = body && typeof body.code === 'string' ? body.code : null
       // 404 says nothing about whether the document exists (§08).
       if (status === 404) return { kind: 'notFound' }
+      if (status === 403) return { kind: 'forbidden', message: MESSAGES.forbidden }
       if (status === 409 && code === 'VERSION_CONFLICT') return { kind: 'conflict', latestVersion: positive(body.latest_version) }
       if (status === 429 || status === 503) return { kind: 'failed', retryable: true, message: serverMessage(body, MESSAGES.busy), retryAfter: retryAfter(response) }
       if (status === 413 || status === 422) return { kind: 'failed', retryable: false, message: serverMessage(body, MESSAGES.rejected), retryAfter: null }
@@ -123,6 +137,54 @@
         })
       })
     }
-    return { getDocument: getDocument, getContent: getContent, putContent: putContent, createDocument: createDocument }
+    function getVersionContent(id, seq) {
+      return call(path(id, '/versions/' + encodeURIComponent(String(seq)) + '/content'), { method: 'GET', headers: { Accept: 'application/octet-stream' } }, function (response) {
+        return response.arrayBuffer().then(function (buffer) {
+          return { kind: 'ok', bytes: new Uint8Array(buffer), version: seq }
+        }, function () { return { kind: 'offline' } })
+      })
+    }
+    return { getDocument: getDocument, getContent: getContent, putContent: putContent, createDocument: createDocument, getVersionContent: getVersionContent }
+  }
+
+  online.isLinkToken = function (token) { return typeof token === 'string' && LINK_TOKEN.test(token) }
+
+  /**
+   * The public view link (`GET /link`, `/link/content`): no sign-in, so plain fetch without credentials or a PI
+   * token. The link token goes in `X-Link-Token`, never in a URL (access logs, Referer); it is checked before any
+   * request and never logged.
+   */
+  online.createLinkApi = function (fetchFn) {
+    function call(token, rest, accept, onOk) {
+      if (!online.isLinkToken(token)) return Promise.resolve({ kind: 'notFound' })
+      var sent
+      try {
+        sent = fetchFn('/api/v1/link' + rest, {
+          method: 'GET', headers: { Accept: accept, 'X-Link-Token': token }, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'
+        })
+      } catch (e) { return Promise.resolve({ kind: 'offline' }) }
+      return sent.then(function (response) {
+        return response.ok ? onOk(response) : problem(response)
+      }, function () { return { kind: 'offline' } })
+    }
+    return {
+      getLink: function (token) {
+        return call(token, '', 'application/json', function (response) {
+          return readJson(response).then(function (body) {
+            var doc = documentOf(body)
+            return doc ? { kind: 'ok', doc: doc } : MALFORMED
+          })
+        })
+      },
+      getLinkContent: function (token) {
+        return call(token, '/content', 'application/octet-stream', function (response) {
+          var version = parseInt(response.headers.get('X-Document-Version') || '', 10)
+          if (!positive(version)) return MALFORMED
+          return response.arrayBuffer().then(function (buffer) {
+            return { kind: 'ok', bytes: new Uint8Array(buffer), version: version }
+          }, function () { return { kind: 'offline' } })
+        })
+      }
+    }
   }
 })()
