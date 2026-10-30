@@ -16,10 +16,14 @@ up=${fork^^}
 export CRAFT_FONTS_REQUIRED=1
 export "${up}_REQUIRE_WINRES=1"
 export "${up}_BUILD_SHA=$(git rev-parse HEAD)" "${up}_BUILD_DATE=$(date -u +%F)"
+# The fork compiles PI sign-in and the editing licence gate in only when the build names an issuer
+# (`option_env!`); fixed here so a release can never ship without them or against another PI.
+export ERPCONS_PI_ISSUER=https://platform.pih.vn
+unset ERPCONS_PI_API_BASE
 # Static CRT like package.ps1: the installers ship no VC++ redistributable.
 export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-C target-feature=+crt-static"
 
-echo "==> cargo xwin build $fork $(git rev-parse --short HEAD) for $target"
+echo "==> cargo xwin build $fork $(git rev-parse --short HEAD) for $target (PI $ERPCONS_PI_ISSUER)"
 cargo xwin build --release --locked --target "$target" -p "$fork" -p "$fork-cli"
 
 out="$dir/target/$target/release"
@@ -32,6 +36,8 @@ for exe in "$fork.exe" "$fork-cli.exe"; do
   # Only the GUI app embeds the icon/VERSIONINFO; the CLIs have no build.rs resources.
   if [ "$exe" = "$fork.exe" ]; then
     llvm-objdump -h "$src" | grep -q '\.rsrc' || die "$exe has no .rsrc section (icon/VERSIONINFO missing)"
+    # A fork commit without the account code ignores the variable and would ship with no licence gate.
+    grep -qaF "$ERPCONS_PI_ISSUER" "$src" || die "$exe does not contain the PI issuer $ERPCONS_PI_ISSUER (no licence gate)"
   fi
   cp "$src" "$out/"
   echo "ok $exe -> ${out#/ws/}/$exe ($(du -h "$out/$exe" | cut -f1))"

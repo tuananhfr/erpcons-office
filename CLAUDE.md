@@ -164,6 +164,8 @@ a CRLF checkout leaks `\r` into `include_str!` data and breaks rustfmt and tests
   known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate.
 - `build/run.sh desktop-win <fork>`: refuses a dirty tree, cross-builds `<fork>.exe` and `<fork>-cli.exe`
   (`x86_64-pc-windows-msvc`, static CRT, icon/VERSIONINFO checked) into `<fork>/target/x86_64-pc-windows-msvc/release/`.
+  The script fixes `ERPCONS_PI_ISSUER=https://platform.pih.vn`, which compiles PI sign-in and the editing licence gate
+  into the app, and fails when the app exe does not contain that issuer.
   Then on the host: `pwsh <fork>/packaging/windows/package.ps1 -Arch x64 -SkipBuild` (WiX 5.0.2 as a dotnet tool).
   The host is Windows 11 Home (no Windows containers), so WiX packaging cannot move into Docker.
 - `build/run.sh prune [--dry-run]`: keeps all cargo targets (the volume plus `target/` dirs of workspace checkouts) under
