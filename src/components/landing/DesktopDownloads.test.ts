@@ -31,7 +31,7 @@ it('renders every download without JavaScript and guesses no primary OS', () => 
   expect(html).toContain('SmartScreen')
 })
 
-it('renders the suite above individual downloads with all six asset links', () => {
+it('renders the suite above individual downloads with both Windows suite links', () => {
   const html = renderToStaticMarkup(createElement(DesktopDownloads))
   const { assets, releaseUrl } = suiteDownloads()
   for (const asset of assets) expect(html).toContain(`href="${asset.url}"`)
@@ -39,15 +39,17 @@ it('renders the suite above individual downloads with all six asset links', () =
   expect(html.indexOf('Tải trọn bộ ERPCons Văn phòng')).toBeLessThan(html.indexOf('Hoặc tải từng ứng dụng'))
 })
 
-it.each([
-  ['windows', 'ERPCons-VanPhong-windows-x64-setup.exe'],
-  ['macos', 'ERPCons-VanPhong-macos-universal.dmg'],
-  ['linux', 'ERPCons-VanPhong-linux-x86_64-AppImage.tar.gz'],
-] as const)('gives only the suite a primary action on %s', (os, file) => {
-  platform.os = os
+it('offers and promises nothing but Windows: no macOS or Linux link, label or install note', () => {
+  const html = renderToStaticMarkup(createElement(DesktopDownloads))
+  expect(html).toContain('Windows (64-bit)')
+  expect(html).not.toMatch(/macos|\.dmg|linux|AppImage|\.deb|\.rpm|xattr|quarantine/i)
+})
+
+it('gives only the suite a primary action on Windows', () => {
+  platform.os = 'windows'
   const html = renderToStaticMarkup(createElement(DesktopDownloads))
   expect(html.match(/class="erp-btn erp-btn--primary"/g)).toHaveLength(1)
-  expect(html).toContain(`href="${suiteDownloads().releaseUrl}/download/${file}" class="erp-btn erp-btn--primary"`)
+  expect(html).toContain(`href="${suiteDownloads().releaseUrl}/download/ERPCons-VanPhong-windows-x64-setup.exe" class="erp-btn erp-btn--primary"`)
 })
 
 it('keeps all downloads accessible on mobile without a primary desktop action', () => {

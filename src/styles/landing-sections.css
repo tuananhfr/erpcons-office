@@ -203,7 +203,6 @@
 .erp-downloads__links a { overflow-wrap: anywhere; }
 .erp-downloads__links .erp-btn { width: 100%; text-align: center; }
 .erp-downloads__note { max-width: none; }
-.erp-downloads__note code { overflow-wrap: anywhere; }
 @media (max-width: 767px) { .erp-downloads { grid-template-columns: 1fr; } .erp-downloads__card { padding: 20px; } }
 .erp-downloads__suite { margin-block: 24px; border-color: var(--erp-blue); }
 .erp-downloads__gate { margin-block: 24px; padding: 28px; border-color: var(--erp-blue); }

@@ -29,7 +29,7 @@ export const FAQ = [
   { question: 'Vì sao lần mở đầu tiên chậm?', answer: firstLoadAnswer(sizes) },
   { question: 'Có dùng được trên điện thoại không?', answer: 'Mở được, nhưng giao diện được thiết kế cho màn hình lớn. Để làm việc thoải mái, nên dùng máy tính.' },
   ...(DESKTOP_DOWNLOADS_ENABLED
-    ? [{ question: 'Có bản cài trên máy tính không?', answer: 'Có. Đăng nhập PI ID rồi tải bản cài Windows, macOS hoặc Linux tại mục Tải bản cài trên máy tính.', href: '/#tai-ban-desktop' }]
+    ? [{ question: 'Có bản cài trên máy tính không?', answer: 'Có. Đăng nhập PI ID rồi tải bản cài Windows tại mục Tải bản cài trên máy tính.', href: '/#tai-ban-desktop' }]
     : []),
   { question: 'Có mất phí không?', answer: 'Không. ERPCons Văn phòng miễn phí và không cần tài khoản.' },
 ]

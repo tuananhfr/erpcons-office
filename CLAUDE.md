@@ -116,7 +116,7 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     `src/lib/signup/`): same online flag. Plain same-origin `fetch` to `/api/v1/signup` (no PI token, never
     `apiFetch`); the form rules mirror the server's `crates/signup/src/input.rs`. The verification token arrives as
     `#token=`, is removed from the address bar at once and kept in memory only. With PI sign-in on, the desktop
-    download section shows "Đăng nhập để tải" until signed in (a courtesy gate: installers stay public).
+    download section shows "Đăng nhập để tải" until signed in (a courtesy gate: installers stay public). Only Windows installers are offered (`src/lib/desktop/downloads.ts`): no other system is built.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab

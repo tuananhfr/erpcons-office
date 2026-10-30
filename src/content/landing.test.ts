@@ -21,6 +21,12 @@ describe('landing content', () => {
     ])
   })
 
+  it.runIf(DESKTOP_DOWNLOADS_ENABLED)('promises only the Windows installer that is actually built', () => {
+    const answer = FAQ.find((f) => f.question === 'Có bản cài trên máy tính không?')?.answer
+    expect(answer).toContain('Windows')
+    expect(answer).not.toMatch(/macOS|Linux/)
+  })
+
   it('links one fork repo per editor', () => {
     expect(FORK_REPOS.map((r) => r.url)).toEqual(EDITORS.map((e) => `https://github.com/tuananhfr/${e.fork}`))
   })
