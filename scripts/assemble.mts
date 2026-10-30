@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { EDITORS } from '../src/config/editors.ts'
 import { embedHosts } from '../src/config/embed.ts'
+import { LOCAL_ONLINE_ENV, LOCAL_PI_ISSUER_ENV, buildFlags } from '../src/config/online.ts'
 import { piConfig } from '../src/config/pi.ts'
 import { accountScript } from '../src/lib/account/account-script.ts'
 import { signInPages } from '../src/lib/account/sign-in-pages.ts'
@@ -18,11 +19,15 @@ const out = path.join(REPO_ROOT, 'out')
 if (!fs.existsSync(path.join(out, 'index.html'))) throw new Error('out/index.html missing — run next build first')
 
 const shell = path.join(REPO_ROOT, 'editor-shell')
-const pi = piConfig()
-const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS), pi)
+const flags = buildFlags(process.env, process.argv)
+if (flags.localOverride) console.warn(`${LOCAL_ONLINE_ENV} / ${LOCAL_PI_ISSUER_ENV}: local flags are on; this out/ must never be deployed`)
+const pi = piConfig(flags.pi, flags.piIssuer)
+const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS), pi, flags.online)
 
 const root = workspaceRoot()
 const info = buildInfo(root, REPO_ROOT, process.argv.includes('--allow-local-provenance') || process.env.ERPCONS_ALLOW_LOCAL_PROVENANCE === '1')
+// Recorded even when null, so a deploy check can refuse a build signed in against a local issuer.
+const record = { ...info, localPiIssuer: flags.piIssuer }
 for (const editor of EDITORS) {
   installEditor(editor, forkDist(editor, root), out, EDITORS, assets)
   console.log(`[${editor.slug}] installed from ${editor.fork}`)
@@ -37,7 +42,7 @@ if (pi) {
   }
 }
 
-fs.writeFileSync(path.join(out, 'build-info.json'), JSON.stringify(info, null, 2) + '\n')
+fs.writeFileSync(path.join(out, 'build-info.json'), JSON.stringify(record, null, 2) + '\n')
 fs.writeFileSync(path.join(out, 'sbom.cdx.json'), JSON.stringify(siteSbom(REPO_ROOT), null, 2) + '\n')
 
 // Hashes the files, so it changes exactly when out/ does (Next alone changes it every build); activate carries the old cache over.

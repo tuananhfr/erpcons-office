@@ -172,6 +172,12 @@ describe('sw classify', () => {
     expect(classify(new URL('https://id.pi.invalid/v1/me/entitlements?product_id=vanban'), 'GET', 'cors', origin)).toBe('bypass')
   })
 
+  it('never handles the public view link API; the link page itself carries its token only in the fragment', () => {
+    expect(classify(at('/api/v1/link'), 'GET', 'cors', origin)).toBe('bypass')
+    expect(classify(at('/api/v1/link/content'), 'GET', 'cors', origin)).toBe('bypass')
+    expect(classify(at('/van-ban/'), 'GET', 'navigate', origin)).toBe('network-first')
+  })
+
   it('keeps build and manifest placeholders for assemble to fill in', () => {
     expect(SOURCE).toContain('__BUILD_ID__')
     expect(SOURCE).toContain('/*__ASSET_MANIFEST__*/[]')
@@ -244,6 +250,24 @@ describe('sw and PI sign-in', () => {
     const headers = new Headers({ Authorization: 'Bearer at-1' })
     expect(await w.dispatchRaw({ request: { url: u('/v1/me'), method: 'GET', mode: 'cors', headers } })).toBeUndefined()
     expect(w.paths()).toEqual([])
+  })
+
+  it('sends every Office API request straight to the network, with or without a token', async () => {
+    const { classify } = loadWorker()
+    for (const p of ['/api/v1/health', '/api/v1/documents/d1/content', '/api/', '/api/v1/documents/'])
+      for (const mode of ['cors', 'navigate', 'no-cors']) expect(classify(at(p), 'GET', mode, origin)).toBe('bypass')
+    expect(classify(at('/api'), 'GET', 'cors', origin)).toBe('cache-first')
+    expect(classify(at('/apis/x.js'), 'GET', 'cors', origin)).toBe('cache-first')
+
+    const online = loadWorker()
+    expect(await online.fetchAsset('/api/v1/health')).toBeUndefined()
+    expect(await online.fetchPage('/api/v1/documents/')).toBeUndefined()
+    expect(online.fetched).toEqual([])
+    expect(online.paths()).toEqual([])
+    // A cached copy from before this rule must not be served back offline.
+    const offline = loadWorker({ caches: { [CURRENT]: { '/api/v1/health': 'stale' } }, network: () => 'offline' })
+    expect(await offline.fetchAsset('/api/v1/health')).toBeUndefined()
+    expect(offline.warmableUrls([u('/api/v1/health'), u('/api/v1/documents/d1/content'), u('/')], origin)).toEqual([u('/')])
   })
 
   it('does not warm sign-in pages a tab reports', () => {

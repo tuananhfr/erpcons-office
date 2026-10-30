@@ -6,13 +6,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { piConfig, type PiConfig } from '../src/config/pi.ts'
 import type { AccountSnapshot, ErpAccount } from '../src/lib/account/types.ts'
 import { ChannelHub, ManualClock, MemoryStorage, SharedLocks, SharedStorage, settle } from './fake-browser.ts'
-import { CLIENT_ID, FakePi, ISSUER, REDIRECT_URI, SITE_ORIGIN, json, problem } from './fake-pi.ts'
+import {
+  AN, AUDIENCE, BINH, CLIENT_ID, FakePi, ISSUER, ME_PATH, ORG_KT, ORG_OLD, ORG_XD, REDIRECT_URI, SITE_ORIGIN, WEB_SCOPES,
+  json, piError, type AuthorizeOptions,
+} from './fake-pi.ts'
 
 const SOURCE = fs.readFileSync(fileURLToPath(new URL('account.js', import.meta.url)), 'utf8')
 const SESSION = 'erpcons-pi-session'
 const PROFILE = 'erpcons-pi-profile'
 const MINUTE = 60_000
-const SCOPES = 'openid profile email offline_access pi.entitlements'
+const JWT = /^[\w-]+\.[\w-]+\.[\w-]+$/
 
 interface Popup { url: string; name: string; closed: boolean; focus: () => void }
 interface PageElement { hidden: boolean; textContent: string; focused: boolean; listeners: (() => void)[]; focus(): void; addEventListener(type: string, fn: () => void): void; click(): void }
@@ -51,6 +54,12 @@ class Env {
   locks: SharedLocks | null = new SharedLocks()
   pi = new FakePi(() => this.clock.now)
   config: PiConfig = piConfig(true)!
+  /** The site's own origin (Office API); every request to it is recorded in `siteCalls`. */
+  site: ((url: string, init: RequestInit) => Promise<Response>) | null = null
+  siteCalls: { url: string; init: RequestInit }[] = []
+  /** Planned platform endpoints (see `servePlanned`): signed catalogs per product, entitlements per `sub|org`. */
+  catalogs: Record<string, string> = {}
+  entitlements: Record<string, Record<string, unknown>[]> = {}
 
   open(path: string, options: TabOptions = {}): Tab {
     const url = new URL(path, SITE_ORIGIN)
@@ -66,7 +75,7 @@ class Env {
         replace: (to: string) => { tab.replaced.push(to) },
       },
       history: { replaceState: (_state: unknown, _title: string, to: string) => { tab.history.push(to) } },
-      URLSearchParams, TextEncoder, TextDecoder, Uint8Array, atob, btoa,
+      URL, URLSearchParams, TextEncoder, TextDecoder, Uint8Array, atob, btoa,
       crypto: {
         subtle: globalThis.crypto.subtle,
         getRandomValues: (bytes: Uint8Array) => (random ? random(bytes) : globalThis.crypto.getRandomValues(bytes), bytes),
@@ -75,7 +84,11 @@ class Env {
       performance: { now: () => this.clock.now },
       setTimeout: this.clock.setTimeout, clearTimeout: this.clock.clearTimeout,
       setInterval: this.clock.setInterval, clearInterval: this.clock.clearInterval,
-      fetch: this.pi.fetch,
+      fetch: (input: string, init: RequestInit = {}) => {
+        if (!input.startsWith(SITE_ORIGIN + '/')) return this.pi.fetch(input, init as unknown as Parameters<FakePi['fetch']>[1])
+        this.siteCalls.push({ url: input, init })
+        return this.site ? this.site(input, init) : Promise.reject(new TypeError('Failed to fetch'))
+      },
       navigator: this.locks ? { locks: this.locks } : {},
       sessionStorage: options.session ?? new MemoryStorage(),
       addEventListener: (type: string, fn: (event: unknown) => void) => { (listeners[type] ||= []).push(fn) },
@@ -106,32 +119,55 @@ class Env {
     return tab
   }
 
-  /** A session left by an earlier sign-in (refresh token known to the fake platform). */
-  signedIn(sub = 'usr_an', org: string | null = null): string {
+  /** A session left by an earlier sign-in in this browser: refresh token known to PI, PI's own session cookie alive. */
+  signedIn(sub = AN, org: string | null = null): string {
     const token = this.pi.seedRefreshToken(sub, org)
-    this.local.map.set(SESSION, JSON.stringify({ v: 1, refresh_token: token, gen: 'seed', sub, org_context: org }))
+    this.pi.session = { account: sub, expires: Math.floor(this.clock.now / 1000) + 12 * 3600 }
+    this.local.map.set(SESSION, JSON.stringify({ v: 1, refresh_token: token, gen: 'seed', sub, org_context: org, login: 'seed' }))
     this.local.map.set(PROFILE, JSON.stringify({ v: 1, sub, user: { id: sub, name: 'Nguyễn Văn An', email: 'an.nguyen@example.com' }, orgs: [] }))
     return token
   }
 
-  session() { return this.local.json<{ refresh_token: string; org_context: string | null; gen: string }>(SESSION) }
+  session() { return this.local.json<{ refresh_token: string; org_context: string | null; gen: string; sub: string }>(SESSION) }
+
+  /**
+   * PI serves neither the signed feature catalog nor Office-shaped entitlements yet: these stand in for the planned
+   * endpoints (old contract shape) so the code that stays gated behind a pinned catalog keeps its tests.
+   */
+  servePlanned() {
+    this.pi.extraCorsPrefixes.push('/v1/')
+    this.pi.on((call) => {
+      const catalog = /^\/v1\/products\/([a-z]+)\/feature-catalog$/.exec(call.path)
+      if (catalog) return this.catalogs[catalog[1]] ? json(200, { catalog: this.catalogs[catalog[1]] }) : json(503, {})
+      if (call.path !== '/v1/me/entitlements') return undefined
+      const claims = this.pi.verifyJwt((call.headers.Authorization ?? '').replace(/^Bearer /, ''))
+      if (!claims) return json(401, {})
+      const org = (claims.org_context as string | null) ?? null
+      const product = call.query.get('product_id')
+      const list = (this.entitlements[`${claims.sub}|${org ?? ''}`] ?? []).filter(e => e.product_id === product)
+      return json(200, { product_id: product, org_context: org, entitlements: list })
+    }, false)
+  }
 }
 
-/** Opener clicks Đăng nhập, the popup runs /dang-nhap/, PI ID answers, the popup runs the callback. */
-async function popupSignIn(env: Env, opener: Tab, edit: (callbackUrl: string) => string = (u) => u) {
-  const done = opener.account.signIn()
+/** The popup the opener just opened runs /dang-nhap/, PI ID answers, the popup runs the callback. */
+async function completePopup(env: Env, opener: Tab, done: Promise<AccountSnapshot>, options: AuthorizeOptions & { edit?: (callbackUrl: string) => string } = {}) {
   const popup = opener.opened[opener.opened.length - 1]
   const session = new MemoryStorage()
   const start = env.open(popup.url, { session, popup })
   await vi.waitFor(() => expect(start.replaced).toHaveLength(1))
-  const callbackUrl = edit(env.pi.authorize(start.replaced[0]))
+  const authorize = new URL(start.replaced[0])
+  const callbackUrl = (options.edit ?? (u => u))(env.pi.authorize(start.replaced[0], options))
   const callback = env.open(callbackUrl, { session, popup })
   await settle()
-  return { done, popup, start, callback, session }
+  return { done, popup, start, callback, session, authorize }
 }
+const popupSignIn = (env: Env, opener: Tab, options: AuthorizeOptions & { edit?: (callbackUrl: string) => string } = {}) =>
+  completePopup(env, opener, opener.account.signIn(), options)
 
-const meCalls = (env: Env) => env.pi.calls.filter(c => c.path === '/v1/me')
+const meCalls = (env: Env) => env.pi.calls.filter(c => c.path === ME_PATH)
 const entitlementCalls = (env: Env) => env.pi.calls.filter(c => c.path === '/v1/me/entitlements')
+const bearerOf = (call: { headers: Record<string, string> }) => (call.headers.Authorization ?? '').replace(/^Bearer /, '')
 
 describe('feature flag off and embed mode', () => {
   it('without window.erpPi installs a guest account that never touches network, storage or popups', async () => {
@@ -146,7 +182,7 @@ describe('feature flag off and embed mode', () => {
     expect(tab.account.allowed('vanban.view')).toBe(true)
     expect((await tab.account.signIn()).status).toBe('disabled')
     expect((await tab.account.signOut()).status).toBe('disabled')
-    expect((await tab.account.selectOrg('org_xd')).status).toBe('disabled')
+    expect((await tab.account.selectOrg(ORG_XD)).status).toBe('disabled')
     expect(tab.opened).toEqual([])
     expect(env.pi.calls).toEqual([])
     expect(env.local.writes).toBe(writes)
@@ -186,7 +222,7 @@ describe('sign-in popup', () => {
     expect(tab.account.status()).toBe('signing-in')
   })
 
-  it('sends an S256 challenge of the verifier it keeps in the popup (RFC 7636 appendix B)', async () => {
+  it('sends PI an S256 challenge of the verifier it keeps in the popup (RFC 7636 appendix B)', async () => {
     const env = new Env()
     const tab = env.open('/van-ban/')
     void tab.account.signIn()
@@ -204,14 +240,15 @@ describe('sign-in popup', () => {
     await vi.waitFor(() => expect(start.replaced).toHaveLength(1))
     const request = new URL(start.replaced[0])
     const pending = JSON.parse(session.getItem('erpcons-pi-pending')!)
+    expect(request.origin + request.pathname).toBe(`${ISSUER}/id/authorize`)
     expect(pending.verifier).toBe('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')
     expect(request.searchParams.get('code_challenge')).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')
     expect(Object.fromEntries(request.searchParams)).toMatchObject({
-      response_type: 'code', client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, scope: SCOPES,
+      response_type: 'code', client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, scope: WEB_SCOPES,
       code_challenge_method: 'S256', state: pending.state, nonce: pending.nonce, ui_locales: 'vi',
     })
-    expect(request.searchParams.has('org_context')).toBe(false)
-    expect(request.searchParams.get('scope')).not.toContain('pi.devices')
+    for (const name of ['org_context', 'org_hint', 'prompt']) expect(request.searchParams.has(name)).toBe(false)
+    expect(request.searchParams.get('scope')).not.toContain('pi.')
     expect(pending.state).toMatch(/^[A-Za-z0-9_-]{22}$/)
     expect(pending.nonce).not.toBe(pending.state)
     // Nothing reaches shared storage before the callback.
@@ -230,7 +267,7 @@ describe('sign-in popup', () => {
     expect(new URL(start.replaced[0]).searchParams.get('code_challenge')).toBe(createHash('sha256').update(verifier).digest('base64url'))
   })
 
-  it('delivers the tokens to the opener and the other tabs, then closes', async () => {
+  it('delivers PI\'s EdDSA access token to the opener and the other tabs, then closes', async () => {
     const env = new Env()
     const opener = env.open('/van-ban/')
     const other = env.open('/bang-tinh/')
@@ -240,27 +277,45 @@ describe('sign-in popup', () => {
     expect(popup.closed).toBe(true)
     // The one-time code leaves the address bar before anything else happens.
     expect(callback.history).toEqual(['/dang-nhap/callback/'])
-    await vi.waitFor(() => expect(opener.account.user()).toEqual({ id: 'usr_an', name: 'Nguyễn Văn An', email: 'an.nguyen@example.com' }))
+    await vi.waitFor(() => expect(opener.account.user()).toEqual({ id: AN, name: 'Nguyễn Văn An', email: 'an.nguyen@example.com' }))
     await vi.waitFor(() => expect(other.account.status()).toBe('signed-in'))
     // The broadcast access token is used as is: no refresh grant in any tab.
     expect(env.pi.grants('authorization_code')).toHaveLength(1)
     expect(env.pi.grants('refresh_token')).toHaveLength(0)
-    const bearer = meCalls(env)[0].headers.Authorization
-    expect(bearer).toMatch(/^Bearer at-/)
-    expect(meCalls(env).every(c => c.headers.Authorization === bearer)).toBe(true)
+    await vi.waitFor(() => expect(meCalls(env).length).toBeGreaterThanOrEqual(3))
+    const token = bearerOf(meCalls(env)[0])
+    expect(token).toMatch(JWT)
+    expect(meCalls(env).every(c => bearerOf(c) === token)).toBe(true)
+    expect(env.pi.verifyJwt(token)).toMatchObject({ iss: ISSUER, sub: AN, aud: [AUDIENCE], azp: CLIENT_ID, scope: WEB_SCOPES })
     // Access token in memory only: never written to any storage.
-    const token = bearer.slice('Bearer '.length)
     expect([...env.local.map.values()].join('\n')).not.toContain(token)
-    expect(env.session()?.refresh_token).toMatch(/^rt-/)
+    expect(env.session()?.refresh_token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     const exchange = env.pi.grants('authorization_code')[0].body!
     expect(exchange.get('redirect_uri')).toBe(REDIRECT_URI)
     expect(exchange.get('client_id')).toBe(CLIENT_ID)
   })
 
+  it('never reads PI discovery, which PI serves without CORS: the endpoints come from the site config', async () => {
+    const env = new Env()
+    await expect(env.pi.fetch(`${ISSUER}/.well-known/openid-configuration`, { credentials: 'omit' })).rejects.toThrow('Failed to fetch')
+    const opener = env.open('/van-ban/')
+    expect((await (await popupSignIn(env, opener)).done).status).toBe('signed-in')
+    expect(env.pi.calls.filter(c => c.path.startsWith('/.well-known/'))).toHaveLength(1)
+
+    const broken = new Env()
+    broken.config = { ...broken.config, authorizationEndpoint: undefined as unknown as string }
+    const tab = broken.open('/van-ban/')
+    const done = tab.account.signIn()
+    const start = broken.open(tab.opened[0].url, { popup: tab.opened[0] })
+    expect((await done).error?.code).toBe('discovery_failed')
+    expect(start.replaced).toEqual([])
+    expect(start.page.error.hidden).toBe(false)
+  })
+
   it('rejects a callback whose state does not match the popup, without exchanging the code', async () => {
     const env = new Env()
     const opener = env.open('/van-ban/')
-    const { done, callback } = await popupSignIn(env, opener, (url) => url.replace(/state=[^&]+/, 'state=forged'))
+    const { done, callback } = await popupSignIn(env, opener, { edit: (url) => url.replace(/state=[^&]+/, 'state=forged') })
     const snapshot = await done
     expect(env.pi.grants('authorization_code')).toHaveLength(0)
     expect(snapshot.status).toBe('signed-out')
@@ -268,6 +323,15 @@ describe('sign-in popup', () => {
     expect(callback.page.error.hidden).toBe(false)
     expect(callback.page.message.textContent).toContain('không hợp lệ')
     expect(callback.page.close.focused).toBe(true)
+    expect(env.local.map.has(SESSION)).toBe(false)
+  })
+
+  it('rejects a callback that names another issuer (RFC 9207), without exchanging the code', async () => {
+    const env = new Env()
+    const opener = env.open('/van-ban/')
+    const { done } = await popupSignIn(env, opener, { edit: (url) => url.replace(/iss=[^&]+/, 'iss=https%3A%2F%2Fevil.example') })
+    expect((await done).error?.code).toBe('issuer_mismatch')
+    expect(env.pi.grants('authorization_code')).toHaveLength(0)
     expect(env.local.map.has(SESSION)).toBe(false)
   })
 
@@ -308,6 +372,51 @@ describe('sign-in popup', () => {
     expect(env.local.map.has(SESSION)).toBe(false)
   })
 
+  it('maps PI\'s /me user, an empty email included, to the account user', async () => {
+    const env = new Env()
+    const opener = env.open('/van-ban/')
+    const { done } = await popupSignIn(env, opener, { as: BINH })
+    expect((await done).user).toEqual({ id: BINH, name: 'Trần Thị Bình', email: null })
+    expect(env.session()?.sub).toBe(BINH)
+  })
+
+  it('takes the active organization from /me: PI picks the only one without asking', async () => {
+    const env = new Env()
+    const opener = env.open('/van-ban/')
+    const { done } = await popupSignIn(env, opener)
+    const snapshot = await done
+    expect(env.pi.pages).toEqual(['login'])
+    expect(snapshot.activeOrg).toEqual({ id: ORG_XD, name: 'Công ty Xây dựng Ví dụ', role: 'member' })
+    expect(snapshot.orgs).toEqual([{ id: ORG_XD, name: 'Công ty Xây dựng Ví dụ', role: 'member' }])
+    expect(env.session()?.org_context).toBe(ORG_XD)
+    expect(env.pi.verifyJwt(bearerOf(meCalls(env)[0]))?.org_context).toBe(ORG_XD)
+  })
+
+  it('a user of two organizations picks one on PI\'s page, and that is the active one', async () => {
+    const env = new Env()
+    env.pi.setMembership(AN, ORG_KT, 'ACTIVE', 'org_admin')
+    const opener = env.open('/van-ban/')
+    const { done } = await popupSignIn(env, opener, { choose: ORG_KT })
+    const snapshot = await done
+    expect(env.pi.pages).toEqual(['login', 'org'])
+    expect(snapshot.activeOrg).toEqual({ id: ORG_KT, name: 'Kiến trúc Mẫu', role: 'org_admin' })
+    expect(snapshot.orgs.map(o => o.id)).toEqual([ORG_XD, ORG_KT])
+  })
+
+  it('a /me failure right after the code exchange keeps the user signed out and revokes the new tokens', async () => {
+    const env = new Env()
+    env.pi.on(call => (call.path === ME_PATH ? piError(403, 'Tài khoản PI ID đã bị khoá.', 'ACCOUNT_LOCKED') : undefined))
+    const opener = env.open('/van-ban/')
+    const { done, callback } = await popupSignIn(env, opener)
+    const snapshot = await done
+    expect(snapshot.status).toBe('signed-out')
+    expect(snapshot.error?.code).toBe('user_suspended')
+    expect(callback.page.error.hidden).toBe(false)
+    expect(env.local.map.has(SESSION)).toBe(false)
+    const revoke = env.pi.calls.find(c => c.path === '/id/revoke')!
+    expect(env.pi.refreshState(revoke.body!.get('token')!)?.revokeReason).toBe('revoked_by_client')
+  })
+
   it('goes back to signed out without an error when the popup is closed, and can sign in again', async () => {
     const env = new Env()
     const tab = env.open('/van-ban/')
@@ -327,10 +436,10 @@ describe('sign-in popup', () => {
     expect(tab.opened).toHaveLength(2)
   })
 
-  it('treats "access denied" at PI ID as a cancel: the popup closes, no error loop', async () => {
+  it('treats "access denied" as a cancel: the popup closes, no error loop', async () => {
     const env = new Env()
     const opener = env.open('/van-ban/')
-    const { done, callback } = await popupSignIn(env, opener, (url) => url.replace(/code=[^&]+/, 'error=access_denied'))
+    const { done, callback } = await popupSignIn(env, opener, { edit: (url) => url.replace(/code=[^&]+/, 'error=access_denied') })
     const snapshot = await done
     expect(snapshot.status).toBe('signed-out')
     expect(snapshot.error).toBeNull()
@@ -338,29 +447,24 @@ describe('sign-in popup', () => {
     expect(env.pi.grants('authorization_code')).toHaveLength(0)
   })
 
-  it('refuses an issuer whose discovery document names another issuer or lacks S256', async () => {
-    for (const doc of [{ issuer: 'https://evil.example' }, { code_challenge_methods_supported: ['plain'] }]) {
-      const env = new Env()
-      env.pi.on(call => (call.path === '/.well-known/openid-configuration'
-        ? json(200, { issuer: ISSUER, authorization_endpoint: `${ISSUER}/authorize`, token_endpoint: `${ISSUER}/token`, code_challenge_methods_supported: ['S256'], ...doc })
-        : undefined))
-      const opener = env.open('/van-ban/')
-      const done = opener.account.signIn()
-      const start = env.open(opener.opened[0].url, { popup: opener.opened[0] })
-      const snapshot = await done
-      expect(start.replaced).toEqual([])
-      expect(start.page.error.hidden).toBe(false)
-      expect(snapshot.error?.code).toBe('discovery_failed')
-    }
+  it('a scope PI does not grant the client (the old `pi.entitlements`) fails the sign-in at PI', async () => {
+    const env = new Env()
+    env.config = { ...env.config, scopes: `${WEB_SCOPES} pi.entitlements` }
+    const opener = env.open('/van-ban/')
+    const { done, callback } = await popupSignIn(env, opener)
+    const snapshot = await done
+    expect(snapshot.status).toBe('signed-out')
+    expect(snapshot.error?.code).toBe('sign_in_failed')
+    expect(callback.page.error.hidden).toBe(false)
+    expect(env.pi.grants('authorization_code')).toHaveLength(0)
   })
 
-  it('reports PI ID as busy or down, not as a network problem, when discovery answers 429 or 503', async () => {
+  it('reports PI ID as busy or down, not as a network problem, when the code exchange answers 429 or 503', async () => {
     for (const [status, code] of [[429, 'rate_limited'], [503, 'dependency_unavailable']] as const) {
       const env = new Env()
-      env.pi.on(call => (call.path === '/.well-known/openid-configuration' ? problem(status, code) : undefined))
+      env.pi.on(call => (call.path === '/id/token' ? json(status, { error: 'temporarily_unavailable' }) : undefined))
       const opener = env.open('/van-ban/')
-      const done = opener.account.signIn()
-      env.open(opener.opened[0].url, { popup: opener.opened[0] })
+      const { done } = await popupSignIn(env, opener)
       expect((await done).error?.code).toBe(code)
     }
   })
@@ -401,9 +505,40 @@ describe('sign-in popup', () => {
     await vi.waitFor(() => expect(start.replaced).toHaveLength(1))
     env.open(env.pi.authorize(start.replaced[0]), { session, popup })
     expect((await done).status).toBe('signed-in')
-    // No broadcast token: this tab gets its own through one serialized refresh.
-    await vi.waitFor(() => expect(meCalls(env)).toHaveLength(1))
+    // No broadcast token: this tab gets its own through one serialized refresh (the first /me is the callback's).
+    await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
     expect(env.pi.grants('refresh_token')).toHaveLength(1)
+  })
+})
+
+describe('signing in again', () => {
+  it('after a sign-out the next sign-in asks PI for credentials (prompt=login), though PI\'s session is alive', async () => {
+    const env = new Env()
+    const tab = env.open('/van-ban/')
+    await (await popupSignIn(env, tab)).done
+    expect(env.pi.pages).toEqual(['login'])
+    await tab.account.signOut()
+
+    const again = await popupSignIn(env, tab, { as: BINH })
+    expect(tab.opened.at(-1)!.url).toBe('/dang-nhap/?ui_locales=vi&prompt=login')
+    expect(again.authorize.searchParams.get('prompt')).toBe('login')
+    expect((await again.done).user?.id).toBe(BINH)
+    expect(env.pi.pages).toEqual(['login', 'login'])
+    expect(env.local.map.has('erpcons-pi-signed-out')).toBe(false)
+  })
+
+  it('without a sign-out PI\'s live session signs the user straight back in', async () => {
+    const env = new Env()
+    const tab = env.open('/van-ban/')
+    await (await popupSignIn(env, tab)).done
+    // The platform ended the token family; PI's own browser session (12 h) is still there.
+    env.pi.revokeAll()
+    const other = env.open('/bang-tinh/')
+    await vi.waitFor(() => expect(other.account.status()).toBe('signed-out'))
+    const again = await popupSignIn(env, other)
+    expect(again.authorize.searchParams.has('prompt')).toBe(false)
+    expect((await again.done).status).toBe('signed-in')
+    expect(env.pi.pages).toEqual(['login'])
   })
 })
 
@@ -414,12 +549,11 @@ describe('tokens across tabs', () => {
     const tab = env.open('/van-ban/')
     await vi.waitFor(() => expect(meCalls(env)).toHaveLength(1))
     expect(env.pi.grants('refresh_token')).toHaveLength(1)
-    expect(env.pi.grants('refresh_token')[0].body!.get('refresh_token')).toBe(seeded)
-    expect(env.pi.grants('refresh_token')[0].body!.has('org_context')).toBe(false)
+    expect(Object.fromEntries(env.pi.grants('refresh_token')[0].body!)).toEqual({ grant_type: 'refresh_token', refresh_token: seeded, client_id: CLIENT_ID })
     const stored = env.session()!.refresh_token
     expect(stored).not.toBe(seeded)
-    expect(env.pi.refreshState(seeded)?.used).toBe(true)
-    expect(env.pi.refreshState(stored)?.used).toBe(false)
+    expect(env.pi.refreshState(seeded)?.rotatedAt).not.toBeNull()
+    expect(env.pi.refreshState(stored)?.rotatedAt).toBeNull()
     expect(tab.account.status()).toBe('signed-in')
   })
 
@@ -430,11 +564,11 @@ describe('tokens across tabs', () => {
     const b = env.open('/bang-tinh/')
     await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
     expect(env.pi.grants('refresh_token')).toHaveLength(1)
-    expect(new Set(meCalls(env).map(c => c.headers.Authorization)).size).toBe(1)
+    expect(new Set(meCalls(env).map(bearerOf)).size).toBe(1)
     expect(env.locks!.requests.filter(name => name === 'erpcons-pi-refresh').length).toBeGreaterThanOrEqual(2)
     expect(a.account.status()).toBe('signed-in')
     expect(b.account.status()).toBe('signed-in')
-    expect(env.pi.refreshState(env.session()!.refresh_token)?.used).toBe(false)
+    expect(env.pi.refreshState(env.session()!.refresh_token)?.rotatedAt).toBeNull()
   })
 
   it('without BroadcastChannel a waiting tab still never replays a rotated token', async () => {
@@ -451,20 +585,19 @@ describe('tokens across tabs', () => {
     expect(env.session()).not.toBeNull()
   })
 
-  it('refreshes again once the 5 min access token expires', async () => {
+  it('refreshes again once PI\'s 10 min access token runs out', async () => {
     const env = new Env()
     env.signedIn()
-    const key = await catalogKey()
-    env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
-    env.pi.catalogs.vanban = await signCatalog(key, catalogPayload(2, { 'vanban.use': 'pro' }))
-    env.pi.entitlements['usr_an|'] = [entitlement('vanban.use')]
+    env.site = async () => json(200, { ok: true })
     const tab = env.open('/van-ban/')
-    await vi.waitFor(() => expect(env.local.map.has('erpcons-pi-catalog:vanban')).toBe(true))
-    await vi.waitFor(() => expect(tab.account.allowed('vanban.use')).toBe(true))
+    await vi.waitFor(() => expect(meCalls(env)).toHaveLength(1))
+    await tab.account.apiFetch('/api/v1/documents')
     expect(env.pi.grants('refresh_token')).toHaveLength(1)
-    env.clock.advance(11 * MINUTE)
-    expect(tab.account.allowed('vanban.use')).toBe(false)
-    await vi.waitFor(() => expect(tab.account.allowed('vanban.use')).toBe(true))
+    env.clock.advance(9 * MINUTE)
+    await tab.account.apiFetch('/api/v1/documents')
+    expect(env.pi.grants('refresh_token')).toHaveLength(1)
+    env.clock.advance(2 * MINUTE)
+    await tab.account.apiFetch('/api/v1/documents')
     expect(env.pi.grants('refresh_token')).toHaveLength(2)
   })
 
@@ -472,11 +605,15 @@ describe('tokens across tabs', () => {
     const env = new Env()
     const seeded = env.signedIn()
     // Someone else already used this token: presenting it again revokes the family.
-    await env.pi.fetch(`${ISSUER}/token`, { method: 'POST', credentials: 'omit', body: `grant_type=refresh_token&refresh_token=${seeded}&client_id=${CLIENT_ID}` })
+    await env.pi.fetch(`${ISSUER}/id/token`, {
+      method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=refresh_token&refresh_token=${seeded}&client_id=${CLIENT_ID}`,
+    })
     const tab = env.open('/van-ban/')
     const other = env.open('/', { channel: false })
     await vi.waitFor(() => expect(tab.account.status()).toBe('signed-out'))
     expect(tab.account.snapshot().error?.code).toBe('session_expired')
+    expect(env.pi.refreshState(seeded)?.revokeReason).toBe('refresh_reuse')
     expect(env.local.map.has(SESSION)).toBe(false)
     expect(env.local.map.has(PROFILE)).toBe(false)
     await vi.waitFor(() => expect(other.account.status()).toBe('signed-out'))
@@ -495,7 +632,20 @@ describe('tokens across tabs', () => {
     expect(tab.account.snapshot().error?.message).toContain('hết hạn')
   })
 
-  it('sign-out revokes the refresh token, clears storage and signs the other tabs out', async () => {
+  it.each([
+    ['the account is locked', (env: Env) => { env.pi.accounts[AN].status = 'LOCKED' }],
+    ['the membership of the token\'s organization ended', (env: Env) => env.pi.setMembership(AN, ORG_XD, 'REVOKED')],
+  ])('PI refuses the next refresh when %s: the tab signs out', async (_name, change) => {
+    const env = new Env()
+    const token = env.signedIn(AN, ORG_XD)
+    change(env)
+    const tab = env.open('/van-ban/')
+    await vi.waitFor(() => expect(tab.account.status()).toBe('signed-out'))
+    expect(tab.account.snapshot().error?.code).toBe('session_expired')
+    expect(env.pi.refreshState(token)?.revokeReason).toBe('not_eligible')
+  })
+
+  it('sign-out revokes the refresh token family at PI, clears storage and signs the other tabs out', async () => {
     const env = new Env()
     env.signedIn()
     const a = env.open('/van-ban/')
@@ -511,8 +661,9 @@ describe('tokens across tabs', () => {
     expect(snapshot.user).toBeNull()
     expect(env.local.map.has(SESSION)).toBe(false)
     expect(env.local.map.has(PROFILE)).toBe(false)
-    const revoke = env.pi.calls.find(call => call.path === '/revoke')!
+    const revoke = env.pi.calls.find(call => call.path === '/id/revoke')!
     expect(Object.fromEntries(revoke.body!)).toEqual({ token: current, token_type_hint: 'refresh_token', client_id: CLIENT_ID })
+    expect(env.pi.refreshState(current)?.revokeReason).toBe('revoked_by_client')
     await vi.waitFor(() => expect(b.account.status()).toBe('signed-out'))
     await vi.waitFor(() => expect(c.account.status()).toBe('signed-out'))
     expect(env.hub.posted).toContainEqual({ type: 'signed-out' })
@@ -530,62 +681,86 @@ describe('tokens across tabs', () => {
 })
 
 describe('organizations', () => {
-  async function signedInTab(env: Env, path = '/van-ban/') {
-    env.signedIn()
+  async function signedInTab(env: Env, path = '/van-ban/', org: string | null = null) {
+    const token = env.signedIn(AN, org)
     const tab = env.open(path)
     await vi.waitFor(() => expect(tab.account.orgs()).toHaveLength(1))
-    return tab
+    return { tab, token }
   }
 
   it('lists active memberships only', async () => {
     const env = new Env()
-    const tab = await signedInTab(env)
-    expect(tab.account.orgs()).toEqual([{ id: 'org_xd', name: 'Công ty Xây dựng Ví dụ', role: 'member' }])
+    const { tab } = await signedInTab(env)
+    expect(tab.account.orgs()).toEqual([{ id: ORG_XD, name: 'Công ty Xây dựng Ví dụ', role: 'member' }])
     expect(tab.account.activeOrg()).toBeNull()
   })
 
-  it('switching re-requests tokens with org_context, then reloads identity and entitlements', async () => {
+  it('switching runs PI\'s authorize again with org_hint, then revokes the previous token family', async () => {
     const env = new Env()
-    env.pi.entitlements['usr_an|org_xd'] = [entitlement('vanban.use', 'org_xd')]
-    const tab = await signedInTab(env)
+    const { tab } = await signedInTab(env)
     const other = env.open('/bang-tinh/')
-    const me = meCalls(env).length
-    const ents = entitlementCalls(env).length
-    const snapshot = await tab.account.selectOrg('org_xd')
-    const grant = env.pi.grants('refresh_token').at(-1)!.body!
-    expect(grant.get('org_context')).toBe('org_xd')
-    expect(snapshot.activeOrg).toEqual({ id: 'org_xd', name: 'Công ty Xây dựng Ví dụ', role: 'member' })
-    expect(env.session()!.org_context).toBe('org_xd')
-    expect(meCalls(env).length).toBeGreaterThan(me)
-    expect(entitlementCalls(env).length).toBeGreaterThan(ents)
-    expect(snapshot.entitlements.map(e => e.feature)).toEqual(['vanban.use'])
-    expect(snapshot.entitlements[0]).toMatchObject({ scope: 'organization', orgId: 'org_xd' })
-    await vi.waitFor(() => expect(other.account.activeOrg()?.id).toBe('org_xd'))
-
-    const personal = await tab.account.selectOrg(null)
-    expect(env.pi.grants('refresh_token').at(-1)!.body!.get('org_context')).toBe('personal')
-    expect(personal.activeOrg).toBeNull()
-    expect(personal.entitlements).toEqual([])
+    const before = env.session()!.refresh_token
+    const done = tab.account.selectOrg(ORG_XD)
+    expect(tab.opened.at(-1)!.url).toBe(`/dang-nhap/?ui_locales=vi&org_hint=${ORG_XD}`)
+    // The user stays signed in while the popup runs.
+    expect(tab.account.status()).toBe('signed-in')
+    const { authorize } = await completePopup(env, tab, done)
+    expect(authorize.searchParams.get('org_hint')).toBe(ORG_XD)
+    const snapshot = await done
+    // PI's session is alive and the hint matches: no PI page at all.
+    expect(env.pi.pages).toEqual([])
+    expect(snapshot.activeOrg).toEqual({ id: ORG_XD, name: 'Công ty Xây dựng Ví dụ', role: 'member' })
+    expect(env.session()!.org_context).toBe(ORG_XD)
+    expect(env.pi.verifyJwt(bearerOf(meCalls(env).at(-1)!))?.org_context).toBe(ORG_XD)
+    await vi.waitFor(() => expect(env.pi.refreshState(before)?.revokeReason).toBe('revoked_by_client'))
+    await vi.waitFor(() => expect(other.account.activeOrg()?.id).toBe(ORG_XD))
+    // PI cannot switch on refresh (it ignores the parameter), so none is ever sent.
+    expect(env.pi.grants('refresh_token').every(c => !c.body!.has('org_context'))).toBe(true)
   })
 
-  it('refuses an organization the user is not an active member of, without a request', async () => {
+  it('back to personal goes through PI\'s organization page', async () => {
     const env = new Env()
-    const tab = await signedInTab(env)
+    const { tab } = await signedInTab(env, '/van-ban/', ORG_XD)
+    const done = tab.account.selectOrg(null)
+    expect(tab.opened.at(-1)!.url).toBe('/dang-nhap/?ui_locales=vi&prompt=select_account')
+    const { authorize } = await completePopup(env, tab, done, { choose: 'personal' })
+    expect(authorize.searchParams.get('prompt')).toBe('select_account')
+    const snapshot = await done
+    expect(env.pi.pages).toEqual(['org'])
+    expect(snapshot.activeOrg).toBeNull()
+    expect(env.session()!.org_context).toBeNull()
+  })
+
+  it('the organization PI ends up with wins, even when it is the one already active', async () => {
+    const env = new Env()
+    const { tab, token } = await signedInTab(env, '/van-ban/', ORG_XD)
+    const done = tab.account.selectOrg(null)
+    await completePopup(env, tab, done, { choose: ORG_XD })
+    const snapshot = await done
+    expect(snapshot.status).toBe('signed-in')
+    expect(snapshot.activeOrg?.id).toBe(ORG_XD)
+    await vi.waitFor(() => expect(env.pi.refreshState(token)?.revokedAt).not.toBeNull())
+  })
+
+  it('refuses an organization the user is not an active member of, without a popup or request', async () => {
+    const env = new Env()
+    const { tab } = await signedInTab(env)
     const calls = env.pi.calls.length
-    const snapshot = await tab.account.selectOrg('org_old')
+    const snapshot = await tab.account.selectOrg(ORG_OLD)
     expect(snapshot.error?.code).toBe('unknown_org')
+    expect(tab.opened).toEqual([])
     expect(env.pi.calls.length).toBe(calls)
   })
 
-  it('a membership ended on the server: stays signed in, personal context, explains why', async () => {
+  it('a blocked popup keeps the current organization and says why', async () => {
     const env = new Env()
-    const tab = await signedInTab(env)
-    env.pi.users.usr_an.memberships = []
-    const snapshot = await tab.account.selectOrg('org_xd')
+    env.signedIn(AN, ORG_XD)
+    const tab = env.open('/van-ban/', { popupBlocked: true })
+    await vi.waitFor(() => expect(tab.account.orgs()).toHaveLength(1))
+    const snapshot = await tab.account.selectOrg(null)
+    expect(snapshot.error?.code).toBe('popup_blocked')
     expect(snapshot.status).toBe('signed-in')
-    expect(snapshot.activeOrg).toBeNull()
-    expect(snapshot.error?.code).toBe('membership_inactive')
-    expect(env.pi.grants('refresh_token').at(-1)!.body!.has('org_context')).toBe(false)
+    expect(snapshot.activeOrg?.id).toBe(ORG_XD)
   })
 })
 
@@ -600,11 +775,24 @@ describe('entitlements and allowed()', () => {
     expect(user.account.allowed('vanban.use')).toBe(true)
   })
 
-  it('a pro feature: denied to guests, allowed with a fresh entitlement, denied when offline for over 10 min', async () => {
+  it('a signed-in editor tab calls neither entitlements nor a feature catalog: PI has neither for Office', async () => {
     const env = new Env()
+    env.signedIn()
+    const tab = env.open('/van-ban/')
+    await vi.waitFor(() => expect(meCalls(env)).toHaveLength(1))
+    expect(tab.account.allowed('vanban.use')).toBe(true)
+    env.clock.advance(60 * MINUTE)
+    await settle()
+    expect(new Set(env.pi.calls.map(c => c.path))).toEqual(new Set(['/id/token', ME_PATH]))
+    expect(tab.errors).toEqual([])
+  })
+
+  it('a pro feature (planned catalog): denied to guests, allowed with a fresh entitlement, denied offline after 10 min', async () => {
+    const env = new Env()
+    env.servePlanned()
     const key = await catalogKey()
     env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
-    env.pi.catalogs.vanban = await signCatalog(key, catalogPayload(3, { 'vanban.use': 'pro', 'vanban.view': 'free' }))
+    env.catalogs.vanban = await signCatalog(key, catalogPayload(3, { 'vanban.use': 'pro', 'vanban.view': 'free' }))
     const guest = env.open('/van-ban/')
     await vi.waitFor(() => expect(guest.account.allowed('vanban.use')).toBe(false))
     expect(guest.account.allowed('vanban.view')).toBe(true)
@@ -612,10 +800,13 @@ describe('entitlements and allowed()', () => {
 
     env.signedIn()
     const withoutRight = env.open('/van-ban/')
-    await vi.waitFor(() => expect(withoutRight.account.snapshot().entitlementsFresh).toBe(true))
+    await vi.waitFor(() => {
+      withoutRight.account.allowed('vanban.use')
+      expect(withoutRight.account.snapshot().entitlementsFresh).toBe(true)
+    })
     expect(withoutRight.account.allowed('vanban.use')).toBe(false)
 
-    env.pi.entitlements['usr_an|'] = [entitlement('vanban.use')]
+    env.entitlements[`${AN}|`] = [entitlement('vanban.use')]
     const pro = env.open('/van-ban/')
     await vi.waitFor(() => expect(pro.account.allowed('vanban.use')).toBe(true))
     expect(pro.account.entitlements()).toEqual([{ id: 'ent_vanban.use', feature: 'vanban.use', scope: 'personal', orgId: null, validTo: null, offlineAllowed: false }])
@@ -631,9 +822,10 @@ describe('entitlements and allowed()', () => {
 
   it('keeps view and export free even when a catalog marks them pro', async () => {
     const env = new Env()
+    env.servePlanned()
     const key = await catalogKey()
     env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
-    env.pi.catalogs.vanban = await signCatalog(key, catalogPayload(4, { 'vanban.view': 'pro', 'vanban.export': 'pro', 'vanban.use': 'pro' }))
+    env.catalogs.vanban = await signCatalog(key, catalogPayload(4, { 'vanban.view': 'pro', 'vanban.export': 'pro', 'vanban.use': 'pro' }))
     const tab = env.open('/van-ban/')
     await vi.waitFor(() => expect(tab.account.allowed('vanban.use')).toBe(false))
     expect(tab.account.allowed('vanban.view')).toBe(true)
@@ -650,9 +842,10 @@ describe('entitlements and allowed()', () => {
     ['another issuer', async (key: TestKey) => signCatalog(key, { ...catalogPayload(5, { 'vanban.use': 'pro' }), iss: 'https://evil.example' })],
   ])('ignores a catalog with %s and keeps the built-in tiers', async (_name, make) => {
     const env = new Env()
+    env.servePlanned()
     const key = await catalogKey()
     env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
-    env.pi.catalogs.vanban = await make(key)
+    env.catalogs.vanban = await make(key)
     const tab = env.open('/van-ban/')
     await vi.waitFor(() => expect(env.pi.calls.some(c => c.path.endsWith('/feature-catalog'))).toBe(true))
     await settle()
@@ -662,10 +855,11 @@ describe('entitlements and allowed()', () => {
 
   it('never goes back to a lower catalog version than the cached one', async () => {
     const env = new Env()
+    env.servePlanned()
     const key = await catalogKey()
     env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
     env.local.map.set('erpcons-pi-catalog:vanban', JSON.stringify({ jws: await signCatalog(key, catalogPayload(7, { 'vanban.use': 'pro' })) }))
-    env.pi.catalogs.vanban = await signCatalog(key, catalogPayload(6, { 'vanban.use': 'free' }))
+    env.catalogs.vanban = await signCatalog(key, catalogPayload(6, { 'vanban.use': 'free' }))
     const tab = env.open('/van-ban/')
     await vi.waitFor(() => expect(env.pi.calls.some(c => c.path.endsWith('/feature-catalog'))).toBe(true))
     await settle()
@@ -674,8 +868,9 @@ describe('entitlements and allowed()', () => {
 
   it('accepts the contract example catalog with its example key (lease.md §12)', async () => {
     const env = new Env()
+    env.servePlanned()
     env.config = { ...env.config, catalogKeys: { 'pi-lease-example-1': '9NYv3EVAYbyMCnyywdUpJU99yTSSE44tQ_XASMni0gA' } }
-    env.pi.catalogs.vanban = CONTRACT_CATALOG
+    env.catalogs.vanban = CONTRACT_CATALOG
     env.open('/van-ban/')
     await vi.waitFor(() => expect(env.local.json('erpcons-pi-catalog:vanban')).toEqual({ jws: CONTRACT_CATALOG }))
   })
@@ -689,13 +884,17 @@ describe('entitlements and allowed()', () => {
 
   it('discards a list that carries another tenant (SEV0) and denies the pro feature', async () => {
     const env = new Env()
+    env.servePlanned()
     const key = await catalogKey()
     env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
-    env.pi.catalogs.vanban = await signCatalog(key, catalogPayload(2, { 'vanban.use': 'pro' }))
-    env.pi.entitlements['usr_an|'] = [entitlement('vanban.use', 'org_other')]
+    env.catalogs.vanban = await signCatalog(key, catalogPayload(2, { 'vanban.use': 'pro' }))
+    env.entitlements[`${AN}|`] = [entitlement('vanban.use', 'org_other')]
     env.signedIn()
     const tab = env.open('/van-ban/')
-    await vi.waitFor(() => expect(entitlementCalls(env)).toHaveLength(1))
+    await vi.waitFor(() => {
+      tab.account.allowed('vanban.use')
+      expect(entitlementCalls(env)).toHaveLength(1)
+    })
     await settle()
     expect(tab.account.allowed('vanban.use')).toBe(false)
     expect(tab.account.entitlements()).toEqual([])
@@ -703,22 +902,22 @@ describe('entitlements and allowed()', () => {
   })
 })
 
-describe('API errors (contract §3)', () => {
-  it('401: refreshes once and retries the request', async () => {
+describe('PI API errors ({ok:false, message, code?})', () => {
+  it('401 without a code: refreshes once and retries the request', async () => {
     const env = new Env()
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? problem(401, 'unauthenticated') : undefined))
+    env.pi.on(call => (call.path === ME_PATH ? piError(401, 'Bạn chưa đăng nhập hoặc phiên đã hết hạn.') : undefined))
     const tab = env.open('/van-ban/')
     await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
     expect(env.pi.grants('refresh_token')).toHaveLength(2)
     expect(tab.account.status()).toBe('signed-in')
-    expect(meCalls(env)[0].headers.Authorization).not.toBe(meCalls(env)[1].headers.Authorization)
+    expect(bearerOf(meCalls(env)[0])).not.toBe(bearerOf(meCalls(env)[1]))
   })
 
   it('401 that persists after the refresh does not loop', async () => {
     const env = new Env()
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? problem(401, 'unauthenticated') : undefined), false)
+    env.pi.on(call => (call.path === ME_PATH ? piError(401, 'Bạn chưa đăng nhập hoặc phiên đã hết hạn.') : undefined), false)
     env.open('/', {})
     await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
     await settle()
@@ -726,12 +925,12 @@ describe('API errors (contract §3)', () => {
   })
 
   it.each([
-    ['insufficient_scope', 'đăng nhập lại'],
-    ['user_suspended', 'tạm khóa'],
-  ])('403 %s signs out locally and says why', async (code, text) => {
+    ['INSUFFICIENT_SCOPE', 'insufficient_scope', 'đăng nhập lại'],
+    ['ACCOUNT_LOCKED', 'user_suspended', 'tạm khóa'],
+  ])('403 %s signs out locally and says why', async (piCode, code, text) => {
     const env = new Env()
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? problem(403, code) : undefined))
+    env.pi.on(call => (call.path === ME_PATH ? piError(403, 'Từ chối.', piCode) : undefined))
     const tab = env.open('/')
     await vi.waitFor(() => expect(tab.account.status()).toBe('signed-out'))
     expect(tab.account.snapshot().error?.code).toBe(code)
@@ -739,51 +938,56 @@ describe('API errors (contract §3)', () => {
     expect(env.local.map.has(SESSION)).toBe(false)
   })
 
-  it('403 membership_inactive switches to the personal context', async () => {
+  it('403 MEMBERSHIP_INACTIVE: PI will refuse this token family too, so it is revoked and the user asked to sign in', async () => {
     const env = new Env()
-    env.signedIn('usr_an', 'org_xd')
-    env.pi.on(call => (call.path === '/v1/me/entitlements' ? problem(403, 'membership_inactive') : undefined))
+    const token = env.signedIn(AN, ORG_XD)
+    env.pi.on(call => (call.path === ME_PATH ? piError(403, 'Bạn không còn là thành viên hoạt động của tổ chức trong token.', 'MEMBERSHIP_INACTIVE') : undefined))
     const tab = env.open('/van-ban/')
-    await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('membership_inactive'))
-    expect(env.pi.grants('refresh_token').at(-1)!.body!.get('org_context')).toBe('personal')
-    expect(tab.account.activeOrg()).toBeNull()
+    await vi.waitFor(() => expect(tab.account.status()).toBe('signed-out'))
+    expect(tab.account.snapshot().error?.code).toBe('membership_inactive')
+    expect(tab.account.snapshot().error?.message).toContain('đăng nhập lại')
+    expect(tab.opened).toEqual([])
+    const rotated = env.pi.grants('refresh_token')[0]
+    expect(rotated.body!.get('refresh_token')).toBe(token)
+    await vi.waitFor(() => expect(env.pi.calls.some(c => c.path === '/id/revoke')).toBe(true))
+  })
+
+  it('the old contract\'s lowercase codes mean nothing to PI: 403 user_suspended reads as forbidden', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.pi.on(call => (call.path === ME_PATH ? json(403, { code: 'user_suspended' }) : undefined))
+    const tab = env.open('/')
+    await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('forbidden'))
     expect(tab.account.status()).toBe('signed-in')
   })
 
-  it('403 forbidden: free features only and no automatic retry', async () => {
+  it('403 without a code: forbidden, free features only and no automatic retry', async () => {
     const env = new Env()
-    const key = await catalogKey()
-    env.config = { ...env.config, catalogKeys: { 'test-1': key.x } }
-    env.pi.catalogs.vanban = await signCatalog(key, catalogPayload(2, { 'vanban.use': 'pro' }))
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me/entitlements' ? problem(403, 'forbidden') : undefined), false)
+    env.pi.on(call => (call.path === ME_PATH ? piError(403, 'Bạn không có quyền thực hiện thao tác này.') : undefined), false)
     const tab = env.open('/van-ban/')
     await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('forbidden'))
     env.clock.advance(60 * MINUTE)
-    expect(tab.account.allowed('vanban.use')).toBe(false)
-    expect(tab.account.allowed('vanban.view')).toBe(true)
-    await settle()
-    expect(entitlementCalls(env)).toHaveLength(1)
-  })
-
-  it('429 waits for Retry-After before trying again', async () => {
-    const env = new Env()
-    env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? problem(429, 'rate_limited', { 'Retry-After': '120' }) : undefined))
-    const tab = env.open('/')
-    await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('rate_limited'))
-    expect(tab.account.snapshot().error?.retryAfter).toBe(120)
-    env.clock.advance(119_000)
+    expect(tab.account.allowed('vanban.use')).toBe(true)
     await settle()
     expect(meCalls(env)).toHaveLength(1)
+  })
+
+  it('429: PI does not expose Retry-After to the page, so it backs off with jitter', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.pi.on(call => (call.path === ME_PATH ? piError(429, 'Quá nhiều yêu cầu.', undefined, { 'Retry-After': '120' }) : undefined))
+    const tab = env.open('/')
+    await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('rate_limited'))
+    expect(tab.account.snapshot().error?.retryAfter).toBeNull()
     env.clock.advance(1000)
     await vi.waitFor(() => expect(meCalls(env)).toHaveLength(2))
   })
 
-  it('503 without Retry-After backs off with jitter from 1 s and keeps the user signed in', async () => {
+  it('503 backs off with jitter from 1 s and keeps the user signed in', async () => {
     const env = new Env()
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? problem(503, 'dependency_unavailable') : undefined))
+    env.pi.on(call => (call.path === ME_PATH ? piError(503, 'Dịch vụ tạm thời không phản hồi.') : undefined))
     const tab = env.open('/')
     await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('dependency_unavailable'))
     expect(tab.account.status()).toBe('signed-in')
@@ -794,7 +998,7 @@ describe('API errors (contract §3)', () => {
   it('clears the outage note once the retry succeeds', async () => {
     const env = new Env()
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? problem(503, 'dependency_unavailable') : undefined))
+    env.pi.on(call => (call.path === ME_PATH ? piError(503, 'Dịch vụ tạm thời không phản hồi.') : undefined))
     const tab = env.open('/')
     await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('dependency_unavailable'))
     env.clock.advance(1000)
@@ -806,9 +1010,21 @@ describe('API errors (contract §3)', () => {
   it('an unknown code falls back to its HTTP status', async () => {
     const env = new Env()
     env.signedIn()
-    env.pi.on(call => (call.path === '/v1/me' ? json(503, { code: 'brand_new_code' }) : undefined))
+    env.pi.on(call => (call.path === ME_PATH ? piError(503, 'Lỗi.', 'BRAND_NEW_CODE') : undefined))
     const tab = env.open('/')
     await vi.waitFor(() => expect(tab.account.snapshot().error?.code).toBe('dependency_unavailable'))
+  })
+
+  it('a /me body in the old contract shape is not accepted as a user', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.pi.on(call => (call.path === ME_PATH
+      ? json(200, { user_id: AN, display_name: 'Ai đó', email: null, status: 'active', org_context: null, memberships: [] })
+      : undefined))
+    const tab = env.open('/')
+    await vi.waitFor(() => expect(meCalls(env)).toHaveLength(1))
+    await settle()
+    expect(tab.account.user()?.name).toBe('Nguyễn Văn An')
   })
 })
 
@@ -837,6 +1053,126 @@ describe('snapshot', () => {
     const env = new Env()
     expect(env.open('/trinh-chieu/').account.snapshot().product).toBe('trinhchieu')
     expect(env.open('/').account.snapshot().product).toBeNull()
+  })
+})
+
+describe('apiFetch (Office API, docs/erp-host.md)', () => {
+  const auth = (call: { init: RequestInit }) => (call.init.headers as Record<string, string>).Authorization
+
+  it('sends the access token to a same-origin /api/v1/ path only, absolute, without cookies or redirects', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(200, { ok: true })
+    const tab = env.open('/van-ban/?doc=1')
+    const response = await tab.account.apiFetch('/api/v1/documents/abc?x=1', { method: 'PUT', headers: { 'If-Match': '"e1"', Authorization: 'Bearer stolen' }, body: 'x' })
+    expect(response.status).toBe(200)
+    expect(env.siteCalls).toHaveLength(1)
+    const [call] = env.siteCalls
+    expect(call.url).toBe(`${SITE_ORIGIN}/api/v1/documents/abc?x=1`)
+    expect(call.init).toMatchObject({ method: 'PUT', credentials: 'omit', cache: 'no-store', redirect: 'error', body: 'x' })
+    expect(call.init.headers).toEqual({ 'If-Match': '"e1"', Authorization: auth(call) })
+    const token = auth(call).replace(/^Bearer /, '')
+    expect(token).toMatch(JWT)
+    // What the online backend checks: PI's EdDSA signature, `aud` ∋ pi-platform and `azp` = the web client.
+    expect(env.pi.verifyJwt(token)).toMatchObject({ iss: ISSUER, sub: AN, aud: [AUDIENCE], azp: CLIENT_ID })
+  })
+
+  it.each([
+    'https://evil.example/api/v1/documents',
+    '//evil.example/api/v1/documents',
+    '/\\evil.example/api/v1/documents',
+    '\\\\evil.example/api/v1/documents',
+    'api/v1/documents',
+    '/api/v2/documents',
+    '/api/v1',
+    '/api/v1/../../dang-nhap/',
+    '/api/v1/%2e%2e/%2e%2e/x',
+    '/apiv1/documents',
+    `${SITE_ORIGIN}/api/v1/documents`,
+    'https://user:pw@office.erpcons.ai/api/v1/documents',
+    '/api/v1/documents#frag',
+  ])('refuses %s by throwing, before any request or token refresh', async (path) => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(200, {})
+    const tab = env.open('/van-ban/')
+    await settle()
+    const grants = env.pi.grants('refresh_token').length
+    const piCalls = env.pi.calls.length
+    expect(() => tab.account.apiFetch(path)).toThrow('invalid_api_path')
+    await settle()
+    expect(env.siteCalls).toHaveLength(0)
+    expect(env.pi.grants('refresh_token')).toHaveLength(grants)
+    expect(env.pi.calls).toHaveLength(piCalls)
+  })
+
+  it('takes leading-slash paths only, checked after the browser normalises them', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(200, {})
+    const tab = env.open('/van-ban/')
+    // Leading-slash paths only: an absolute URL is refused even when it names this origin.
+    expect(() => tab.account.apiFetch(`${SITE_ORIGIN}/api/v1/me`)).toThrow('invalid_api_path')
+    await tab.account.apiFetch('/api/v1/./documents/%2e/abc')
+    expect(env.siteCalls.map(c => c.url)).toEqual([`${SITE_ORIGIN}/api/v1/documents/abc`])
+  })
+
+  it('a 401 refreshes once and retries with the new token, then answers', async () => {
+    const env = new Env()
+    env.signedIn()
+    let calls = 0
+    env.site = async () => (++calls === 1 ? json(401, { code: 'UNAUTHENTICATED' }) : json(200, { ok: true }))
+    const tab = env.open('/van-ban/')
+    await settle()
+    const grants = env.pi.grants('refresh_token').length
+    const response = await tab.account.apiFetch('/api/v1/me')
+    expect(response.status).toBe(200)
+    expect(env.siteCalls).toHaveLength(2)
+    expect(env.pi.grants('refresh_token')).toHaveLength(grants + 1)
+    expect(auth(env.siteCalls[0])).not.toBe(auth(env.siteCalls[1]))
+  })
+
+  it('a second 401 rejects with unauthenticated, without looping, and keeps the session', async () => {
+    const env = new Env()
+    env.signedIn()
+    env.site = async () => json(401, { code: 'UNAUTHENTICATED' })
+    const tab = env.open('/van-ban/')
+    await settle()
+    await expect(tab.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'unauthenticated', status: 401 })
+    await settle()
+    expect(env.siteCalls).toHaveLength(2)
+    expect(tab.account.status()).toBe('signed-in')
+  })
+
+  it('rejects with signed_out when nobody is signed in, and network when the server is unreachable', async () => {
+    const env = new Env()
+    const guest = env.open('/van-ban/')
+    await expect(guest.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'signed_out' })
+    const disabled = env.open('/van-ban/', { config: null })
+    await expect(disabled.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'signed_out' })
+    expect(env.siteCalls).toHaveLength(0)
+    env.signedIn()
+    const tab = env.open('/van-ban/')
+    await expect(tab.account.apiFetch('/api/v1/me')).rejects.toMatchObject({ code: 'network' })
+  })
+
+  it('never puts the token anywhere but the Authorization header of /api/v1/ requests', async () => {
+    const env = new Env()
+    env.signedIn()
+    let calls = 0
+    env.site = async () => (++calls === 1 ? json(401, {}) : json(200, {}))
+    const tab = env.open('/van-ban/')
+    await tab.account.apiFetch('/api/v1/documents/x/content', { method: 'GET' })
+    const tokens = env.siteCalls.map(c => auth(c).slice('Bearer '.length))
+    // The token is PI ID's own: besides /api/v1/ it only ever goes back to the issuer, and never in a URL.
+    for (const call of env.pi.calls) {
+      expect(new URL(call.url).origin).toBe(ISSUER)
+      for (const token of tokens) expect(call.url).not.toContain(token)
+    }
+    for (const call of env.siteCalls) for (const token of tokens) expect(call.url).not.toContain(token)
+    expect(JSON.stringify([...env.local.map.values()])).not.toContain(tokens[0])
+    expect(JSON.stringify([tab.warnings, tab.errors])).not.toContain(tokens[0])
+    expect(tab.account.version).toBe(1)
   })
 })
 

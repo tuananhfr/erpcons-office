@@ -29,6 +29,13 @@
 .erp-account__sign-in:disabled { opacity: .6; cursor: progress; }
 .erp-account--header .erp-account__sign-in { border: 1px solid var(--erp-border); border-radius: 9px; padding: 9px 15px; background: #fff; color: var(--erp-text); font-weight: 600; font-size: 13px; }
 .erp-account--header .erp-account__sign-in:hover { background: var(--erp-bg); }
+.erp-account__sign-up { color: var(--erp-blue); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.erp-account__sign-up:hover { text-decoration: underline; }
+.erp-account--header { display: flex; align-items: center; gap: 12px; }
+.erp-account--header .erp-account__sign-up { font-size: 13px; }
+.erp-account--menu .erp-account__sign-up { display: block; min-height: 44px; padding: 12px; font-size: 15px; }
+/* Below this width the header row has no room for it; the mobile menu and the sign-in panels still link it. */
+@media (max-width: 1099px) { .erp-account--header .erp-account__sign-up { display: none; } }
 .erp-account__avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: var(--erp-crimson); color: #fff; font-weight: 700; font-size: 15px; }
 .erp-account__avatar:hover { background: var(--erp-crimson-hover); }
 .erp-account__panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 6; box-sizing: border-box; min-width: 260px; max-width: min(340px, calc(100vw - 32px)); padding: 8px; border: 1px solid var(--erp-border); border-radius: 10px; background: #fff; box-shadow: 0 10px 24px #0826741a; color: var(--erp-text); }
@@ -189,3 +196,11 @@
 .erp-downloads__note code { overflow-wrap: anywhere; }
 @media (max-width: 767px) { .erp-downloads { grid-template-columns: 1fr; } .erp-downloads__card { padding: 20px; } }
 .erp-downloads__suite { margin-block: 24px; border-color: var(--erp-blue); }
+.erp-downloads__gate { margin-block: 24px; padding: 28px; border-color: var(--erp-blue); }
+.erp-downloads__gate h3 { margin: 0 0 8px; font-size: 20px; }
+.erp-downloads__gate p { max-width: 62ch; margin: 0; color: var(--erp-text-2); }
+.erp-downloads__gate-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.erp-downloads__gate-actions .erp-btn { min-height: 48px; padding: 10px 20px; font-size: 15px; }
+.erp-downloads__gate-actions .erp-btn .erp-icon { width: 18px; height: 18px; }
+.erp-downloads__gate .erp-downloads__gate-error { margin-top: 12px; color: #b42318; font-weight: 600; }
+@media (max-width: 767px) { .erp-downloads__gate { padding: 20px; } .erp-downloads__gate-actions .erp-btn { flex: 1 1 160px; } }

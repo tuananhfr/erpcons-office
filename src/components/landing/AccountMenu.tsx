@@ -47,8 +47,11 @@ function Details({ snapshot, onDone }: { snapshot: AccountSnapshot; onDone: () =
   </>
 }
 
-/** PI ID sign-in for the landing header; rendered only when PI_ACCOUNT_ENABLED. */
-export function AccountMenu({ variant, icon }: { variant: 'header' | 'menu'; icon: ReactNode }) {
+/**
+ * PI ID sign-in for the landing header; rendered only when PI_ACCOUNT_ENABLED. `signupHref` adds the sign-up link
+ * next to it (only builds that have the /dang-ky/ page pass it).
+ */
+export function AccountMenu({ variant, icon, signupHref = null }: { variant: 'header' | 'menu'; icon: ReactNode; signupHref?: string | null }) {
   const snapshot = useSyncExternalStore(subscribe, read, () => SERVER_SNAPSHOT)
   const [open, setOpen] = useState(false)
   const panelId = useId()
@@ -83,6 +86,7 @@ export function AccountMenu({ variant, icon }: { variant: 'header' | 'menu'; ico
         onClick={() => { void account()?.signIn() }}>
         {icon}Đăng nhập
       </button>
+      {signupHref && <a className="erp-account__sign-up" href={signupHref}>Đăng ký</a>}
       {note}
     </div>
   }

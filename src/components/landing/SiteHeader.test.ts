@@ -8,7 +8,7 @@ vi.mock('../../config/pi.ts', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../config/pi.ts')>(),
   get PI_ACCOUNT_ENABLED() { return flag.enabled },
 }))
-afterEach(() => { flag.enabled = false })
+afterEach(() => { flag.enabled = false; vi.unstubAllEnvs() })
 
 describe('SiteHeader account entry', () => {
   it('shows no sign-in anywhere while PI sign-in is off', () => {
@@ -26,5 +26,14 @@ describe('SiteHeader account entry', () => {
     expect(html.match(/Đăng nhập<\/button>/g)).toHaveLength(2)
     const actions = html.slice(html.indexOf('erp-header-actions'), html.indexOf('erp-mobile-menu'))
     expect(actions).toContain('erp-account--header')
+  })
+
+  it('links sign-up next to sign-in only in a build that has the /dang-ky/ page', () => {
+    flag.enabled = true
+    expect(renderToStaticMarkup(createElement(SiteHeader))).not.toContain('/dang-ky/')
+    vi.stubEnv('ERPCONS_LOCAL_ONLINE', '1')
+    vi.stubEnv('ERPCONS_ALLOW_LOCAL_PROVENANCE', '1')
+    const html = renderToStaticMarkup(createElement(SiteHeader))
+    expect(html.match(/<a class="erp-account__sign-up" href="\/dang-ky\/">Đăng ký<\/a>/g)).toHaveLength(2)
   })
 })

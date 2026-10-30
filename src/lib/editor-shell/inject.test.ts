@@ -176,6 +176,14 @@ describe('injectEditorShell', () => {
     expect(bar.indexOf('data-erp-account')).toBeGreaterThan(bar.indexOf('erp-shell__menu'))
   })
 
+  it('turns Referer off on the editor pages only with online documents on (the public link page)', () => {
+    const meta = '<meta name="referrer" content="no-referrer">'
+    expect(injectEditorShell(trunkWord, word, EDITORS, assets)).not.toContain(meta)
+    const out = injectEditorShell(trunkWord, word, EDITORS, { ...assets, account: true, online: true })
+    expect(out.indexOf(meta)).toBeGreaterThan(-1)
+    expect(out.indexOf(meta)).toBeLessThan(out.indexOf('</head>'))
+  })
+
   it('fails when an injection point is missing', () => {
     expect(() => injectEditorShell(trunkWord.replace('</head>', ''), word, EDITORS, assets)).toThrow('expected exactly one </head>')
     expect(() => injectEditorShell(trunkWord.replace('<body>', ''), word, EDITORS, assets)).toThrow('expected exactly one <body>')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PI_ACCOUNT_ENABLED, piConfig, piConfigScript } from './pi.ts'
+import { PI_ACCOUNT_ENABLED, piConfig, piConfigScript, piEndpoints } from './pi.ts'
 
 describe('PI sign-in config', () => {
   it('is off in this repository, so production ships no account UI or calls', () => {
@@ -8,16 +8,31 @@ describe('PI sign-in config', () => {
     expect(piConfig(false)).toBeNull()
   })
 
-  it('uses the web client of the contract, without the device scope', () => {
+  it('uses the registered web client and scopes, without the device or entitlements scope', () => {
     expect(piConfig(true)).toEqual({
       version: 1,
       issuer: 'https://id.pi.invalid',
       apiBase: 'https://id.pi.invalid',
+      authorizationEndpoint: 'https://id.pi.invalid/id/authorize',
+      tokenEndpoint: 'https://id.pi.invalid/id/token',
+      revocationEndpoint: 'https://id.pi.invalid/id/revoke',
+      endSessionEndpoint: 'https://id.pi.invalid/id/logout',
+      meEndpoint: 'https://id.pi.invalid/api/v1/id/me',
       clientId: 'erpcons-office-web',
-      scopes: 'openid profile email offline_access pi.entitlements',
+      scopes: 'openid profile email offline_access',
       signInPath: '/dang-nhap/',
       callbackPath: '/dang-nhap/callback/',
       catalogKeys: {},
+    })
+  })
+
+  it('carries the endpoints of PI discovery, which the browser cannot fetch (no CORS)', () => {
+    expect(piEndpoints('http://127.0.0.1:8088/')).toEqual({
+      authorizationEndpoint: 'http://127.0.0.1:8088/id/authorize',
+      tokenEndpoint: 'http://127.0.0.1:8088/id/token',
+      revocationEndpoint: 'http://127.0.0.1:8088/id/revoke',
+      endSessionEndpoint: 'http://127.0.0.1:8088/id/logout',
+      meEndpoint: 'http://127.0.0.1:8088/api/v1/id/me',
     })
   })
 

@@ -55,7 +55,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   into one inline `<script>`, after `window.erpEmbedHosts` (from `src/config/embed.ts`), `window.erpMimeTypes` (from
   `src/lib/files/mime-types.ts`, shared with the landing picker), `window.erpIntakeContract` (from
   `src/lib/files/intake-contract.ts`) and, only with PI sign-in on, `window.erpPi`; no
-  bundler, no TS. Tests run them in node against fakes (`fake-idb.ts`, `fake-browser.ts`, `fake-pi.ts`).
+  bundler, no TS. Tests run them in node against fakes (`fake-idb.ts`, `fake-browser.ts`, `fake-pi.ts`; online:
+  `fake-dom.ts`, `fake-office.ts`, `online-harness.ts`).
   - Phones: inject.ts adds `viewport-fit=cover, interactive-widget=resizes-content` to the fork's viewport meta;
     shell.css owns the safe-area vars (`--erp-inset-*`, zeroed when embedded) and `--erp-top`/`--erp-bottom`
     that the bar, canvas and overlays use. `viewport.js` sets `--erp-keyboard-h` from `visualViewport` (iOS
@@ -85,18 +86,47 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     `src/lib/account/types.ts`, read later by the forks); without `window.erpPi` or when embedded it is a guest with
     built-in tiers and no network. Popup sign-in (`/dang-nhap/`, `/dang-nhap/callback/`, written by assemble only when
     enabled; same script), refresh token in localStorage (rotated under Web Locks), access token in memory, shared
-    with other tabs over BroadcastChannel. The landing inlines the same file from `app/layout.tsx`.
-    `account-ui.js` fills the bar slot inject.ts adds only when enabled.
+    with other tabs over BroadcastChannel. The landing inlines the same file from `app/layout.tsx`. Bridged to the real PI
+    Platform: endpoints come from `window.erpPi` (PI discovery has no CORS), the active org from PI's `/api/v1/id/me`,
+    and an org switch re-opens the popup with `org_hint` (PI never switches on refresh).
+    `account-ui.js` fills the bar slot inject.ts adds only when enabled. `erpAccount.apiFetch(path, init)` is the only
+    way to call the Office API: same-origin `/api/v1/…` paths only (throws otherwise, before any request), access
+    token attached, one refresh + retry on 401, then `unauthenticated`.
+  - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (off;
+    needs `PI_ACCOUNT_ENABLED` too). Only then `assets.ts` adds `ONLINE_SCRIPTS` before `host-bridge.js`: parts
+    `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/host/bar/panel/link.js` on `window.erpOnline`,
+    composed by `online.js`, which defines `window.erpHost` v2 for a signed-in user on `/<editor>/?doc=<id>`
+    (`&version=<seq>` read-only) and, via `online-link.js`, for anyone on the public link `/<editor>/#link=<token>`
+    (never when embedded). The bar's "Chia sẻ" / "Lịch sử" open `/tai-lieu/chia-se/` and `/tai-lieu/lich-su/` (the same
+    React dialogs as `/tai-lieu/`) in a same-origin frame that answers by `postMessage` (`online-panel.js`). Phase 2
+    has no live channel: `online-watch.js` re-reads the document every 30 s while visible. Pending
+    unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`
+    turns PI + online on in `assemble.mts`, and only together with `ERPCONS_ALLOW_LOCAL_PROVENANCE=1`, which build-info
+    records and the deploy refuses. `ERPCONS_LOCAL_PI_ISSUER=<origin>` (same guard) points PI at a local issuer such
+    as pi-mock. `src/config/site-flags.ts` resolves these flags for `next build` and `assemble.mts` alike (pass the env
+    to both). `ERPCONS_API_PROXY=http://127.0.0.1:<port>` makes `npm run preview` proxy `/api/`.
+  - "Tài liệu của tôi" `/tai-lieu/` (`app/tai-lieu/page.online.tsx`, `src/components/documents/`,
+    `src/lib/documents/`; tabs folder / `#chia-se` "Được chia sẻ với tôi" / `#thung-rac`; share dialog in `share/`,
+    version history in `versions/`, the editor's frame pages in `panel/`): `next.config.ts` adds the `.online.tsx` page
+    extension only when the online flag is on, so with it off the route and its code are not built (locked by
+    `site-flags.test.ts`). The share link's token is memory-only (never stored, logged or put in the page URL). The header link and the
+    landing's "Đăng nhập để lưu online" line follow the same flag.
+  - Sign-up `/dang-ky/` and `/dang-ky/xac-minh/` (`app/dang-ky/**/page.online.tsx`, `src/components/signup/`,
+    `src/lib/signup/`): same online flag. Plain same-origin `fetch` to `/api/v1/signup` (no PI token, never
+    `apiFetch`); the form rules mirror the server's `crates/signup/src/input.rs`. The verification token arrives as
+    `#token=`, is removed from the address bar at once and kept in memory only. With PI sign-in on, the desktop
+    download section shows "Đăng nhập để tải" until signed in (a courtesy gate: installers stay public).
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
-    of that build is open. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
+    of that build is open. The public view link keeps its token in the fragment (`#link=`, removed from the address bar
+    at once, sent only as `X-Link-Token`), so no request or cache key carries it. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
     files join the same `pending` queue as the landing picker under one `batchId`, then a 303 to
     `/nhan-tep/?batch=<id>`, which waits for the user's click. Only a same-origin referrer with exactly one valid
     file goes straight to `/<editor>/?open=<id>`: the OS share sheet and a cross-site page that strips its referrer
     are indistinguishable, so neither may open an editor by itself. `assemble.mts` fills its
     `/*__INTAKE__*/` placeholder with the contract and `intake.js`.
-    `/dang-nhap/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
+    `/dang-nhap/*`, `/api/*` and requests with an `Authorization` header are never cached (OIDC code, per-user data).
 - Editors open in a new tab from the shell nav: navigating away would drop the unsaved document.
 - Links between exported pages are plain `<a>` (static hosting, no RSC rewrites).
 

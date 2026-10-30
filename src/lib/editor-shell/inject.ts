@@ -11,6 +11,8 @@ export interface ShellAssets {
   script: string
   /** PI sign-in is enabled (`src/config/pi.ts`): the bar gets the account slot account-ui.js fills in. */
   account?: boolean
+  /** Online documents are on: the editor pages may hold a public link token (in the fragment). */
+  online?: boolean
 }
 
 const escapeHtml = (text: string) =>
@@ -83,6 +85,8 @@ function headTags(editor: EditorEntry, assets: ShellAssets): string {
   // and Chrome warns about eframe's non-passive document touch listeners.
   const gestures = `#${editor.canvasId}{touch-action:none}`
   return [
+    // Defence in depth for the public link page: no Referer at all leaves these pages.
+    ...(assets.online ? ['<meta name="referrer" content="no-referrer">'] : []),
     ...editorSeoTags(editor),
     '<link rel="manifest" href="/manifest.webmanifest">',
     `<meta name="theme-color" content="${PWA_THEME_COLOR}">`,

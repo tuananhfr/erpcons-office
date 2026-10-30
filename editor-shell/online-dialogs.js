@@ -1,0 +1,236 @@
+(function () {
+  // Dialogs of online documents: conflict, unsaved local copy, not found, offline, sign-in. One at a time; the
+  // look is the crash dialog's (shell.css), one layer below it.
+  var online = window.erpOnline = window.erpOnline || {}
+  var current = null
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag)
+    if (className) node.className = className
+    if (text !== undefined) node.textContent = text
+    return node
+  }
+  function quoted(title) { return '“' + title + '”' }
+  function time(at) { return new Date(at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }
+  function when(at) {
+    var date = new Date(at)
+    return date.toDateString() === new Date().toDateString() ? 'hôm nay lúc ' + time(at) : time(at) + ', ' + date.toLocaleDateString('vi-VN')
+  }
+  function focusEditor() {
+    var canvas = document.querySelector('canvas')
+    if (canvas) canvas.focus()
+  }
+
+  /**
+   * options: { id, title, paragraphs, actions: [{ label, kind, onClick } | { label, kind, href }], onEscape }.
+   * onClick may return a promise: the buttons stay disabled until it settles.
+   */
+  function open(options) {
+    if (current) current.close()
+    var overlay = el('div', 'erp-online')
+    overlay.setAttribute('data-erp-online-dialog', options.id)
+    var box = el('section', 'erp-online__box')
+    box.setAttribute('role', 'alertdialog')
+    box.setAttribute('aria-modal', 'true')
+    box.setAttribute('aria-labelledby', 'erp-online-title')
+    box.setAttribute('aria-describedby', 'erp-online-body')
+    var heading = el('h2', 'erp-online__title', options.title)
+    heading.id = 'erp-online-title'
+    var body = el('div', 'erp-online__body')
+    body.id = 'erp-online-body'
+    options.paragraphs.forEach(function (text) { body.appendChild(el('p', '', text)) })
+    var note = el('p', 'erp-online__note')
+    note.setAttribute('role', 'alert')
+    note.hidden = true
+    var actions = el('div', 'erp-online__actions')
+    var buttons = []
+    var dialog = null
+    options.actions.forEach(function (action) {
+      var node
+      if (action.href) {
+        node = el('a', 'erp-online__button erp-online__button--' + action.kind, action.label)
+        node.href = action.href
+      } else {
+        node = el('button', 'erp-online__button erp-online__button--' + action.kind, action.label)
+        node.type = 'button'
+        node.addEventListener('click', function () {
+          if (dialog.busy) return
+          var result = action.onClick(dialog)
+          if (result && typeof result.then === 'function') {
+            dialog.setBusy(true)
+            result.then(function () { dialog.setBusy(false) }, function () { dialog.setBusy(false) })
+          }
+        })
+      }
+      buttons.push(node)
+      actions.appendChild(node)
+    })
+    box.appendChild(heading)
+    box.appendChild(body)
+    box.appendChild(note)
+    box.appendChild(actions)
+    overlay.appendChild(box)
+
+    function keepFocus(event) {
+      if (current === dialog && !overlay.contains(event.target) && buttons[0]) buttons[0].focus()
+    }
+    function onKey(event) {
+      // The editor under the dialog must not receive what is typed here.
+      event.stopPropagation()
+      if (event.key === 'Escape' && options.onEscape) { event.preventDefault(); options.onEscape(dialog); return }
+      if (event.key !== 'Tab' || !buttons.length) return
+      var first = buttons[0]
+      var last = buttons[buttons.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    dialog = {
+      busy: false,
+      element: overlay,
+      close: function () {
+        if (current !== dialog) return
+        current = null
+        overlay.remove()
+        document.removeEventListener('focusin', keepFocus, true)
+        focusEditor()
+      },
+      setBusy: function (busy) {
+        dialog.busy = busy
+        buttons.forEach(function (node) { if (node.tagName !== 'A') node.disabled = busy })
+        box.setAttribute('aria-busy', busy ? 'true' : 'false')
+      },
+      setNote: function (text) {
+        note.textContent = text || ''
+        note.hidden = !text
+      }
+    }
+    current = dialog
+    document.body.appendChild(overlay)
+    document.addEventListener('focusin', keepFocus, true)
+    overlay.addEventListener('keydown', onKey)
+    if (buttons[0]) buttons[0].focus()
+    return dialog
+  }
+
+  function close(dialog) { dialog.close() }
+
+  online.dialogs = {
+    open: open,
+    current: function () { return current },
+    conflict: function (title, handlers) {
+      return open({
+        id: 'conflict',
+        title: 'Tài liệu đã được lưu ở nơi khác',
+        paragraphs: [
+          'Có người hoặc một tab khác đã lưu ' + quoted(title) + ' sau khi bạn mở. Bản của bạn chưa ghi đè lên bản đó.',
+          '“Mở bản mới nhất” sẽ bỏ các thay đổi chưa lưu của bạn.'
+        ],
+        actions: [
+          { label: 'Lưu bản của tôi thành bản sao', kind: 'primary', onClick: handlers.onCopy },
+          { label: 'Mở bản mới nhất', kind: 'quiet', onClick: handlers.onLatest }
+        ]
+      })
+    },
+    // record: the pending-store entry; serverVersion is null when the server could not be reached.
+    pending: function (record, serverVersion, handlers) {
+      var paragraphs = ['Thiết bị này còn giữ một bản của ' + quoted(record.title) + ' chưa lưu lên máy chủ (' + when(record.savedAt) + ').']
+      if (serverVersion === null) paragraphs.push(online.messages.offline + '. Bạn vẫn mở được bản này; Văn phòng sẽ lưu khi có mạng.')
+      else if (serverVersion > record.baseVersion) paragraphs.push('Trên máy chủ đã có bản mới hơn. Khi lưu, Văn phòng sẽ hỏi bạn giữ bản nào.')
+      var actions = [{ label: 'Khôi phục bản chưa lưu', kind: 'primary', onClick: handlers.onRestore }]
+      if (serverVersion === null) actions.push({ label: 'Thử lại', kind: 'quiet', onClick: handlers.onRetry })
+      else {
+        paragraphs.push('Nếu mở bản trên máy chủ, bản chưa lưu này sẽ bị bỏ.')
+        actions.push({ label: 'Mở bản trên máy chủ', kind: 'quiet', onClick: handlers.onDiscard })
+      }
+      return open({ id: 'pending', title: 'Có bản chưa lưu lên máy chủ', paragraphs: paragraphs, actions: actions })
+    },
+    notFound: function () {
+      return open({
+        id: 'not-found',
+        title: online.messages.notFound,
+        paragraphs: ['Kiểm tra lại đường liên kết, hoặc mở tài liệu từ danh sách tài liệu của bạn.'],
+        actions: [{ label: 'Về trang chủ', kind: 'primary', href: '/' }, { label: 'Đóng', kind: 'quiet', onClick: close }],
+        onEscape: close
+      })
+    },
+    // title: "Không kết nối được máy chủ", or the server's own message when it answered with an error.
+    unreachable: function (title, handlers) {
+      return open({
+        id: 'unreachable',
+        title: title,
+        paragraphs: ['Chưa mở được tài liệu. Kiểm tra mạng rồi thử lại.'],
+        actions: [{ label: 'Thử lại', kind: 'primary', onClick: handlers.onRetry }, { label: 'Đóng', kind: 'quiet', onClick: close }],
+        onEscape: close
+      })
+    },
+    // A save answered 403/404: the owner changed or removed this user's access while the document was open.
+    accessLost: function (title, kind, handlers) {
+      return open({
+        id: 'access-lost',
+        title: kind === 'notFound' ? 'Bạn không còn quyền mở tài liệu này' : 'Bạn không còn quyền chỉnh sửa tài liệu này',
+        paragraphs: [
+          'Thay đổi gần nhất của bạn chưa được lưu vào ' + quoted(title) + '. Bản đó vẫn được giữ trên thiết bị này.',
+          'Bạn có thể lưu bản của mình thành một tài liệu mới trong Tài liệu của tôi.'
+        ],
+        actions: [
+          { label: 'Lưu bản của tôi thành bản sao', kind: 'primary', onClick: handlers.onCopy },
+          { label: 'Bỏ bản của tôi', kind: 'quiet', onClick: handlers.onDiscard },
+          { label: 'Đóng', kind: 'quiet', onClick: close }
+        ],
+        onEscape: close
+      })
+    },
+    // Explicit sign-out while this device still holds the account's unsaved bytes (they are not shown to anyone else).
+    signOutPending: function (handlers) {
+      return open({
+        id: 'sign-out-pending',
+        title: 'Còn thay đổi chưa lưu lên máy chủ. Xoá khi đăng xuất?',
+        paragraphs: [
+          'Thiết bị này còn giữ bản chưa lưu của tài khoản này. Nếu giữ lại, bản đó chỉ hiện lại khi bạn đăng nhập và mở tài liệu, trong tối đa 30 ngày.'
+        ],
+        actions: [
+          { label: 'Xoá và đăng xuất', kind: 'primary', onClick: handlers.onDelete },
+          { label: 'Giữ lại và đăng xuất', kind: 'quiet', onClick: handlers.onKeep },
+          { label: 'Huỷ', kind: 'quiet', onClick: handlers.onCancel }
+        ],
+        onEscape: handlers.onCancel
+      })
+    },
+    // The public link (link) or a viewer's access went away. `initial`: nothing was shown yet; otherwise the page
+    // keeps what it shows and nothing newer will come.
+    gone: function (link, initial) {
+      var paragraph = link
+        ? (initial ? 'Đường liên kết sai, đã bị tắt hoặc đã được thay bằng đường liên kết mới. Hãy hỏi lại người chia sẻ.'
+          : 'Chủ tài liệu đã tắt hoặc đổi đường liên kết. Nội dung trên trang là bản bạn đã mở trước đó.')
+        : 'Bạn không còn quyền xem tài liệu này. Nội dung trên trang là bản bạn đã mở trước đó.'
+      return open({
+        id: 'gone',
+        title: link ? 'Đường liên kết này không còn dùng được' : online.messages.notFound,
+        paragraphs: [paragraph],
+        actions: [{ label: 'Về trang chủ', kind: 'primary', href: '/' }, { label: 'Đóng', kind: 'quiet', onClick: close }],
+        onEscape: close
+      })
+    },
+    // No way out but a reload or the first account signing in again: editing on would save nowhere.
+    otherAccount: function (handlers) {
+      return open({
+        id: 'other-account',
+        title: 'Bạn đang đăng nhập bằng tài khoản khác',
+        paragraphs: [
+          'Tài liệu trên trang này được mở bằng tài khoản trước. Văn phòng đã dừng lưu lên máy chủ để không lưu nhầm vào tài khoản đang đăng nhập.',
+          'Bản chưa lưu của tài khoản trước vẫn được giữ trên thiết bị này và sẽ được đề nghị khôi phục khi tài khoản đó mở lại tài liệu.'
+        ],
+        actions: [{ label: 'Tải lại trang', kind: 'primary', onClick: handlers.onReload }]
+      })
+    },
+    signIn: function (handlers) {
+      return open({
+        id: 'sign-in',
+        title: 'Cần đăng nhập để mở tài liệu này',
+        paragraphs: ['Tài liệu này được lưu trên máy chủ. Hãy đăng nhập PI ID để mở và lưu nó.'],
+        actions: [{ label: 'Đăng nhập', kind: 'primary', onClick: handlers.onSignIn }, { label: 'Đóng', kind: 'quiet', onClick: close }],
+        onEscape: close
+      })
+    }
+  }
+})()
