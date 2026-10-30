@@ -78,7 +78,7 @@ describe('loadShellAssets', () => {
     expect(off.account).toBe(false)
     const on = loadShellAssets(shellDir, ['https://lpc.vn'], piConfig(true))
     expect(on.account).toBe(true)
-    const config = on.script.indexOf('window.erpPi={"version":1,"issuer":"https://id.pi.invalid"')
+    const config = on.script.indexOf('window.erpPi={"version":1,"issuer":"https://platform.pih.vn"')
     expect(config).toBeGreaterThan(on.script.indexOf('window.erpMimeTypes='))
     expect(config).toBeLessThan(on.script.indexOf(fs.readFileSync(`${shellDir}account.js`, 'utf8').trim()))
   })
@@ -110,7 +110,7 @@ describe('loadShellAssets', () => {
 
   it('ships the online scripts only with both PI sign-in and online documents on', () => {
     const marker = fs.readFileSync(`${shellDir}online.js`, 'utf8').trim()
-    expect(loadShellAssets(shellDir).script).not.toContain(marker)
+    expect(loadShellAssets(shellDir, [], null, false).script).not.toContain(marker)
     expect(loadShellAssets(shellDir, [], null, true).script).not.toContain(marker)
     expect(loadShellAssets(shellDir, [], piConfig(true), false).script).not.toContain(marker)
     const on = loadShellAssets(shellDir, [], piConfig(true), true).script

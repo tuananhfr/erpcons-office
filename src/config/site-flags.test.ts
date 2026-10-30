@@ -14,8 +14,8 @@ const ONLINE_DIRS = ['src/components/documents/', 'src/lib/documents/']
 const sources = [...walk('app'), ...walk('src')].filter((file) => /\.(tsx?|css)$/.test(file) && !file.endsWith('.test.ts'))
 
 describe('site flags of the Next pages', () => {
-  it('match the build flags, so production stays off and the local override turns both on', () => {
-    expect(siteFlags({})).toEqual({ pi: false, online: false, localOverride: false, piIssuer: null })
+  it('match the build flags: production has both on without a local override, and the override needs local provenance', () => {
+    expect(siteFlags({})).toEqual({ pi: true, online: true, localOverride: false, piIssuer: null })
     expect(siteFlags({ ERPCONS_LOCAL_ONLINE: '1', ERPCONS_ALLOW_LOCAL_PROVENANCE: '1' })).toEqual({ pi: true, online: true, localOverride: true, piIssuer: null })
     expect(() => siteFlags({ ERPCONS_LOCAL_ONLINE: '1' })).toThrow(/local builds only/)
   })

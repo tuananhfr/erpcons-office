@@ -2,22 +2,25 @@ import { describe, expect, it } from 'vitest'
 import { PI_ACCOUNT_ENABLED, piConfig, piConfigScript, piEndpoints } from './pi.ts'
 
 describe('PI sign-in config', () => {
-  it('is off in this repository, so production ships no account UI or calls', () => {
-    expect(PI_ACCOUNT_ENABLED).toBe(false)
-    expect(piConfig()).toBeNull()
+  it('is on in this repository and talks to the production PI Platform, never a placeholder or local host', () => {
+    expect(PI_ACCOUNT_ENABLED).toBe(true)
+    expect(piConfig()).toEqual(piConfig(true))
     expect(piConfig(false)).toBeNull()
+    const hosts = Object.values(piConfig()!).filter((value): value is string => typeof value === 'string' && value.startsWith('http'))
+    expect(hosts.length).toBe(7)
+    for (const url of hosts) expect(new URL(url).origin, url).toBe('https://platform.pih.vn')
   })
 
   it('uses the registered web client and scopes, without the device or entitlements scope', () => {
     expect(piConfig(true)).toEqual({
       version: 1,
-      issuer: 'https://id.pi.invalid',
-      apiBase: 'https://id.pi.invalid',
-      authorizationEndpoint: 'https://id.pi.invalid/id/authorize',
-      tokenEndpoint: 'https://id.pi.invalid/id/token',
-      revocationEndpoint: 'https://id.pi.invalid/id/revoke',
-      endSessionEndpoint: 'https://id.pi.invalid/id/logout',
-      meEndpoint: 'https://id.pi.invalid/api/v1/id/me',
+      issuer: 'https://platform.pih.vn',
+      apiBase: 'https://platform.pih.vn',
+      authorizationEndpoint: 'https://platform.pih.vn/id/authorize',
+      tokenEndpoint: 'https://platform.pih.vn/id/token',
+      revocationEndpoint: 'https://platform.pih.vn/id/revoke',
+      endSessionEndpoint: 'https://platform.pih.vn/id/logout',
+      meEndpoint: 'https://platform.pih.vn/api/v1/id/me',
       clientId: 'erpcons-office-web',
       scopes: 'openid profile email offline_access',
       signInPath: '/dang-nhap/',

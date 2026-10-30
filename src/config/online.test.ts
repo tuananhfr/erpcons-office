@@ -7,9 +7,10 @@ import { PI_ACCOUNT_ENABLED, PI_API_BASE, PI_ISSUER, piConfig, piEndpoints } fro
 const repo = (file: string) => fs.readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), 'utf8')
 
 describe('online documents flag', () => {
-  it('is off in this repository, so production ships no online code or /api/v1/ calls', () => {
-    expect(ONLINE_ENABLED).toBe(false)
-    expect(buildFlags()).toEqual({ pi: PI_ACCOUNT_ENABLED, online: false, localOverride: false, piIssuer: null })
+  it('is on in this repository together with PI sign-in, with no local override in the production build', () => {
+    expect(ONLINE_ENABLED).toBe(true)
+    expect(PI_ACCOUNT_ENABLED).toBe(true)
+    expect(buildFlags()).toEqual({ pi: true, online: true, localOverride: false, piIssuer: null })
   })
 
   it('needs PI sign-in as well', () => {
@@ -28,7 +29,7 @@ describe('local override', () => {
     expect(() => buildFlags({ [LOCAL_ONLINE_ENV]: '1' })).toThrow(/local builds only/)
     expect(() => buildFlags({ [LOCAL_ONLINE_ENV]: '1', ERPCONS_ALLOW_LOCAL_PROVENANCE: '0' }, ['node', 'assemble.mts'])).toThrow(/local builds only/)
     expect(() => buildFlags({ [LOCAL_ONLINE_ENV]: 'true', ERPCONS_ALLOW_LOCAL_PROVENANCE: '1' })).toThrow(/must be 1/)
-    expect(buildFlags({ [LOCAL_ONLINE_ENV]: '' })).toEqual({ pi: PI_ACCOUNT_ENABLED, online: false, localOverride: false, piIssuer: null })
+    expect(buildFlags({ [LOCAL_ONLINE_ENV]: '' })).toEqual({ pi: PI_ACCOUNT_ENABLED, online: ONLINE_ENABLED, localOverride: false, piIssuer: null })
   })
 
   it('cannot reach the production build: npm run build passes neither override, and build-info records the one it needs', () => {
@@ -50,7 +51,7 @@ describe('local PI issuer', () => {
   const mock = 'http://127.0.0.1:18797'
 
   it('points sign-in at another issuer only together with the local-provenance override', () => {
-    expect(buildFlags({ [LOCAL_PI_ISSUER_ENV]: mock, ERPCONS_ALLOW_LOCAL_PROVENANCE: '1' })).toEqual({ pi: PI_ACCOUNT_ENABLED, online: false, localOverride: true, piIssuer: mock })
+    expect(buildFlags({ [LOCAL_PI_ISSUER_ENV]: mock, ERPCONS_ALLOW_LOCAL_PROVENANCE: '1' })).toEqual({ pi: PI_ACCOUNT_ENABLED, online: ONLINE_ENABLED, localOverride: true, piIssuer: mock })
     expect(buildFlags({ [LOCAL_PI_ISSUER_ENV]: mock + '/' }, ['node', 'assemble.mts', '--allow-local-provenance']).piIssuer).toBe(mock)
     expect(buildFlags({ [LOCAL_ONLINE_ENV]: '1', [LOCAL_PI_ISSUER_ENV]: mock, ERPCONS_ALLOW_LOCAL_PROVENANCE: '1' })).toEqual({ pi: true, online: true, localOverride: true, piIssuer: mock })
     expect(buildFlags({ [LOCAL_PI_ISSUER_ENV]: '' }).piIssuer).toBeNull()

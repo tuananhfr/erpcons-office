@@ -53,7 +53,7 @@ class Env {
   hub = new ChannelHub()
   locks: SharedLocks | null = new SharedLocks()
   pi = new FakePi(() => this.clock.now)
-  config: PiConfig = piConfig(true)!
+  config: PiConfig = piConfig(true, ISSUER)!
   /** The site's own origin (Office API); every request to it is recorded in `siteCalls`. */
   site: ((url: string, init: RequestInit) => Promise<Response>) | null = null
   siteCalls: { url: string; init: RequestInit }[] = []

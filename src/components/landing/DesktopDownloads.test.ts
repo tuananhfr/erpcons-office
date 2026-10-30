@@ -11,6 +11,11 @@ vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
   useSyncExternalStore: () => platform.os,
 }))
+// Production gates the links behind PI sign-in (DesktopDownloadGate.test.ts); these cases look at the links themselves.
+vi.mock('../account/use-pi-account.ts', async importOriginal => ({
+  ...await importOriginal<typeof import('../account/use-pi-account.ts')>(),
+  usePiAccount: () => ({ status: 'signed-in' }),
+}))
 afterEach(() => { platform.os = null })
 
 it('renders every download without JavaScript and guesses no primary OS', () => {

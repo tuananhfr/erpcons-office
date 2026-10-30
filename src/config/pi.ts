@@ -1,14 +1,13 @@
 // Optional PI ID sign-in (erpcons-account/docs/contract.openapi.yaml, adapted to what the real PI Platform serves).
-// Off in production: with it off the site ships no account UI, no sign-in pages and no `window.erpPi`, so account.js
-// never touches the network.
-export const PI_ACCOUNT_ENABLED = false
+// With it off the site ships no account UI, no sign-in pages and no `window.erpPi`, so account.js never touches the network.
+export const PI_ACCOUNT_ENABLED = true
 
-// Placeholder host until the PI Platform team gives its production `pi_id_issuer`; the API shares it.
-export const PI_ISSUER = 'https://id.pi.invalid'
-export const PI_API_BASE = 'https://id.pi.invalid'
+// PI's production `pi_id_issuer` (PI D578), compared character for character with the tokens' `iss`; the API shares it.
+export const PI_ISSUER = 'https://platform.pih.vn'
+export const PI_API_BASE = 'https://platform.pih.vn'
 export const PI_CLIENT_ID = 'erpcons-office-web'
-// Exactly the scopes registered for the web client: PI fails the whole authorize on any other scope. Never
-// `pi.devices` (web activates no device) nor `pi.entitlements` (Office has no entitlements at PI yet).
+// Exactly the scopes registered for the web client (PI D580/D581): PI fails the whole authorize on any other scope.
+// Never `pi.devices` nor `pi.entitlements`: only the desktop client activates a device and holds a lease.
 export const PI_SCOPES = ['openid', 'profile', 'email', 'offline_access'] as const
 export const PI_SIGN_IN_PATH = '/dang-nhap/'
 export const PI_CALLBACK_PATH = '/dang-nhap/callback/'

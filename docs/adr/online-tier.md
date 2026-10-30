@@ -32,7 +32,8 @@ Four existing decisions assume there is no server:
 4. **Editors talk to the shell through `window.erpHost`** (`docs/erp-host.md`): open with a document id and version,
    save that returns only after the server's durable acknowledgement, flush before leaving, dirty signal.
 5. **Everything online sits behind `ONLINE_ENABLED`** (default `false`, locked by a test like `PI_ACCOUNT_ENABLED`). It
-   needs `PI_ACCOUNT_ENABLED` too. Production keeps both off until PI Platform is live.
+   needs `PI_ACCOUNT_ENABLED` too. Production kept both off until PI Platform was live; both are on from the Office
+   Cloud release (M1+M2 with sign-up, owner decision of 30/10/2026, plan `office-licensing`).
 6. **ADR 0006 stays for now**: tokens remain where `account.js` keeps them. Moving the refresh token behind an HttpOnly
    cookie (a BFF on the new server) is a separate decision, to take before the tier opens to the public.
 7. **The ERP embed keeps Protocol v1** (ERP stores the versions). Online mode and embed mode are exclusive in v1.

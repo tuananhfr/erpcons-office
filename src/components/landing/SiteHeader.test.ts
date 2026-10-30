@@ -3,12 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SiteHeader } from './SiteHeader.tsx'
 
-const flag = vi.hoisted(() => ({ enabled: false }))
-vi.mock('../../config/pi.ts', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../config/pi.ts')>(),
-  get PI_ACCOUNT_ENABLED() { return flag.enabled },
+const flag = vi.hoisted(() => ({ enabled: false, online: false }))
+vi.mock('../../config/site-flags.ts', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../config/site-flags.ts')>(),
+  siteFlags: () => ({ pi: flag.enabled, online: flag.enabled && flag.online, localOverride: false, piIssuer: null }),
 }))
-afterEach(() => { flag.enabled = false; vi.unstubAllEnvs() })
+afterEach(() => { flag.enabled = false; flag.online = false })
 
 describe('SiteHeader account entry', () => {
   it('shows no sign-in anywhere while PI sign-in is off', () => {
@@ -31,8 +31,7 @@ describe('SiteHeader account entry', () => {
   it('links sign-up next to sign-in only in a build that has the /dang-ky/ page', () => {
     flag.enabled = true
     expect(renderToStaticMarkup(createElement(SiteHeader))).not.toContain('/dang-ky/')
-    vi.stubEnv('ERPCONS_LOCAL_ONLINE', '1')
-    vi.stubEnv('ERPCONS_ALLOW_LOCAL_PROVENANCE', '1')
+    flag.online = true
     const html = renderToStaticMarkup(createElement(SiteHeader))
     expect(html.match(/<a class="erp-account__sign-up" href="\/dang-ky\/">Đăng ký<\/a>/g)).toHaveLength(2)
   })

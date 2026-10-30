@@ -1,8 +1,8 @@
 import { PI_ACCOUNT_ENABLED } from './pi.ts'
 
-// Online documents (docs/adr/online-tier.md, docs/erp-host.md). Off in production: with it off the editor pages ship
-// no online code, no `window.erpHost` and never call `/api/v1/`. It also needs PI sign-in.
-export const ONLINE_ENABLED = false
+// Online documents (docs/adr/online-tier.md, docs/erp-host.md). With it off the editor pages ship no online code, no
+// `window.erpHost` and never call `/api/v1/`. It also needs PI sign-in.
+export const ONLINE_ENABLED = true
 
 /** Turns PI sign-in and online documents on in a local build (QA, E2E); see `buildFlags`. */
 export const LOCAL_ONLINE_ENV = 'ERPCONS_LOCAL_ONLINE'

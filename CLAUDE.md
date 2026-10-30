@@ -82,7 +82,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     `erpEmbedHosts`): postMessage protocol v1 in `docs/erp-embed.md`. It identifies the document
     by file name only, so two open documents with the same name are ambiguous.
   - `account.js`: optional PI ID sign-in (contract in sibling `erpcons-account/docs/`), behind
-    `PI_ACCOUNT_ENABLED` in `src/config/pi.ts` (off in production). Always installs `window.erpAccount` v1 (shape in
+    `PI_ACCOUNT_ENABLED` in `src/config/pi.ts` (on, issuer `https://platform.pih.vn`). Always installs
+    `window.erpAccount` v1 (shape in
     `src/lib/account/types.ts`, read later by the forks); without `window.erpPi` or when embedded it is a guest with
     built-in tiers and no network. Popup sign-in (`/dang-nhap/`, `/dang-nhap/callback/`, written by assemble only when
     enabled; same script), refresh token in localStorage (rotated under Web Locks), access token in memory, shared
@@ -92,7 +93,7 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     `account-ui.js` fills the bar slot inject.ts adds only when enabled. `erpAccount.apiFetch(path, init)` is the only
     way to call the Office API: same-origin `/api/v1/…` paths only (throws otherwise, before any request), access
     token attached, one refresh + retry on 401, then `unauthenticated`.
-  - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (off;
+  - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (on;
     needs `PI_ACCOUNT_ENABLED` too). Only then `assets.ts` adds `ONLINE_SCRIPTS` before `host-bridge.js`: parts
     `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/host/bar/panel/link.js` on `window.erpOnline`,
     composed by `online.js`, which defines `window.erpHost` v2 for a signed-in user on `/<editor>/?doc=<id>`
