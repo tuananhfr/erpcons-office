@@ -162,10 +162,10 @@ a CRLF checkout leaks `\r` into `include_str!` data and breaks rustfmt and tests
 - `build/run.sh gate <fork> [--no-wasm]`: the fork's CI Linux gate (rustfmt on files changed since the last
   `erpcons-v*` tag or `GATE_BASE`, workspace clippy `-D warnings` and tests as in `cargo xtask ci`, wasm clippy); logs in `build/logs/`. Each fork has
   known baseline failures (listed in its ERPCONS-CHANGES.md); anything new fails the gate.
-- `build/run.sh desktop-win <fork>`: refuses a dirty tree, cross-builds `<fork>.exe` and `<fork>-cli.exe`
-  (`x86_64-pc-windows-msvc`, static CRT, icon/VERSIONINFO checked) into `<fork>/target/x86_64-pc-windows-msvc/release/`.
-  pdfcraft builds and ships `pdfcraft.exe` only (and deletes a stale `pdfcraft-cli.exe` there): its CLI edits PDFs
-  without the PI licence gate the app enforces.
+- `build/run.sh desktop-win <fork>`: refuses a dirty tree, cross-builds `<fork>.exe` only
+  (`x86_64-pc-windows-msvc`, static CRT, icon/VERSIONINFO checked) into `<fork>/target/x86_64-pc-windows-msvc/release/`
+  and deletes a stale `<fork>-cli.exe` there. The Windows installers of all four forks ship the app alone: the
+  `<fork>-cli` tools edit documents without the PI licence gate the app enforces.
   The script fixes `ERPCONS_PI_ISSUER=https://platform.pih.vn`, which compiles PI sign-in and the editing licence gate
   into the app, and fails when the app exe does not contain that issuer.
   Then on the host: `pwsh <fork>/packaging/windows/package.ps1 -Arch x64 -SkipBuild` (WiX 5.0.2 as a dotnet tool).

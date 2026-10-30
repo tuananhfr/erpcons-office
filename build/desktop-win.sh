@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Cross-build the fork's Windows x64 binaries (what packaging/windows/package.ps1 builds) with cargo-xwin, then
-# copy them to <fork>/target/x86_64-pc-windows-msvc/release/ for `package.ps1 -Arch x64 -SkipBuild` on the host.
+# Cross-build the fork's Windows x64 app (what packaging/windows/package.ps1 builds) with cargo-xwin, then
+# copy it to <fork>/target/x86_64-pc-windows-msvc/release/ for `package.ps1 -Arch x64 -SkipBuild` on the host.
 # Usage: desktop-win.sh <fork> [--allow-dirty]
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
@@ -24,32 +24,21 @@ unset ERPCONS_PI_API_BASE
 export CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS="-C target-feature=+crt-static"
 
 out="$dir/target/$target/release"
-packages=("$fork" "$fork-cli")
-if [ "$fork" = pdfcraft ]; then
-  # pdfcraft-cli edits PDFs without the PI licence gate the app enforces, so its installers ship the app alone.
-  packages=("$fork")
-  # A CLI left by an earlier build must not reach `package.ps1 -SkipBuild` of a commit that still packages it.
-  rm -f "$out/$fork-cli.exe"
-fi
-package_args=()
-for package in "${packages[@]}"; do package_args+=(-p "$package"); done
+# <fork>-cli edits documents without the PI licence gate the app enforces, so the installers ship the app alone.
+# A CLI left by an earlier build must not reach `package.ps1 -SkipBuild` of a commit that still packages it.
+rm -f "$out/$fork-cli.exe"
 
-echo "==> cargo xwin build ${packages[*]} $(git rev-parse --short HEAD) for $target (PI $ERPCONS_PI_ISSUER)"
-cargo xwin build --release --locked --target "$target" "${package_args[@]}"
+echo "==> cargo xwin build $fork $(git rev-parse --short HEAD) for $target (PI $ERPCONS_PI_ISSUER)"
+cargo xwin build --release --locked --target "$target" -p "$fork"
 
 mkdir -p "$out"
-for package in "${packages[@]}"; do
-  exe="$package.exe"
-  src="$CARGO_TARGET_DIR/$target/release/$exe"
-  [ -f "$src" ] || die "missing $src"
-  # A dynamic CRT import means crt-static was lost (cargo-xwin owns the target's rustflags too).
-  if llvm-objdump -p "$src" | grep -iE 'DLL Name: (vcruntime|msvcp)' ; then die "$exe links the dynamic VC++ runtime"; fi
-  # Only the GUI app embeds the icon/VERSIONINFO; the CLIs have no build.rs resources.
-  if [ "$exe" = "$fork.exe" ]; then
-    llvm-objdump -h "$src" | grep -q '\.rsrc' || die "$exe has no .rsrc section (icon/VERSIONINFO missing)"
-    # A fork commit without the account code ignores the variable and would ship with no licence gate.
-    grep -qaF "$ERPCONS_PI_ISSUER" "$src" || die "$exe does not contain the PI issuer $ERPCONS_PI_ISSUER (no licence gate)"
-  fi
-  cp "$src" "$out/"
-  echo "ok $exe -> ${out#/ws/}/$exe ($(du -h "$out/$exe" | cut -f1))"
-done
+exe="$fork.exe"
+src="$CARGO_TARGET_DIR/$target/release/$exe"
+[ -f "$src" ] || die "missing $src"
+# A dynamic CRT import means crt-static was lost (cargo-xwin owns the target's rustflags too).
+if llvm-objdump -p "$src" | grep -iE 'DLL Name: (vcruntime|msvcp)' ; then die "$exe links the dynamic VC++ runtime"; fi
+llvm-objdump -h "$src" | grep -q '\.rsrc' || die "$exe has no .rsrc section (icon/VERSIONINFO missing)"
+# A fork commit without the account code ignores the variable and would ship with no licence gate.
+grep -qaF "$ERPCONS_PI_ISSUER" "$src" || die "$exe does not contain the PI issuer $ERPCONS_PI_ISSUER (no licence gate)"
+cp "$src" "$out/"
+echo "ok $exe -> ${out#/ws/}/$exe ($(du -h "$out/$exe" | cut -f1))"
