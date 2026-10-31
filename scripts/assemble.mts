@@ -24,12 +24,16 @@ if (flags.localOverride) console.warn(`${LOCAL_ONLINE_ENV} / ${LOCAL_PI_ISSUER_E
 const pi = piConfig(flags.pi, flags.piIssuer)
 const assets = loadShellAssets(shell, embedHosts(process.env.ERPCONS_EMBED_HOSTS), pi, flags.online)
 
+// Written by build-editors.mts, which every build runs before this; missing, the loading screens omit the size.
+const sizesFile = path.join(REPO_ROOT, 'src', 'generated', 'editor-sizes.json')
+const sizes: Record<string, number | null> = fs.existsSync(sizesFile) ? JSON.parse(fs.readFileSync(sizesFile, 'utf8')) : {}
+
 const root = workspaceRoot()
 const info = buildInfo(root, REPO_ROOT, process.argv.includes('--allow-local-provenance') || process.env.ERPCONS_ALLOW_LOCAL_PROVENANCE === '1')
 // Recorded even when null, so a deploy check can refuse a build signed in against a local issuer.
 const record = { ...info, localPiIssuer: flags.piIssuer }
 for (const editor of EDITORS) {
-  installEditor(editor, forkDist(editor, root), out, EDITORS, assets)
+  installEditor(editor, forkDist(editor, root), out, EDITORS, assets, sizes[editor.slug])
   console.log(`[${editor.slug}] installed from ${editor.fork}`)
 }
 

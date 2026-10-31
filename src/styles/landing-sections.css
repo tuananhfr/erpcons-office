@@ -117,6 +117,7 @@
 .erp-site-footer__top > a:hover { color: var(--erp-crimson); }
 .erp-site-footer__legal { border-top: 1px solid #edf3f9; padding-top: 20px; font-size: 11px; color: var(--erp-text-2); }
 .erp-site-footer__legal p { margin: 0 0 8px; }
+.erp-site-footer__company a { white-space: nowrap; }
 @media (max-width: 1100px) {
  .erp-desktop-nav { gap: 20px; }
  .erp-brand__mark { width: 56px; height: 56px; }

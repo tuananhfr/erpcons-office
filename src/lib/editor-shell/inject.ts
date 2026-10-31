@@ -24,13 +24,34 @@ function countMatches(html: string, pattern: RegExp): number {
 
 const LOADING_TEXT = 'Đang khởi tạo...'
 
+function loadingStatus(firstDownloadMb: number | null | undefined): string {
+  if (firstDownloadMb === null || firstDownloadMb === undefined) return LOADING_TEXT
+  const size = firstDownloadMb.toLocaleString('vi-VN', { maximumFractionDigits: 1 })
+  return `${LOADING_TEXT} Lần đầu tải khoảng ${size} MB, những lần sau nhanh hơn.`
+}
+
+// The canvas carries no text, so this screen is all a crawler reads of the page: each editor's own copy keeps the
+// four pages from being thin duplicates of each other. Users read it while the first download runs.
+function loadingContent(editor: EditorEntry, firstDownloadMb: number | null | undefined): string {
+  const formats = editor.accepts.map((ext) => ext.toUpperCase()).join(', ')
+  return [
+    '<div class="erp-loading">',
+    `<h1 class="erp-loading__title">${escapeHtml(editor.seoTitle)}</h1>`,
+    `<p class="erp-loading__intro">${escapeHtml(editor.intro)}</p>`,
+    `<ul class="erp-loading__features">${editor.features.map((f) => `<li>${escapeHtml(f)}</li>`).join('')}</ul>`,
+    `<p class="erp-loading__formats">Mở được: ${escapeHtml(formats)}</p>`,
+    `<p class="erp-loading__status" role="status">${escapeHtml(loadingStatus(firstDownloadMb))}</p>`,
+    '</div>',
+  ].join('')
+}
+
 // The upstream note names the upstream app ("Loading WordCraft…"); the engine removes the element itself once started.
 // loadingId is a plain CSS identifier (validateEditors), so it is safe inside the pattern.
-function replaceLoadingNote(html: string, editor: EditorEntry): string {
+function replaceLoadingNote(html: string, editor: EditorEntry, content: string): string {
   if (!editor.loadingId) return html
   const note = new RegExp(String.raw`(<div\b[^>]*\bid="${editor.loadingId}"[^>]*>)[\s\S]*?(</div>)`, 'i')
   if (!note.test(html)) throw new Error(`${editor.slug}: loading note #${editor.loadingId} not found`)
-  return html.replace(note, (_m, open: string, close: string) => `${open}${LOADING_TEXT}${close}`)
+  return html.replace(note, (_m, open: string, close: string) => `${open}${content}${close}`)
 }
 
 const VIEWPORT_META = /<meta\b(?=[^>]*\bname=["']?viewport["'\s/>])[^>]*>/gi
@@ -114,7 +135,7 @@ const ACCOUNT_SLOT = [
   '</div>',
 ].join('')
 
-function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: ShellAssets): string {
+function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: ShellAssets, loading: string): string {
   const links = navLinks(editor, editors)
   return [
     `<header class="erp-shell" ${SHELL_MARKER}>`,
@@ -125,7 +146,7 @@ function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: 
     ...(assets.account ? [ACCOUNT_SLOT] : []),
     `</header>`,
     // Engines without a note of their own (PDF) get one; shell.js drops it on TrunkApplicationStarted.
-    ...(editor.loadingId ? [] : [`<div class="erp-shell__loading" ${LOADING_MARKER}>${LOADING_TEXT}</div>`]),
+    ...(editor.loadingId ? [] : [`<div class="erp-shell__loading" ${LOADING_MARKER}>${loading}</div>`]),
     `<p class="erp-shell__unsupported" role="alert">Trình duyệt này không có WebGPU hoặc WebGL2 nên không chạy được trình soạn thảo. Hãy dùng Chrome, Edge, Firefox hoặc Safari phiên bản mới.</p>`,
     `<noscript><p class="erp-shell__noscript">Cần bật JavaScript để dùng trình soạn thảo.</p></noscript>`,
     `<script>${assets.script}</script>`,
@@ -133,16 +154,19 @@ function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: 
 }
 
 /** Adds the ERPCons bar, SEO tags and shell script to a trunk-built editor page. */
-export function injectEditorShell(html: string, editor: EditorEntry, editors: readonly EditorEntry[], assets: ShellAssets): string {
+export function injectEditorShell(
+  html: string, editor: EditorEntry, editors: readonly EditorEntry[], assets: ShellAssets, firstDownloadMb?: number | null,
+): string {
   if (html.includes(SHELL_MARKER)) return html
   if (countMatches(html, /<\/head>/gi) !== 1) throw new Error(`${editor.slug}: expected exactly one </head>`)
   if (countMatches(html, /<body\b[^>]*>/gi) !== 1) throw new Error(`${editor.slug}: expected exactly one <body>`)
   if (!html.includes(`id="${editor.canvasId}"`)) throw new Error(`${editor.slug}: canvas #${editor.canvasId} not found`)
 
-  return labelCanvas(rewriteViewport(replaceLoadingNote(html, editor), editor), editor)
+  const loading = loadingContent(editor, firstDownloadMb)
+  return labelCanvas(rewriteViewport(replaceLoadingNote(html, editor, loading), editor), editor)
     .replace(/<html\b([^>]*)>/i, (_tag, attrs: string) => `<html${attrs.replace(/\s+lang=("[^"]*"|'[^']*'|\S+)/i, '')} lang="vi">`)
     .replace(/<title>[\s\S]*?<\/title>\s*/gi, '')
     .replace(/<link\b[^>]*\brel=["']?(?:shortcut )?icon["']?[^>]*>\s*/gi, '')
     .replace(/<\/head>/i, `${headTags(editor, assets)}\n</head>`)
-    .replace(/<body\b[^>]*>/i, (tag) => `${tag}\n${bodyTags(editor, editors, assets)}`)
+    .replace(/<body\b[^>]*>/i, (tag) => `${tag}\n${bodyTags(editor, editors, assets, loading)}`)
 }

@@ -48,14 +48,49 @@ describe('injectEditorShell', () => {
 
   it('replaces the upstream loading note, which names the upstream app, with a Vietnamese one', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
-    expect(out).toContain('<div id="wordcraft_loading">Đang khởi tạo...</div>')
+    expect(out).toMatch(/<div id="wordcraft_loading"><div class="erp-loading">[\s\S]*Đang khởi tạo\.\.\.<\/p><\/div><\/div>/)
     expect(out).not.toMatch(/Loading|WordCraft&hellip;/)
   })
 
   it('gives PDF, which ships no loading note, one the shell removes once the app starts', () => {
     const html = '<!doctype html>\n<html lang="en"><head><title>PdfCraft</title></head><body><canvas id="pdfcraft"></canvas></body></html>'
     const out = injectEditorShell(html, pdf, EDITORS, assets)
-    expect(out).toContain('<div class="erp-shell__loading" data-erpcons-loading>Đang khởi tạo...</div>')
+    expect(out).toMatch(/<div class="erp-shell__loading" data-erpcons-loading><div class="erp-loading">[\s\S]*?<\/div><\/div>/)
+    expect(out).toContain('<h1 class="erp-loading__title">Xem và chỉnh sửa PDF trực tuyến miễn phí</h1>')
+  })
+
+  it('fills the loading screen with the editor\'s own title, intro, features and formats', () => {
+    const out = injectEditorShell(trunkWord, word, EDITORS, assets)
+    expect(out.match(/<h1\b/g)).toHaveLength(1)
+    expect(out).toContain(`<h1 class="erp-loading__title">${word.seoTitle}</h1>`)
+    expect(out).toContain(`<p class="erp-loading__intro">${word.intro}</p>`)
+    for (const feature of word.features) expect(out).toContain(`<li>${feature}</li>`)
+    expect(out).toContain('<p class="erp-loading__formats">Mở được: DOCX, DOCM, DOTX, DOTM, DOC, DOT, ODT, RTF, TXT, MD</p>')
+  })
+
+  it('keeps the four loading screens distinct, so the editor pages are not duplicates of each other', () => {
+    const screens = EDITORS.map((editor) => {
+      const html = editor.loadingId ? trunkWord.replaceAll('wordcraft_', `${editor.fork}_`) : trunkWord.replace(/<div id="wordcraft_loading">.*<\/div>/, '')
+      const page = injectEditorShell(html.replaceAll('wordcraft_canvas', editor.canvasId), editor, EDITORS, assets)
+      return /<div class="erp-loading">[\s\S]*?<\/ul>/.exec(page)?.[0]
+    })
+    expect(new Set(screens).size).toBe(EDITORS.length)
+    for (const editor of EDITORS) expect(editor.features.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('states the first download size when the build knows it, in Vietnamese number format', () => {
+    expect(injectEditorShell(trunkWord, word, EDITORS, assets, 18.6))
+      .toContain('<p class="erp-loading__status" role="status">Đang khởi tạo... Lần đầu tải khoảng 18,6 MB, những lần sau nhanh hơn.</p>')
+    expect(injectEditorShell(trunkWord, word, EDITORS, assets, null))
+      .toContain('<p class="erp-loading__status" role="status">Đang khởi tạo...</p>')
+  })
+
+  it('escapes the loading copy', () => {
+    const tricky = { ...word, seoTitle: 'A <b> & "c"', intro: '<script>', features: ['x < y'] }
+    const out = injectEditorShell(trunkWord, tricky, EDITORS, assets)
+    expect(out).toContain('<h1 class="erp-loading__title">A &lt;b&gt; &amp; &quot;c&quot;</h1>')
+    expect(out).toContain('<p class="erp-loading__intro">&lt;script&gt;</p>')
+    expect(out).toContain('<li>x &lt; y</li>')
   })
 
   it('names the logo link for screen readers, since mobile hides its text', () => {

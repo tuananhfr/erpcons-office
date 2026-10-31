@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Patrick_Hand } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
 import { RegisterServiceWorker } from '@/components/RegisterServiceWorker.tsx'
 import { piConfig } from '@/config/pi.ts'
@@ -19,8 +19,6 @@ import '@/styles/intake.css'
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'], display: 'swap', variable: '--erp-font' })
 
-const handwriting = Patrick_Hand({ subsets: ['latin', 'vietnamese'], display: 'swap', variable: '--erp-script', weight: '400' })
-
 export const metadata: Metadata = {
   ...pageMetadata(HOME_SEO),
   metadataBase: new URL(SITE.origin),
@@ -34,7 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const flags = siteFlags()
   const pi = piConfig(flags.pi, flags.piIssuer)
   return (
-    <html lang="vi" className={`${inter.variable} ${handwriting.variable}`}>
+    <html lang="vi" className={inter.variable}>
       <body>
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_INSTALL_PROMPT }} />
         {/* Same account.js as the editors, so the landing shares their sign-in (same-origin storage). */}

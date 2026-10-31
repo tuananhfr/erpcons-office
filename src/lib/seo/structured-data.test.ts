@@ -1,7 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { faqLd, sitemapEntries, softwareApplicationLd, websiteLd } from './structured-data.ts'
+import { EDITORS } from '../../config/editors.ts'
+import { faqLd, organizationLd, sitemapEntries, softwareApplicationLd, websiteLd } from './structured-data.ts'
 
 describe('structured data', () => {
+  it('introduces the company behind the site', () => {
+    expect(organizationLd()).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      '@id': 'https://erpcons.ai/#organization',
+      name: 'ERPCons',
+      legalName: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ ERPCONS',
+      url: 'https://erpcons.ai/',
+      logo: 'https://office.erpcons.ai/brand/van-phong-icon-512.png',
+      taxID: '0111149608',
+      telephone: '+84814228888',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Số 226 đường Lê Trọng Tấn',
+        addressLocality: 'Phường Phương Liệt',
+        addressRegion: 'Hà Nội',
+        addressCountry: 'VN',
+      },
+    })
+  })
+
+  it('names that company as publisher of the website and of every editor', () => {
+    const publisher = { '@type': 'Organization', '@id': 'https://erpcons.ai/#organization', name: 'ERPCons', url: 'https://erpcons.ai/' }
+    expect(websiteLd()).toMatchObject({ publisher })
+    expect(softwareApplicationLd()).toMatchObject({ publisher })
+    expect(softwareApplicationLd(EDITORS[0])).toMatchObject({ publisher })
+  })
+
   it('describes a free browser application', () => {
     expect(softwareApplicationLd()).toMatchObject({
       '@type': 'SoftwareApplication',
