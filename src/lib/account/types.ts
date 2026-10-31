@@ -69,6 +69,8 @@ export interface ErpAccount {
   allowed(feature: string): boolean
   /** Opens the PI ID popup; call it from a click handler. Never rejects; failures land in `snapshot().error`. */
   signIn(): Promise<AccountSnapshot>
+  /** Opens PI's "create a PI ID" step in the popup (`prompt=create`), then signs in like `signIn()`. */
+  signUp(): Promise<AccountSnapshot>
   signOut(): Promise<AccountSnapshot>
   /** Same object until something changes, so it can back `useSyncExternalStore`. */
   snapshot(): AccountSnapshot

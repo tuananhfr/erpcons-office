@@ -7,9 +7,9 @@ import { piAccount, usePiAccount } from '@/components/account/use-pi-account.ts'
  * With PI sign-in on, the desktop downloads are offered to signed-in people only. A courtesy gate, not access
  * control: the installers stay public release assets.
  */
-export function DesktopDownloadGate({ signInIcon, signupHref, children }: {
+export function DesktopDownloadGate({ signInIcon, signUp, children }: {
   signInIcon: ReactNode
-  signupHref: string | null
+  signUp: boolean
   children: ReactNode
 }) {
   const snapshot = usePiAccount()
@@ -26,7 +26,8 @@ export function DesktopDownloadGate({ signInIcon, signupHref, children }: {
           onClick={() => { void piAccount()?.signIn() }}>
           {signInIcon}{busy ? 'Đang đăng nhập…' : 'Đăng nhập để tải'}
         </button>
-        {signupHref && <a className="erp-btn erp-btn--secondary" href={signupHref}>Đăng ký miễn phí</a>}
+        {signUp && <button type="button" className="erp-btn erp-btn--secondary" disabled={!snapshot || busy}
+          onClick={() => { void piAccount()?.signUp() }}>Đăng ký miễn phí</button>}
       </div>}
     {snapshot?.error && <p className="erp-downloads__gate-error" role="alert">{snapshot.error.message}</p>}
   </div>

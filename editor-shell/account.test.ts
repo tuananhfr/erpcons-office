@@ -527,6 +527,19 @@ describe('signing in again', () => {
     expect(env.local.map.has('erpcons-pi-signed-out')).toBe(false)
   })
 
+  it('sign-up opens PI\'s create step (prompt=create) in the popup and ends signed in like a sign-in', async () => {
+    const env = new Env()
+    const tab = env.open('/van-ban/')
+    const created = await completePopup(env, tab, tab.account.signUp())
+    expect(tab.opened.at(-1)!.url).toBe('/dang-nhap/?ui_locales=vi&prompt=create')
+    expect(created.authorize.searchParams.get('prompt')).toBe('create')
+    expect((await created.done).status).toBe('signed-in')
+    expect(env.pi.pages).toEqual(['create'])
+    // Already signed in: nothing to create, no second popup.
+    expect((await tab.account.signUp()).status).toBe('signed-in')
+    expect(tab.opened).toHaveLength(1)
+  })
+
   it('without a sign-out PI\'s live session signs the user straight back in', async () => {
     const env = new Env()
     const tab = env.open('/van-ban/')

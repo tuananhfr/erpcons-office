@@ -1,5 +1,6 @@
 # ERPCons changes
 
+- Đăng ký qua PI (web): bỏ trang `/dang-ky/`; các nút "Đăng ký" (header, mục tải bản cài, "Tài liệu của tôi") mở cửa sổ đăng nhập PI ở bước tạo tài khoản (`prompt=create`, như UbotBuild) qua `erpAccount.signUp()`, xong là đã đăng nhập. Site không còn gọi `/api/v1/signup`.
 - ERP nhúng protocol v2 (web): với `?embed=erpcons&v=2`, cầu nối ERP cung cấp `window.erpHost` v2 và chuyển AutoSave, xung đột, mất mạng (`offline` sau 60 s không có trả lời), chế độ xem (`set-mode`) và `flush` sang trang ERP qua postMessage. Editor build chưa có `erpHost` và mọi URL không có `v=2` vẫn chạy protocol v1 như cũ.
 - Mục tải bản cài (web): chỉ còn bản Windows (bộ cài và bản chạy ngay) cho từng ứng dụng và trọn bộ, vì chỉ bản Windows được build; bỏ liên kết, nhãn và hướng dẫn macOS/Linux, câu hỏi thường gặp chỉ nhắc Windows.
 - Office Cloud release (web): Bật đăng nhập PI ID (issuer production `https://platform.pih.vn`), tài liệu online, trang `/dang-ky/` và mục tải bản cài (chỉ hiện liên kết sau khi đăng nhập). Header: dưới 1024 px điều hướng vào menu, thanh vẫn giữ "Cài ứng dụng" và tài khoản; 1024–1279 px ẩn "Trang chủ" (logo đã về trang chủ) và "Đăng ký"; liên kết "ERPCons - Construction OS" rời thanh khi có tài khoản (còn trong menu và chân trang). `build/desktop-win.sh` cố định `ERPCONS_PI_ISSUER` để bản desktop luôn có khoá sửa.

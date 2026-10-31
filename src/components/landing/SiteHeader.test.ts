@@ -28,12 +28,13 @@ describe('SiteHeader account entry', () => {
     expect(actions).toContain('erp-account--header')
   })
 
-  it('links sign-up next to sign-in only in a build that has the /dang-ky/ page', () => {
+  it('offers Đăng ký (the PI create step, no page of its own) next to sign-in only with online documents on', () => {
     flag.enabled = true
-    expect(renderToStaticMarkup(createElement(SiteHeader))).not.toContain('/dang-ky/')
+    expect(renderToStaticMarkup(createElement(SiteHeader))).not.toContain('erp-account__sign-up')
     flag.online = true
     const html = renderToStaticMarkup(createElement(SiteHeader))
-    expect(html.match(/<a class="erp-account__sign-up" href="\/dang-ky\/">Đăng ký<\/a>/g)).toHaveLength(2)
+    expect(html.match(/<button type="button" class="erp-account__sign-up">Đăng ký<\/button>/g)).toHaveLength(2)
+    expect(html).not.toContain('/dang-ky/')
   })
 
   it('moves the ERPCons link out of the bar next to the account entry, keeping it in the menu', () => {

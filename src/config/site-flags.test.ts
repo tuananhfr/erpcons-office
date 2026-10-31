@@ -66,30 +66,11 @@ describe('online page code', () => {
   })
 })
 
-describe('sign-up pages', () => {
-  const SIGNUP_DIRS = ['src/components/signup/', 'src/lib/signup/']
-  const signup = sources.filter((file) => SIGNUP_DIRS.some((dir) => file.startsWith(dir)))
-
-  it('exist only as page.online.tsx, so a build with online documents off has none', () => {
-    expect(walk('app/dang-ky')).toEqual(['app/dang-ky/page.online.tsx', 'app/dang-ky/xac-minh/page.online.tsx'])
-  })
-
-  it('are the only importers of the sign-up code and its styles', () => {
-    const importers = sources.filter((file) => !SIGNUP_DIRS.some((dir) => file.startsWith(dir)))
-      .filter((file) => /@\/(components|lib)\/signup\/|styles\/signup\.css/.test(read(file)))
-    expect(importers).toEqual(['app/dang-ky/page.online.tsx', 'app/dang-ky/xac-minh/page.online.tsx'])
-  })
-
-  it('keep the password and the verification token out of storage, logs and HTML', () => {
-    expect(signup.length).toBeGreaterThan(5)
-    for (const file of signup) {
-      const text = read(file)
-      expect(text, file).not.toMatch(/console\.|localStorage|sessionStorage|indexedDB|document\.cookie|dangerouslySetInnerHTML|innerHTML/)
+describe('sign-up', () => {
+  it('happens on PI (prompt=create): the site has no sign-up page and never calls the server sign-up API', () => {
+    expect(fs.existsSync(path.join(root, 'app/dang-ky'))).toBe(false)
+    for (const file of [...sources, ...walk('editor-shell').filter((name) => name.endsWith('.js'))]) {
+      expect(read(file), file).not.toMatch(/api\/v1\/signup/)
     }
-  })
-
-  it('call the API only from lib/signup/api.ts, without the PI token', () => {
-    for (const file of signup.filter((name) => name !== 'src/lib/signup/api.ts')) expect(read(file), file).not.toMatch(/\bfetch\(/)
-    for (const file of signup) expect(read(file), file).not.toMatch(/apiFetch\(/)
   })
 })

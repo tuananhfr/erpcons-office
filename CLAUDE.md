@@ -114,10 +114,9 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     extension only when the online flag is on, so with it off the route and its code are not built (locked by
     `site-flags.test.ts`). The share link's token is memory-only (never stored, logged or put in the page URL). The header link and the
     landing's "Đăng nhập để lưu online" line follow the same flag.
-  - Sign-up `/dang-ky/` and `/dang-ky/xac-minh/` (`app/dang-ky/**/page.online.tsx`, `src/components/signup/`,
-    `src/lib/signup/`): same online flag. Plain same-origin `fetch` to `/api/v1/signup` (no PI token, never
-    `apiFetch`); the form rules mirror the server's `crates/signup/src/input.rs`. The verification token arrives as
-    `#token=`, is removed from the address bar at once and kept in memory only. With PI sign-in on, the desktop
+  - Sign-up happens on PI, as for UbotBuild: "Đăng ký" buttons (same online flag) call `erpAccount.signUp()`, which
+    opens the sign-in popup with `prompt=create` (PI's "Tạo tài khoản PI ID" step) and ends signed in. The site has
+    no sign-up page and never calls the server's `/api/v1/signup` (locked by `site-flags.test.ts`). With PI sign-in on, the desktop
     download section shows "Đăng nhập để tải" until signed in (a courtesy gate: installers stay public). Only Windows installers are offered (`src/lib/desktop/downloads.ts`): no other system is built.
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.

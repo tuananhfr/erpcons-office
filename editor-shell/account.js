@@ -275,7 +275,8 @@
   }
 
   // The opener passes PI's own parameters: `org_hint` picks an organization, `prompt=select_account` shows PI's
-  // organization page (the only way to pick personal), `prompt=login` asks for credentials after a sign-out.
+  // organization page (the only way to pick personal), `prompt=login` asks for credentials after a sign-out,
+  // `prompt=create` opens PI's "create a PI ID" step (accounts are made on PI, as for UbotBuild).
   function startPage() {
     wireClose()
     var hint = search.get('org_hint')
@@ -294,7 +295,7 @@
         state: state, nonce: nonce, code_challenge: challenge, code_challenge_method: 'S256', ui_locales: locale
       }
       if (hint && ORG_HINT.test(hint)) fields.org_hint = hint
-      if (prompt === 'login' || prompt === 'select_account') fields.prompt = prompt
+      if (prompt === 'login' || prompt === 'select_account' || prompt === 'create') fields.prompt = prompt
       location.replace(authorize + (authorize.indexOf('?') === -1 ? '?' : '&') + query(fields))
     }).then(null, function (error) {
       announce({ type: 'sign-in-failed', error: error.code || 'sign_in_failed' })
@@ -864,6 +865,10 @@
     // PI's own session (12 h) would otherwise sign the same account straight back in after a sign-out.
     return openPopup(readJson(local, SIGNED_OUT_KEY) ? { prompt: 'login' } : {}, null)
   }
+  function signUp() {
+    if (!enabled || readSession()) return Promise.resolve(snapshot())
+    return openPopup({ prompt: 'create' }, null)
+  }
   function revoke(refreshToken) {
     return Promise.resolve().then(function () {
       return send(endpoint('revocationEndpoint'), {
@@ -954,6 +959,7 @@
     entitlements: function () { return snapshot().entitlements },
     allowed: allowed,
     signIn: signIn,
+    signUp: signUp,
     signOut: signOut,
     snapshot: snapshot,
     onChange: function (listener) {

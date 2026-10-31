@@ -101,6 +101,9 @@ a.erp-docs-row__name:hover { color: var(--erp-blue); text-decoration: underline;
 .erp-docs-status__title { margin: 0; font-size: 21px; line-height: 1.35; letter-spacing: -.025em; }
 .erp-docs-status__body { max-width: 62ch; color: var(--erp-text-2); font-size: 15px; line-height: 1.6; }
 .erp-docs-status__body p { margin: 4px 0 0; }
+/* Opens PI's sign-up popup, so a button, drawn like the body's links. */
+.erp-docs-status__link { padding: 0; border: 0; background: none; color: var(--erp-blue); font: inherit; text-decoration: underline; cursor: pointer; }
+.erp-docs-status__link:disabled { opacity: .6; cursor: progress; }
 .erp-docs-status__error { color: var(--erp-danger); font-weight: 600; }
 .erp-docs-status__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 

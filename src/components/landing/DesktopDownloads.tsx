@@ -12,7 +12,7 @@ export function DesktopDownloads() {
       <h2 id="tai-ban-desktop-title">Tải bản cài trên máy tính</h2>
       <p>Làm việc ngoại tuyến, mở tệp từ máy tính với các công cụ như bản web. Bản cài hiện dành cho Windows (64-bit).</p>
       {flags.pi
-        ? <DesktopDownloadGate signInIcon={<Icon name="box-arrow-in-right" />} signupHref={flags.online ? '/dang-ky/' : null}>{downloads}</DesktopDownloadGate>
+        ? <DesktopDownloadGate signInIcon={<Icon name="box-arrow-in-right" />} signUp={flags.online}>{downloads}</DesktopDownloadGate>
         : downloads}
     </div>
   </section>

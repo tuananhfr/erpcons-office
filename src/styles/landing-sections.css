@@ -29,11 +29,13 @@
 .erp-account__sign-in:disabled { opacity: .6; cursor: progress; }
 .erp-account--header .erp-account__sign-in { border: 1px solid var(--erp-border); border-radius: 9px; padding: 9px 15px; background: #fff; color: var(--erp-text); font-weight: 600; font-size: 13px; }
 .erp-account--header .erp-account__sign-in:hover { background: var(--erp-bg); }
-.erp-account__sign-up { color: var(--erp-blue); font-weight: 600; text-decoration: none; white-space: nowrap; }
+/* A button styled as the link it replaced; `.erp-account button` would otherwise reset its weight. */
+.erp-account .erp-account__sign-up { padding: 0; border: 0; background: none; color: var(--erp-blue); font-weight: 600; text-decoration: none; white-space: nowrap; }
 .erp-account__sign-up:hover { text-decoration: underline; }
+.erp-account__sign-up:disabled { opacity: .6; cursor: progress; text-decoration: none; }
 .erp-account--header { display: flex; align-items: center; gap: 12px; }
 .erp-account--header .erp-account__sign-up { font-size: 13px; }
-.erp-account--menu .erp-account__sign-up { display: block; min-height: 44px; padding: 12px; font-size: 15px; }
+.erp-account--menu .erp-account__sign-up { display: block; width: 100%; min-height: 44px; padding: 12px; font-size: 15px; text-align: left; }
 /* Below this width the header row has no room for it; the mobile menu and the sign-in panels still link it. */
 @media (max-width: 1279px) { .erp-account--header .erp-account__sign-up { display: none; } }
 .erp-account__avatar { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; background: var(--erp-crimson); color: #fff; font-weight: 700; font-size: 15px; }

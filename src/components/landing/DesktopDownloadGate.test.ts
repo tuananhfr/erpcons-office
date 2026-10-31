@@ -25,7 +25,7 @@ const snapshot = (status: AccountSnapshot['status']): AccountSnapshot => ({
   product: null, entitlements: [], entitlementsFresh: false, error: null,
 })
 
-// The local override turns PI sign-in and online documents (with /dang-ky/) on together.
+// The local override turns PI sign-in and online documents (with the sign-up button) on together.
 const piOn = () => {
   vi.stubEnv('ERPCONS_LOCAL_ONLINE', '1')
   vi.stubEnv('ERPCONS_ALLOW_LOCAL_PROVENANCE', '1')
@@ -45,7 +45,8 @@ describe('desktop downloads behind PI sign-in', () => {
     store.account = status === null ? null : snapshot(status)
     const html = renderToStaticMarkup(createElement(DesktopDownloads))
     expect(html).toContain('<h3>Đăng nhập để tải</h3>')
-    expect(html).toContain('href="/dang-ky/"')
+    expect(html).toMatch(/<button type="button" class="erp-btn erp-btn--secondary"[^>]*>Đăng ký miễn phí<\/button>/)
+    expect(html).not.toContain('/dang-ky/')
     expect(html).not.toContain('/releases/')
     expect(html).not.toContain('erp-downloads__links')
   })

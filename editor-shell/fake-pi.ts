@@ -120,13 +120,14 @@ export class FakePi {
     const scopes = this.grantScopes(client, get('scope'))
     if (!scopes) return fail('invalid_scope', 'Phạm vi không hợp lệ hoặc vượt quyền của ứng dụng (bắt buộc có openid).')
     const prompt = get('prompt')
-    if (!['', 'login', 'none', 'select_account'].includes(prompt)) return fail('invalid_request', 'prompt không hợp lệ.')
+    if (!['', 'login', 'none', 'select_account', 'create'].includes(prompt)) return fail('invalid_request', 'prompt không hợp lệ.')
     const hint = /^[0-9a-f-]{36}$/.test(get('org_hint')) ? get('org_hint') : ''
 
-    let account = prompt === 'login' ? null : this.sessionAccount()
+    // `create` (PI's sign-up step) ends like a login with the account just made; tests seed it as `options.as`.
+    let account = prompt === 'login' || prompt === 'create' ? null : this.sessionAccount()
     if (!account && prompt === 'none') return appendQuery(redirect, { error: 'login_required', state, iss: ISSUER })
     if (!account) {
-      this.pages.push('login')
+      this.pages.push(prompt === 'create' ? 'create' : 'login')
       account = this.accounts[options.as ?? AN] ?? null
       if (!account) throw new Error(`no PI account ${options.as}`)
       if (account.status !== 'ACTIVE') throw new Error('PI page: account locked (no redirect)')
