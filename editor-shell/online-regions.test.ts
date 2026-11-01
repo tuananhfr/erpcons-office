@@ -173,6 +173,31 @@ describe('joining and replay', () => {
     expect(log.opened.at(-1)).toMatchObject({ version: 2, preserveView: true })
     expect(sent(socket, 'region.replay').at(-1)).toEqual({ type: 'region.replay', v: 1, since: 40 })
   })
+
+  it('REPLAY_GONE with an edit not acknowledged: never resends its old cid, asks, then sends it as a new update', async () => {
+    const { page, sockets, host, log } = await coPage({ conflict: () => 'mine' })
+    await sync(page, sockets[0])
+    const granted = host.regionWillEdit('para:a')
+    await grantNext(page, sockets[0])
+    await granted
+    host.regionChanged('para:a', 'mine')
+    await tick(page, 150)
+    const old = sent(sockets[0], 'region.update')[0]
+    sockets[0].drop(1006)
+    await tick(page, 5 * 1000)
+    const socket = sockets[1]
+    socket.accept()
+    socket.receive(hello())
+    socket.receive({ type: 'error', v: 1, code: 'REPLAY_GONE', saved_seq: 40, saved_version: null })
+    await page.settle()
+    socket.receive({ type: 'region.replayed', v: 1, since: 40, seq: 41 })
+    await page.settle()
+    await grantNext(page, socket)
+    expect(log.asked).toEqual(['para:a'])
+    const resent = sent(socket, 'region.update')
+    expect(resent).toMatchObject([{ region: 'para:a', payload: 'mine' }])
+    expect(resent[0].cid).not.toBe(old.cid)
+  })
 })
 
 describe('locks', () => {
@@ -302,6 +327,25 @@ describe('updates', () => {
     await page.settle()
     await grantNext(page, sockets[0])
     expect(sent(sockets[0], 'region.update').map(m => m.cid)).toEqual([first.cid, first.cid])
+  })
+
+  it('SERVER_BUSY on an update keeps it queued and sends it again later, same cid', async () => {
+    const { page, sockets, host } = await coPage()
+    await sync(page, sockets[0])
+    const granted = host.regionWillEdit('para:a')
+    await grantNext(page, sockets[0])
+    await granted
+    host.regionChanged('para:a', 'x')
+    await tick(page, 150)
+    const first = sent(sockets[0], 'region.update')[0]
+    sockets[0].receive({ type: 'error', v: 1, code: 'SERVER_BUSY', cid: first.cid })
+    await page.settle()
+    expect(sockets[0].readyState).toBe(1)
+    await tick(page, 1000)
+    expect(sent(sockets[0], 'region.update')).toHaveLength(1)
+    await tick(page, 1000)
+    expect(sent(sockets[0], 'region.update').map(m => m.cid)).toEqual([first.cid, first.cid])
+    expect(page.dialogId()).toBeNull()
   })
 
   it('an own ack counts as applied: a lower remote seq is dropped', async () => {

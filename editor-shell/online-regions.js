@@ -10,6 +10,8 @@
   // An unanswered lock.acquire: the connection is in trouble and the reconnect sorts it out.
   var LOCK_WAIT = 5000
   var RETRY_FLOOR = 500
+  // SERVER_BUSY on an update: the server's log budget is full for now; the update goes again after this.
+  var BUSY_WAIT = 2000
   var DEFAULT_REGION_BYTES = 1024 * 1024
 
   function noop() {}
@@ -284,7 +286,7 @@
     function pump() {
       if (phase !== 'synced' || !v3() || !deps.editable()) return
       outbox.forEach(function (edit) {
-        if (edit.sent || edit.tooBig) return
+        if (edit.sent || edit.tooBig || edit.busy) return
         var region = edit.region
         var lock = locks[region]
         if (lock && lock.granted) {
@@ -417,6 +419,10 @@
         pump()
       } else if (msg.code === 'FORBIDDEN_MODE') {
         edit.sent = false
+      } else if (msg.code === 'SERVER_BUSY') {
+        edit.sent = false
+        edit.busy = true
+        setTimeout(function () { edit.busy = false; pump() }, BUSY_WAIT)
       } else {
         outbox = outbox.filter(function (item) { return item !== edit })
         console.warn('erpOnline region update refused', msg.code)
@@ -479,7 +485,12 @@
       if (msg.saved_version === null || isSeq(msg.saved_version)) savedVersion = msg.saved_version
       replayBuffer = null
       // Whatever this page still has to send was made on content the reload replaces: each such region is asked about.
-      outbox.forEach(function (edit) { if (!edit.sent) reloaded[edit.region] = true })
+      // Its cids belonged to the room that is gone, so each edit goes out as a new update.
+      outbox.forEach(function (edit) {
+        reloaded[edit.region] = true
+        edit.sent = false
+        edit.cid = nextCid()
+      })
       Object.keys(buffer).forEach(function (region) { reloaded[region] = true })
       applied = null
       phase = 'waiting'
