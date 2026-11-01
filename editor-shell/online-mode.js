@@ -10,8 +10,15 @@
     view: 'Bạn có quyền xem tài liệu này, không sửa được nội dung.'
   }
   var RANK = { view: 0, comment: 1, edit: 2 }
+  var EDITORS_DEFAULT = 10
+  function editorLimitMessage(max) { return 'Đã đủ ' + max + ' người sửa, bạn đang ở chế độ xem' }
   /** The live room let this editor in to view only: its editor slots are taken (openapi, "Live limits"). */
-  online.EDITOR_LIMIT_MESSAGE = 'Đã đủ 10 người sửa, bạn đang ở chế độ xem'
+  online.EDITOR_LIMIT_MESSAGE = editorLimitMessage(EDITORS_DEFAULT)
+  /** The room's own editor limit (hello `limits.max_editors`) names the number; older servers leave the default. */
+  online.setEditorLimit = function (limits) {
+    var max = limits && limits.max_editors
+    if (typeof max === 'number' && max >= 1 && Math.floor(max) === max) online.EDITOR_LIMIT_MESSAGE = editorLimitMessage(max)
+  }
 
   // Anything unknown maps to the narrowest mode; the server enforces the role anyway.
   online.modeOf = function (role) { return MODES[role] || 'view' }

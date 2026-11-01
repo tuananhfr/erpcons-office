@@ -1,6 +1,6 @@
 (function () {
   // The Office API calls the shell makes (erpcons-office-server/docs/openapi.yaml), mapped to plain outcomes:
-  // ok, saved, conflict, notFound, forbidden, offline, signIn, failed { retryable, message, retryAfter }.
+  // ok, saved, conflict, notLeader, notFound, forbidden, offline, signIn, failed { retryable, message, retryAfter }.
   var online = window.erpOnline = window.erpOnline || {}
   var FORMATS = ['docx', 'xlsx', 'pptx', 'pdf']
   var ROLES = ['owner', 'editor', 'commenter', 'viewer', 'link']
@@ -70,6 +70,8 @@
       if (status === 404) return { kind: 'notFound' }
       if (status === 403) return { kind: 'forbidden', message: MESSAGES.forbidden }
       if (status === 409 && code === 'VERSION_CONFLICT') return { kind: 'conflict', latestVersion: positive(body.latest_version) }
+      // Several people edit in the live room and another member's page saves for all (openapi, "Leader").
+      if (status === 409 && code === 'NOT_LEADER') return { kind: 'notLeader' }
       if (status === 429 || status === 503) return { kind: 'failed', retryable: true, message: serverMessage(body, MESSAGES.busy), retryAfter: retryAfter(response) }
       if (status === 413 || status === 422) return { kind: 'failed', retryable: false, message: serverMessage(body, MESSAGES.rejected), retryAfter: null }
       if (status === 428) return { kind: 'failed', retryable: false, message: MESSAGES.failed, retryAfter: null }
@@ -107,8 +109,11 @@
         }, function () { return { kind: 'offline' } })
       })
     }
-    function putContent(id, bytes, etag) {
-      var init = { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', 'If-Match': etag, Accept: 'application/json' }, body: bytes }
+    /** liveSeq: the live room's last update the bytes hold (X-Live-Seq), sent only by the room's leader. */
+    function putContent(id, bytes, etag, liveSeq) {
+      var headers = { 'Content-Type': 'application/octet-stream', 'If-Match': etag, Accept: 'application/json' }
+      if (typeof liveSeq === 'number' && liveSeq >= 0 && Math.floor(liveSeq) === liveSeq) headers['X-Live-Seq'] = String(liveSeq)
+      var init = { method: 'PUT', headers: headers, body: bytes }
       return call(path(id, '/content'), init, function (response) {
         return readJson(response).then(function (body) {
           var doc = documentOf(body)

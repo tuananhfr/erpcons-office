@@ -1,6 +1,8 @@
 (function () {
   // `window.erpHost` v2 (docs/erp-host.md): the object the editor talks to, the handlers it registers, and documents
   // waiting for it to be ready. Signed-in documents (online.js) and the public link page (online-link.js) share it.
+  // The v3 region calls (co-editing) are added to the same object; `version` stays 2 so that v2 editors keep working,
+  // and a v3 editor finds them by feature (`typeof erpHost.regionWillEdit === 'function'`).
   var online = window.erpOnline = window.erpOnline || {}
   var READY_WAIT = 120 * 1000
 
@@ -22,6 +24,8 @@
     var handlers = null
     var waiting = []
     var readyTimer = null
+    // The live room's region bookkeeping (online-regions.js), while there is one.
+    var regions = null
 
     // Every handler past open is optional: an editor built against an older contract lacks some of them.
     function call(name) {
@@ -56,7 +60,15 @@
       save: function (id, bytes, options) { return deps.save(String(id), bytes, options) },
       dirty: function (id, dirty) { deps.dirty(String(id), dirty) },
       opened: function (id, ok, reason) { deps.opened(String(id), ok, reason) },
-      closed: function (id) { deps.closed(String(id)) }
+      closed: function (id) { deps.closed(String(id)) },
+      // v3. Without a live room the editor edits alone: every region is its own.
+      regionWillEdit: function (regionId) {
+        if (!regions) return Promise.resolve(true)
+        try { return regions.willEdit(String(regionId)) } catch (e) { return Promise.resolve(false) }
+      },
+      regionChanged: function (regionId, payload) { if (regions) regions.changed(String(regionId), payload) },
+      regionDidEndEdit: function (regionId) { if (regions) regions.didEndEdit(String(regionId)) },
+      selectionChanged: function (regionId, range) { if (regions) regions.selection(String(regionId), range) }
     })
 
     return {
@@ -64,6 +76,11 @@
       deliver: deliver,
       call: call,
       isReady: function () { return Boolean(handlers) },
+      /** True when the editor registered the handler `name`. */
+      has: function (name) { return Boolean(handlers) && typeof handlers[name] === 'function' },
+      /** True when the editor speaks erpHost v3 (it takes remote region updates). */
+      supports: function () { return Boolean(handlers) && typeof handlers.applyRemote === 'function' },
+      useRegions: function (next) { regions = next || null },
       flush: function () {
         if (!handlers || typeof handlers.flush !== 'function') return Promise.resolve()
         try { return Promise.resolve(handlers.flush()).then(noop, noop) } catch (e) { return Promise.resolve() }

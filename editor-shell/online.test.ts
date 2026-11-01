@@ -34,11 +34,11 @@ function badge(page: Page) {
 function pendingRows(idb: FakeIdb) { return idb.rows('pending') }
 
 describe('activation', () => {
-  it('installs a frozen erpHost v2 for a signed-in user on /<editor>/?doc=<id>', () => {
+  it('installs a frozen erpHost v2 (with the v3 region calls, found by feature) for a signed-in user on /<editor>/?doc=<id>', () => {
     const page = onlinePage()
     expect(page.host?.version).toBe(2)
     expect(Object.isFrozen(page.host)).toBe(true)
-    expect(Object.keys(page.host!).sort()).toEqual(['closed', 'dirty', 'opened', 'ready', 'save', 'version'])
+    expect(Object.keys(page.host!).sort()).toEqual(['closed', 'dirty', 'opened', 'ready', 'regionChanged', 'regionDidEndEdit', 'regionWillEdit', 'save', 'selectionChanged', 'version'])
   })
 
   it.each([

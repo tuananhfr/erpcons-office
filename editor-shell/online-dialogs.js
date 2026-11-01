@@ -22,11 +22,15 @@
   }
 
   /**
-   * options: { id, title, paragraphs, actions: [{ label, kind, onClick } | { label, kind, href }], onEscape }.
-   * onClick may return a promise: the buttons stay disabled until it settles.
+   * options: { id, title, paragraphs, actions: [{ label, kind, onClick } | { label, kind, href }], onEscape, onReplaced }.
+   * onClick may return a promise: the buttons stay disabled until it settles. onReplaced: another dialog took its place.
    */
   function open(options) {
-    if (current) current.close()
+    if (current) {
+      var replaced = current
+      replaced.close()
+      if (replaced.onReplaced) replaced.onReplaced()
+    }
     var overlay = el('div', 'erp-online')
     overlay.setAttribute('data-erp-online-dialog', options.id)
     var box = el('section', 'erp-online__box')
@@ -87,6 +91,7 @@
     dialog = {
       busy: false,
       element: overlay,
+      onReplaced: options.onReplaced || null,
       close: function () {
         if (current !== dialog) return
         current = null
@@ -221,6 +226,38 @@
           'Bản chưa lưu của tài khoản trước vẫn được giữ trên thiết bị này và sẽ được đề nghị khôi phục khi tài khoản đó mở lại tài liệu.'
         ],
         actions: [{ label: 'Tải lại trang', kind: 'primary', onClick: handlers.onReload }]
+      })
+    },
+    /**
+     * Co-editing: edits made while the connection was lost, on places someone else changed meanwhile (editors
+     * without their own regionConflict). → Promise<'mine' | 'theirs'>, one answer for all of them.
+     */
+    regionConflict: function (count) {
+      return new Promise(function (resolve) {
+        var answered = false
+        function choose(choice) {
+          return function (dialog) {
+            answered = true
+            dialog.close()
+            resolve(choice)
+          }
+        }
+        open({
+          id: 'region-conflict',
+          title: count > 1 ? 'Có ' + count + ' chỗ người khác vừa sửa' : 'Có người vừa sửa chỗ bạn đang sửa',
+          paragraphs: [
+            count > 1
+              ? 'Trong lúc bạn mất kết nối, người khác đã sửa ' + count + ' chỗ mà bạn cũng sửa.'
+              : 'Trong lúc bạn mất kết nối, người khác đã sửa đúng chỗ mà bạn cũng sửa.',
+            '“Giữ bản của tôi” dùng thay đổi của bạn thay cho bản của họ. “Dùng bản mới” bỏ thay đổi của bạn ở ' + (count > 1 ? 'những chỗ đó.' : 'chỗ đó.')
+          ],
+          actions: [
+            { label: 'Giữ bản của tôi', kind: 'primary', onClick: choose('mine') },
+            { label: 'Dùng bản mới', kind: 'quiet', onClick: choose('theirs') }
+          ],
+          // Pushed aside by a more urgent dialog: the user's own edit is kept rather than silently dropped.
+          onReplaced: function () { if (!answered) resolve('mine') }
+        })
       })
     },
     signIn: function (handlers) {

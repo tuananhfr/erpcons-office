@@ -12,6 +12,8 @@
   var FULL_WAIT = 30 * 1000
   var CLOSE = { normal: 1000, revoked: 4003, full: 4029 }
   var OPEN = 1
+  // Co-editing (M4) messages, handed on as they are; the bookkeeping lives in online-regions.js.
+  var REGION_TYPES = ['locks', 'lock.granted', 'lock.denied', 'region.update', 'ack', 'cursor', 'region.replayed', 'save.request', 'saved', 'error']
 
   function noop() {}
 
@@ -23,7 +25,9 @@
 
   /**
    * deps: { ticket() → Promise<outcome> (online-api.js kinds), connect(ticket) → WebSocket, backoff(attempt, retryAfter),
-   * onHello(msg), onPresence(members), onMode(mode, notice), onLeader(id), onRevoked(), onRefused() }
+   * onHello(msg), onPresence(members), onMode(mode, notice), onLeader(id), onRevoked(), onRefused(), onMessage(msg),
+   * onDown() }
+   * onMessage: the co-editing messages (online-regions.js); onDown: a greeted session ended.
    * onRevoked: the server ended the session because access is gone (bye `revoked`, 4003); onRefused: the ticket was
    * refused with 403/404. Neither reconnects.
    */
@@ -113,12 +117,15 @@
         call('onLeader', typeof msg.leader === 'string' ? msg.leader : null)
       } else if (msg.type === 'bye') {
         byeReason = msg.reason
+      } else if (REGION_TYPES.indexOf(msg.type) !== -1) {
+        call('onMessage', msg)
       }
     }
 
     function closed(code) {
       clearTimeout(stableTimer)
       stableTimer = null
+      if (greeted) call('onDown')
       greeted = false
       socket = null
       you = null
@@ -130,8 +137,9 @@
     }
 
     function send(message) {
-      if (!socket || socket.readyState !== OPEN) return
-      try { socket.send(JSON.stringify(message)) } catch (e) { /* the close event follows */ }
+      if (!socket || socket.readyState !== OPEN) return false
+      try { socket.send(JSON.stringify(message)) } catch (e) { return false }
+      return true
     }
     function setState(next) {
       if (state === next) return
@@ -157,6 +165,8 @@
       timer = null
       var ws = socket
       socket = null
+      if (greeted) call('onDown')
+      greeted = false
       if (!ws) return
       try {
         if (ws.readyState === OPEN) ws.send(JSON.stringify({ type: 'bye', v: 1 }))
@@ -203,7 +213,9 @@
       you: function () { return you },
       members: function () { return members.slice() },
       state: function () { return state },
-      connected: function () { return Boolean(socket) && greeted }
+      connected: function () { return Boolean(socket) && greeted },
+      /** Sends one message of a greeted session; false when it could not go out. */
+      send: function (message) { return greeted ? send(message) : false }
     }
   }
 })()

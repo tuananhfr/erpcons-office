@@ -1,6 +1,7 @@
 (function () {
   // Who else has the document open (the live room's members): overlapping initials in the shell bar, "+N" past the
-  // first few, and a list on click. Link holders and names the server withholds stay anonymous.
+  // first few, and a list on click. Link holders and names the server withholds stay anonymous. Several tabs of one
+  // person (the members' opaque `person` key) show as that person once; your own other tabs are you.
   var online = window.erpOnline = window.erpOnline || {}
   // Faces shown before "+N". The phone bar (under 480 px, shell.css) has room for one circle: the face of the one
   // other person, or how many others there are.
@@ -23,6 +24,28 @@
     return (word.normalize ? word.normalize('NFC') : word).charAt(0).toLocaleUpperCase('vi')
   }
   function activity(member) { return member.mode === 'edit' ? 'đang sửa' : 'đang xem' }
+
+  /** One entry per person: editing if any tab edits, active if any tab is, `count` tabs. Order of first appearance. */
+  online.groupMembers = function (members) {
+    var groups = []
+    var byKey = {}
+    members.forEach(function (member) {
+      var key = typeof member.person === 'string' && member.person ? 'p:' + member.person : 'm:' + member.id
+      var group = byKey[key]
+      if (!group) {
+        group = byKey[key] = { key: key, ids: [], count: 0, member: {} }
+        Object.keys(member).forEach(function (field) { group.member[field] = member[field] })
+        groups.push(group)
+      } else {
+        if (member.mode === 'edit') group.member.mode = 'edit'
+        if (member.state === 'active') group.member.state = 'active'
+        if (!group.member.name && member.name) group.member.name = member.name
+      }
+      group.ids.push(member.id)
+      group.count += 1
+    })
+    return groups
+  }
   // White or ink on the server's colour, whichever reads better (WCAG relative luminance).
   function inkOn(hex) {
     var channel = function (at) {
@@ -68,7 +91,7 @@
     var before = bar.querySelector('[data-erp-online-actions]') || bar.querySelector('.erp-shell__nav')
     bar.insertBefore(root, before)
 
-    var shown = { members: [], you: null }
+    var shown = { groups: [], you: null }
 
     function close(refocus) {
       if (panel.hidden) return
@@ -84,21 +107,23 @@
       panel.appendChild(title)
       var list = document.createElement('ul')
       list.className = 'erp-shell__people-list'
-      var ordered = shown.members.filter(function (m) { return m.id === shown.you }).concat(shown.members.filter(function (m) { return m.id !== shown.you }))
-      ordered.forEach(function (member) {
+      var mine = function (group) { return group.ids.indexOf(shown.you) !== -1 }
+      var ordered = shown.groups.filter(mine).concat(shown.groups.filter(function (group) { return !mine(group) }))
+      ordered.forEach(function (group) {
+        var member = group.member
         var row = document.createElement('li')
         row.className = 'erp-shell__people-row'
-        row.setAttribute('data-erp-presence-row', member.id === shown.you ? 'you' : member.kind)
+        row.setAttribute('data-erp-presence-row', mine(group) ? 'you' : member.kind)
         row.appendChild(face(member, 'erp-shell__face', true))
         var text = document.createElement('span')
         text.className = 'erp-shell__people-text'
         var name = document.createElement('span')
         name.className = 'erp-shell__people-name'
-        name.textContent = member.id === shown.you ? online.memberName(member) + ' (bạn)' : online.memberName(member)
+        name.textContent = mine(group) ? online.memberName(member) + ' (bạn)' : online.memberName(member)
         var what = document.createElement('span')
         what.className = 'erp-shell__people-mode'
         var doing = activity(member)
-        what.textContent = doing.charAt(0).toUpperCase() + doing.slice(1) + (member.state === 'idle' ? ', tạm vắng' : '')
+        what.textContent = doing.charAt(0).toUpperCase() + doing.slice(1) + (member.state === 'idle' ? ', tạm vắng' : '') + (group.count > 1 ? ' · ' + group.count + ' thẻ' : '')
         text.appendChild(name)
         text.appendChild(what)
         row.appendChild(text)
@@ -108,8 +133,9 @@
     }
 
     function render(members, you) {
-      shown = { members: Array.isArray(members) ? members.filter(function (m) { return m && typeof m.id === 'string' }) : [], you: you || null }
-      var others = shown.members.filter(function (m) { return m.id !== shown.you })
+      var valid = Array.isArray(members) ? members.filter(function (m) { return m && typeof m.id === 'string' }) : []
+      shown = { groups: online.groupMembers(valid), you: you || null }
+      var others = shown.groups.filter(function (group) { return group.ids.indexOf(shown.you) === -1 }).map(function (group) { return group.member })
       root.hidden = others.length === 0
       if (root.hidden) close(false)
       button.textContent = ''

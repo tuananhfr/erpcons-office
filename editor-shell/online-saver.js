@@ -1,11 +1,13 @@
 (function () {
   // Saves of online documents: erpHost.save → PUT …/content with If-Match, the SaveResult mapping of
-  // docs/erp-host.md, retries with backoff, and the pending store copy until the server acknowledges.
+  // docs/erp-host.md, retries with backoff, and the pending store copy until the server acknowledges. In a live room
+  // (online-leader.js) a copy may also be held on the device without being sent.
   var online = window.erpOnline = window.erpOnline || {}
   var IN_CALL_TRIES = 3
   // Longer waits go to the background retry: the editor must not sit on one save for minutes.
   var IN_CALL_WAIT_MAX = 10 * 1000
   var NOT_OPEN = 'Tài liệu này không còn mở để lưu lên máy chủ.'
+  var NOT_LEADER = 'Đang có người khác cùng sửa. Văn phòng sẽ lưu bản này khi đến lượt bạn.'
 
   function noop() {}
   function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms) }) }
@@ -55,7 +57,7 @@
     function failed(retryable, message) { return { status: 'failed', retryable: retryable, message: message } }
 
     function scheduleRetry(doc, retryAfter) {
-      if (doc.retry.timer || doc.conflict || !doc.pending || doc.waitingSignIn) return
+      if (doc.retry.timer || doc.conflict || !doc.pending || doc.pending.held || doc.waitingSignIn) return
       doc.retry.attempt += 1
       doc.retry.timer = setTimeout(function () {
         doc.retry.timer = null
@@ -89,6 +91,14 @@
         doc.error = { offline: true, retryable: true, message: messages.offline }
         scheduleRetry(doc, null)
         return { status: 'offline' }
+      }
+      if (outcome.kind === 'notLeader') {
+        // Not an error for the user: the bytes wait on the device until the live room lets this page save
+        // (online-leader.js releases them) or its leader's save makes them unnecessary.
+        if (doc.pending === entry) entry.held = true
+        doc.error = { offline: true, retryable: true, message: NOT_LEADER }
+        clearRetry(doc)
+        return { status: 'offline', notLeader: true }
       }
       if (outcome.kind === 'signIn') {
         // No timer: retrying cannot help until the user signs in again (resume()).
@@ -128,7 +138,7 @@
       doc.inflight += 1
       changed()
       function attempt(tries) {
-        return deps.api.putContent(doc.id, entry.bytes, doc.etag).then(function (outcome) {
+        return deps.api.putContent(doc.id, entry.bytes, doc.etag, entry.liveSeq).then(function (outcome) {
           if (interactive && outcome.kind === 'failed' && outcome.retryable && tries < IN_CALL_TRIES) {
             var delay = deps.backoff(tries, outcome.retryAfter)
             if (delay <= IN_CALL_WAIT_MAX) return wait(delay).then(function () { return attempt(tries + 1) })
@@ -160,15 +170,26 @@
       return typeof revision === 'number' && isFinite(revision) ? revision : undefined
     }
 
+    function copyOf(bytes) {
+      // The editor may reuse its wasm memory as soon as the call returns.
+      return new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+    }
+    function refusal(doc, bytes, options) {
+      if (deps.viewOnly) return failed(false, messages.readOnly)
+      if (!doc || !doc.open || !bytes || !ArrayBuffer.isView(bytes)) return failed(false, NOT_OPEN)
+      // Read-only saves nothing, except the flush of edits made before a downgrade (docs/erp-host.md, rule 13).
+      if (doc.mode !== 'edit' && !(doc.downgraded && options && options.reason === 'flush')) return failed(false, messages.readOnly)
+      return null
+    }
+
+    /** options.liveSeq: sent as X-Live-Seq (the live room's leader). */
     function save(id, bytes, options) {
       var doc = docs[id]
-      if (deps.viewOnly) return Promise.resolve(failed(false, messages.readOnly))
-      if (!doc || !doc.open || !bytes || !ArrayBuffer.isView(bytes)) return Promise.resolve(failed(false, NOT_OPEN))
-      // Read-only saves nothing, except the flush of edits made before a downgrade (docs/erp-host.md, rule 13).
-      if (doc.mode !== 'edit' && !(doc.downgraded && options && options.reason === 'flush')) return Promise.resolve(failed(false, messages.readOnly))
-      // The editor may reuse its wasm memory as soon as the call returns.
-      var copy = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+      var refused = refusal(doc, bytes, options)
+      if (refused) return Promise.resolve(refused)
+      var copy = copyOf(bytes)
       var entry = keep(doc, copy, revisionOf(options))
+      if (options && typeof options.liveSeq === 'number') entry.liveSeq = options.liveSeq
       if (doc.conflict) {
         doc.conflict.bytes = copy
         entry.awaited = false
@@ -183,6 +204,63 @@
 
     return {
       save: save,
+      /**
+       * Keeps the bytes on the device (pending store) without sending them: the live room has not taken the edits
+       * yet (`wait` 'offline' when there is no connection) or another member saves for the room ('turn').
+       * Returns false when the document takes no saves.
+       */
+      hold: function (id, bytes, revision, wait) {
+        var doc = docs[id]
+        if (refusal(doc, bytes, null)) return false
+        var copy = copyOf(bytes)
+        var entry = keep(doc, copy, typeof revision === 'number' && isFinite(revision) ? revision : undefined)
+        entry.held = true
+        entry.awaited = false
+        if (doc.conflict) doc.conflict.bytes = copy
+        clearRetry(doc)
+        doc.error = wait === 'offline' ? { offline: true, retryable: true, message: messages.offline }
+          : wait === 'turn' ? { offline: true, retryable: true, message: NOT_LEADER } : null
+        changed()
+        return true
+      },
+      /** Drops a held copy: what it held reached the live room, whose leader saves it. */
+      unhold: function (id) {
+        var doc = docs[id]
+        if (!doc || !doc.pending || !doc.pending.held) return
+        doc.pending = null
+        if (doc.error && doc.error.offline) doc.error = null
+        deps.pending.remove(doc.sub, doc.id).then(null, noop)
+        changed()
+      },
+      /** Sends a held copy the usual way (this page may save again). */
+      release: function (id) {
+        var doc = docs[id]
+        if (!doc || !doc.pending || !doc.pending.held) return
+        doc.pending.held = false
+        doc.error = null
+        doc.retry.attempt = 0
+        changed()
+        enqueue(doc, function () { return send(doc, false) })
+      },
+      /** A save made elsewhere in the live room is the base of the next one (its version and ETag). */
+      rebase: function (id, version, etag) {
+        var doc = docs[id]
+        if (!doc || doc.inflight || !etag || !(version > doc.version)) return
+        doc.version = version
+        doc.etag = etag
+        if (doc.pending) persist(doc, doc.pending)
+      },
+      /**
+       * The live room's view of this page's edits: `synced` when the room holds all of them, `safe` when it would
+       * also keep them if the page went away (another editor stays to save them).
+       */
+      setRoom: function (id, room) {
+        var doc = docs[id]
+        if (!doc) return
+        var before = doc.room
+        doc.room = room || null
+        if (!before !== !room || (before && room && (before.synced !== room.synced || before.safe !== room.safe))) changed()
+      },
       /** Starts tracking a document opened at `meta.version` / `meta.etag`, dropping any earlier state of it. */
       track: function (meta) {
         var doc = docs[meta.id] || (docs[meta.id] = { id: meta.id, chain: Promise.resolve(), inflight: 0, retry: { timer: null, attempt: 0 } })
@@ -267,7 +345,7 @@
       resume: function () {
         Object.keys(docs).forEach(function (id) {
           var doc = docs[id]
-          if (!doc.pending || doc.conflict || (doc.error && !doc.error.retryable)) return
+          if (!doc.pending || doc.pending.held || doc.conflict || (doc.error && !doc.error.retryable)) return
           clearRetry(doc)
           doc.retry.attempt = 0
           doc.waitingSignIn = false
@@ -275,7 +353,9 @@
         })
       },
       busy: function () {
-        return list().some(function (doc) { return (doc.open && doc.dirty) || doc.inflight > 0 || Boolean(doc.pending) })
+        return list().some(function (doc) {
+          return (doc.open && doc.dirty && !(doc.room && doc.room.safe)) || doc.inflight > 0 || Boolean(doc.pending)
+        })
       },
       /** Settles once every save queued so far has finished. */
       idle: function () {

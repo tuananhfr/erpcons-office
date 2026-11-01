@@ -110,9 +110,11 @@
     api: api, pending: pending, backoff: online.backoff, user: user, onChange: render, onConflict: showConflict,
     onAcknowledged: acknowledge, onAccessLost: function (doc, kind) { accessLost(doc, kind, null) }, viewOnly: viewingVersion
   })
+  // Which documents the editor reported open since it was last handed their content (co-editing waits for it).
+  var openedIds = {}
   var hostApi = online.createHost({
     save: function (id, bytes, options) {
-      try { return saver.save(id, bytes, options) } catch (e) {
+      try { return cosave ? cosave.save(id, bytes, options) : saver.save(id, bytes, options) } catch (e) {
         console.error('erpHost save failed')
         return Promise.resolve({ status: 'failed', retryable: false, message: online.messages.failed })
       }
@@ -124,6 +126,8 @@
       flushDowngraded(id, false)
     },
     opened: function (id, ok, reason) {
+      openedIds[id] = Boolean(ok)
+      if (ok && regions && id === liveId) regions.opened()
       if (ok) return
       var doc = saver.get(id)
       var intake = window.erpIntake
@@ -137,8 +141,13 @@
   })
   // Optional in v1: an editor built before acknowledged() stays dirty until its next save.
   function acknowledge(id, revision, version) { hostApi.call('acknowledged', id, revision, version) }
+  function deliver(doc) {
+    openedIds[doc.docId] = false
+    if (regions && doc.docId === liveId) regions.loaded()
+    return hostApi.deliver(doc)
+  }
   var opener = online.createOpener({
-    api: api, saver: saver, pending: pending, dialogs: dialogs, user: user, sameAccount: sameAccount, deliver: hostApi.deliver,
+    api: api, saver: saver, pending: pending, dialogs: dialogs, user: user, sameAccount: sameAccount, deliver: deliver,
     signIn: function () { return account.signIn() },
     onAccessLost: accessLost
   })
@@ -268,8 +277,9 @@
     // The live room may narrow the role's mode (its editor slots are taken); it never widens it.
     var mode = online.capMode(online.modeOf(meta.role), liveMode)
     var reader = mode !== 'edit'
-    // A reader catches up in place; an editor's newer versions come through the conflict flow as in v1.
-    if ((reader || doc.mode !== 'edit') && meta.version > doc.version && !doc.pending) {
+    // A reader catches up in place; an editor's newer versions come through the conflict flow as in v1. A co-editing
+    // room already brings every change as it happens.
+    if ((reader || doc.mode !== 'edit') && meta.version > doc.version && !doc.pending && !(regions && regions.live())) {
       return opener.openLatest(doc.id, true)
     }
     saver.setCanShare(doc.id, meta.canShare)
@@ -292,6 +302,9 @@
   var presence = bar && !viewingVersion ? online.createPresence(bar) : null
   var live = null
   var liveId = null
+  // Co-editing by region (online-regions.js) and the leader's saves (online-leader.js), for the room's lifetime.
+  var regions = null
+  var cosave = null
   // The room's narrower mode for this member and its reason, kept across reconnects until the next hello says otherwise.
   var liveMode = null
   var liveNotice = null
@@ -299,6 +312,33 @@
   function startLive(id) {
     if (live || viewingVersion || typeof window.WebSocket !== 'function') return
     liveId = id
+    regions = online.createRegions({
+      send: function (message) { return live ? live.send(message) : false },
+      host: hostApi,
+      editable: function () {
+        var doc = saver.get(id)
+        return Boolean(doc && doc.open && doc.mode === 'edit' && !doc.accessLost)
+      },
+      canCursor: function () {
+        var doc = saver.get(id)
+        return Boolean(doc && doc.open && (doc.mode === 'edit' || doc.mode === 'comment'))
+      },
+      isOpen: function () { return openedIds[id] === true },
+      contentVersion: function () {
+        var doc = saver.get(id)
+        return doc ? doc.version : null
+      },
+      reload: function () { return opener.openLatest(id, true) },
+      ask: function (list) { return dialogs.regionConflict(list.length) },
+      onChange: function () { if (cosave) cosave.update() },
+      onRoomChange: function () { if (cosave) cosave.roomChanged() },
+      onLeader: function (now) { if (cosave) cosave.leader(now) },
+      onSaved: function (seq) { if (cosave) cosave.saved(seq) },
+      onSaveRequest: function () { if (cosave) cosave.saveRequest() },
+      notice: function (text) { if (window.erpShellNotice) window.erpShellNotice(text, 'alert', 10000) }
+    })
+    cosave = online.createLeader({ docId: id, saver: saver, regions: regions, host: hostApi, api: api })
+    hostApi.useRegions(regions)
     live = online.createLive({
       ticket: function () {
         // Another account's token must never open this page's room (see the otherAccount dialog).
@@ -309,10 +349,24 @@
       backoff: online.backoff,
       onHello: function (hello) {
         hostApi.call('setClientId', online.clientId)
+        online.setEditorLimit(hello.limits)
         if (presence) presence.render(hello.members, hello.you)
         applyLiveMode(hello.mode, hello.notice)
+        cosave.greeted()
+        regions.hello(hello)
+        cosave.presence(hello.members)
       },
-      onPresence: function (members) { if (presence) presence.render(members, live ? live.you() : null) },
+      onPresence: function (members) {
+        if (presence) presence.render(members, live ? live.you() : null)
+        regions.presence(members)
+        cosave.presence(members)
+      },
+      onLeader: function (leader) { regions.leader(leader) },
+      onMessage: function (message) { regions.receive(message) },
+      onDown: function () {
+        regions.down()
+        cosave.down()
+      },
       onMode: applyLiveMode,
       // Access is gone: the same path as a check that found the document missing.
       onRevoked: function () {
@@ -328,8 +382,12 @@
   }
   function stopLive() {
     if (live) live.stop()
+    if (cosave) cosave.stop()
+    hostApi.useRegions(null)
     live = null
     liveId = null
+    regions = null
+    cosave = null
     if (presence) presence.clear()
   }
   function applyLiveMode(mode, notice) {
@@ -390,6 +448,7 @@
 
   // The editor gets 10 s to hand over its edits, then the saves it started get as long again.
   function flush() {
+    if (regions) regions.flush()
     return within(hostApi.flush(), FORK_FLUSH_WAIT).then(function () { return within(saver.idle(), SAVES_WAIT) })
   }
   online.flush = flush

@@ -12,6 +12,8 @@
     if (doc.conflict) return { state: 'ERROR', message: CONFLICT }
     if (doc.inflight > 0) return { state: 'SAVING', message: LABELS.SAVING }
     if (doc.error && !doc.error.offline) return { state: 'ERROR', message: doc.error.message }
+    // Co-editing: the live room holds every edit of this page and its leader stores them (online-leader.js).
+    if (doc.room && doc.room.synced && !doc.pending) return { state: 'SERVER_DURABLE', message: LABELS.SERVER_DURABLE }
     if (doc.dirty || doc.pending) {
       return { state: 'LOCAL_ONLY', message: doc.error && doc.error.offline ? LABELS.LOCAL_ONLY + ' · ' + doc.error.message : LABELS.LOCAL_ONLY }
     }

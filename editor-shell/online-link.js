@@ -30,11 +30,16 @@
     var docBar = bar ? online.createDocBar(bar, { onDownload: download }) : null
     var presence = bar ? online.createPresence(bar) : null
     var live = null
+    // A link holder only watches: remote region updates, locks and cursors reach the editor, nothing goes out.
+    var regions = null
+    var contentOpen = false
 
     var hostApi = online.createHost({
       save: function () { return Promise.resolve({ status: 'failed', retryable: false, message: online.messages.readOnly }) },
       dirty: noop,
       opened: function (id, ok) {
+        contentOpen = Boolean(ok)
+        if (ok && regions) regions.opened()
         if (ok || !window.erpShellNotice) return
         var intake = window.erpIntake
         window.erpShellNotice('Không mở được tài liệu trong công cụ này.' + (intake ? ' ' + intake.message('parserFailed') : ''), 'alert', 15000)
@@ -52,6 +57,8 @@
     function show(found, preserveView) {
       current = found
       var meta = { title: found.doc.title, format: found.doc.format, mode: 'view', canDownload: found.doc.canDownload }
+      contentOpen = false
+      if (regions) regions.loaded()
       hostApi.deliver(online.hostDoc(found.doc.id, meta, found.bytes, found.version, preserveView))
       if (badge) badge.render('view')
       if (docBar) docBar.render({ download: found.doc.canDownload })
@@ -80,6 +87,18 @@
     // The room shows a link holder to the others without a name, and shows it nobody's name either (server rule).
     function startLive(id) {
       if (live || typeof window.WebSocket !== 'function') return
+      regions = online.createRegions({
+        send: function (message) { return live ? live.send(message) : false },
+        host: hostApi,
+        editable: function () { return false },
+        canCursor: function () { return false },
+        isOpen: function () { return contentOpen },
+        contentVersion: function () { return current ? current.version : null },
+        reload: function () { return fetchBoth().then(function (found) { if (found.kind === 'ok') show(found, true) }) },
+        ask: function () { return Promise.resolve('theirs') },
+        onChange: noop, onRoomChange: noop, onLeader: noop, onSaved: noop, onSaveRequest: noop, notice: noop
+      })
+      hostApi.useRegions(regions)
       live = online.createLive({
         ticket: function () { return linkApi.createLiveTicket(token, id) },
         connect: function (ticket) { return new window.WebSocket(online.liveUrl(location, id, ticket)) },
@@ -87,8 +106,15 @@
         onHello: function (hello) {
           hostApi.call('setClientId', online.clientId)
           if (presence) presence.render(hello.members, hello.you)
+          regions.hello(hello)
         },
-        onPresence: function (members) { if (presence) presence.render(members, live ? live.you() : null) },
+        onPresence: function (members) {
+          if (presence) presence.render(members, live ? live.you() : null)
+          regions.presence(members)
+        },
+        onLeader: function (leader) { regions.leader(leader) },
+        onMessage: function (message) { regions.receive(message) },
+        onDown: function () { regions.down() },
         onRevoked: function () { stopLive(); gone() },
         onRefused: function () { stopLive(); watcher.now() }
       })
@@ -96,6 +122,8 @@
     }
     function stopLive() {
       if (live) live.stop()
+      hostApi.useRegions(null)
+      regions = null
       if (presence) presence.clear()
     }
     function gone() {
@@ -117,7 +145,7 @@
           hostApi.call('setMode', current.doc.id, 'view', outcome.doc.canDownload)
           if (docBar) docBar.render({ download: outcome.doc.canDownload })
         }
-        if (outcome.doc.version > current.version) {
+        if (outcome.doc.version > current.version && !(regions && regions.live())) {
           return fetchBoth().then(function (found) { if (found.kind === 'ok') show(found, true) })
         }
       }
