@@ -24,6 +24,8 @@ export class FakeOffice {
   /** Public view links: token → document id. */
   links = new Map<string, string>()
   linkCalls: { path: string; init: RequestInit }[] = []
+  /** Live-room tickets issued (createLiveTicket), oldest first. */
+  tickets: string[] = []
 
   add(id: string, title: string, format: string, bytes: Uint8Array, folderId: string | null = null, role = 'owner') {
     this.docs.set(id, { id, title, format, folderId, versions: [bytes], role, canDownload: true, canShare: true })
@@ -88,6 +90,11 @@ export class FakeOffice {
   linkFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
     this.linkCalls.push({ path, init })
     if (this.offline) return Promise.reject(new TypeError('Failed to fetch'))
+    const live = /^\/api\/v1\/documents\/([^/]+)\/live-ticket$/.exec(path)
+    if (live) {
+      const holder = this.links.get(new Headers(init.headers).get('X-Link-Token') ?? '')
+      return Promise.resolve(init.method === 'POST' && holder === decodeURIComponent(live[1]) ? this.ticket(holder) : problem(404, 'NOT_FOUND'))
+    }
     const match = /^\/api\/v1\/link(\/content)?$/.exec(path)
     const token = new Headers(init.headers).get('X-Link-Token')
     const id = match && token ? this.links.get(token) : undefined
@@ -99,7 +106,16 @@ export class FakeOffice {
     return Promise.resolve(this.json(200, { ...this.meta(doc), folder_id: null, role: 'link' }))
   }
 
+  private ticket(id: string) {
+    if (!this.docs.has(id)) return problem(404, 'NOT_FOUND')
+    const ticket = `live${this.tickets.length + 1}`.padEnd(43, 'x')
+    this.tickets.push(ticket)
+    return this.json(200, { ticket, expires_in: 30 })
+  }
+
   private route(call: OfficeCall): Response | Promise<Response> {
+    const live = /^\/api\/v1\/documents\/([^/]+)\/live-ticket$/.exec(call.path)
+    if (live && call.method === 'POST') return this.ticket(decodeURIComponent(live[1]))
     const match = /^\/api\/v1\/documents\/([^/]+)(\/content|\/versions\/(\d+)\/content)?$/.exec(call.path)
     if (call.path === '/api/v1/documents' && call.method === 'POST') return this.create(call)
     if (!match) return problem(404, 'NOT_FOUND')

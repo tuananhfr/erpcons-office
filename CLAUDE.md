@@ -99,13 +99,17 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     token attached, one refresh + retry on 401, then `unauthenticated`.
   - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (on;
     needs `PI_ACCOUNT_ENABLED` too). Only then `assets.ts` adds `ONLINE_SCRIPTS` before `host-bridge.js`: parts
-    `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/host/bar/panel/link/share.js` on `window.erpOnline`,
+    `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/live/presence/host/bar/panel/link/share.js` on `window.erpOnline`,
     composed by `online.js`, which defines `window.erpHost` v2 for a signed-in user on `/<editor>/?doc=<id>`
     (`&version=<seq>` read-only) and, via `online-link.js`, for anyone on the public link `/<editor>/#link=<token>`
     (never when embedded). The bar's "Chia sẻ" / "Lịch sử" open `/tai-lieu/chia-se/` and `/tai-lieu/lich-su/` (the same
     React dialogs as `/tai-lieu/`) in a same-origin frame that answers by `postMessage` (`online-panel.js`). The account
-    panel links to `/tai-lieu/` (new tab). Phase 2
-    has no live channel: `online-watch.js` re-reads the document every 30 s while visible. Pending
+    panel links to `/tai-lieu/` (new tab). M3 adds
+    the live room (`online-live.js`, protocol in the server's `docs/openapi.yaml`, "Live channel"): one-time ticket, then
+    `wss://<origin>/api/v1/documents/<id>/live`, reconnect with a fresh ticket; presence avatars in the bar
+    (`online-presence.js`), the room's `mode` applied at once (downgrade sequence of `docs/erp-host.md`), `bye revoked`
+    as access lost, `erpHost.setClientId` after `hello`. `online-watch.js` still re-reads the document every 30 s while
+    visible as the fallback. Pending
     unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`
     turns PI + online on in `assemble.mts`, and only together with `ERPCONS_ALLOW_LOCAL_PROVENANCE=1`, which build-info
     records and the deploy refuses. `ERPCONS_LOCAL_PI_ISSUER=<origin>` (same guard) points PI at a local issuer such

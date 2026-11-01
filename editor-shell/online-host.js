@@ -6,6 +6,14 @@
 
   function noop() {}
 
+  // erpHost.setClientId (docs/erp-host.md): 24 random bits per page load, mixed by the editor into every id it creates
+  // so that two people adding things to the same document at once never collide.
+  online.clientId = (function () {
+    var bytes = new Uint8Array(3)
+    crypto.getRandomValues(bytes)
+    return Array.prototype.map.call(bytes, function (b) { return (b + 256).toString(16).slice(1) }).join('')
+  })()
+
   /**
    * deps: { save(id, bytes, options) → Promise<SaveResult>, dirty(id, dirty), opened(id, ok, reason), closed(id),
    * user() → { id, name } | null }
@@ -42,6 +50,7 @@
         clearTimeout(readyTimer)
         // The author name must be known before the first document arrives (docs/erp-host.md, setUser).
         call('setUser', deps.user())
+        call('setClientId', online.clientId)
         waiting.splice(0).forEach(function (doc) { call('open', doc) })
       },
       save: function (id, bytes, options) { return deps.save(String(id), bytes, options) },

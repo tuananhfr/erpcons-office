@@ -28,6 +28,7 @@ export interface ErpHost {
     acknowledged?(docId: string, revision: number, version: number): void
     setMode?(docId: string, mode: string, canDownload: boolean): void
     setUser?(user: HostUser | null): void
+    setClientId?(prefix: string): void
   }): void
   save(docId: string, bytes: Uint8Array, options: { revision: number; reason: string }): Promise<SaveResult>
   dirty(docId: string, dirty: boolean): void
@@ -49,6 +50,8 @@ export interface PageOptions {
   noAccount?: boolean
   /** window.navigator (Web Share for share.js); empty by default. */
   navigator?: Record<string, unknown>
+  /** window.WebSocket (online-live.js); absent by default, so no live channel opens. */
+  WebSocket?: unknown
 }
 
 export function onlinePage(options: PageOptions = {}) {
@@ -67,7 +70,7 @@ export function onlinePage(options: PageOptions = {}) {
   document.body.appendChild(canvas)
   const pathname = options.pathname ?? '/van-ban/'
   const location = {
-    pathname, search: options.search ?? `?doc=${DOC_ID}`, hash: options.hash ?? '', origin: 'https://office.erpcons.ai', reloads: 0,
+    pathname, search: options.search ?? `?doc=${DOC_ID}`, hash: options.hash ?? '', origin: 'https://office.erpcons.ai', protocol: 'https:', host: 'office.erpcons.ai', reloads: 0,
     reload() { location.reloads += 1 },
     /** Navigations the page asked for (location.assign). */
     assigned: [] as string[],
@@ -104,6 +107,7 @@ export function onlinePage(options: PageOptions = {}) {
     setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
     console: { warn: (...args: unknown[]) => logs.push(args), error: (...args: unknown[]) => logs.push(args), log: (...args: unknown[]) => logs.push(args) },
     addEventListener: (type: string, fn: (event: FakeEvent) => void) => { (listeners[type] ||= []).push(fn) },
+    ...(options.WebSocket ? { WebSocket: options.WebSocket } : {}),
   }
   context.window = context
   vm.createContext(context)
@@ -112,12 +116,13 @@ export function onlinePage(options: PageOptions = {}) {
   const opened: HostDoc[] = []
   const modes: { docId: string; mode: string; canDownload: boolean }[] = []
   const users: (HostUser | null)[] = []
+  const clientIds: string[] = []
   /** Window `message` events, as the share/history frame would post them. */
   const messages = (data: unknown, source: unknown, origin = location.origin) => (listeners.message || []).forEach(fn => fn(Object.assign(new FakeEvent('message'), { data, source, origin })))
   const acks: { docId: string; revision: number; version: number }[] = []
   let flushes = 0
   const page = {
-    office, idb, account, clock, document, bar, canvas, location, history, notices, logs, opened, acks, modes, users, messages, hashAtFetch,
+    office, idb, account, clock, document, bar, canvas, location, history, notices, logs, opened, acks, modes, users, clientIds, messages, hashAtFetch,
     window: context,
     get host() { return context.erpHost as ErpHost | undefined },
     get online() { return context.erpOnline as { flush(): Promise<void> } },
@@ -150,6 +155,7 @@ export function onlinePage(options: PageOptions = {}) {
         open: doc => { opened.push(doc) },
         setMode: (docId: string, mode: string, canDownload: boolean) => { modes.push({ docId, mode, canDownload }); onSetMode(docId, mode) },
         setUser: (user: HostUser | null) => { users.push(user) },
+        setClientId: (prefix: string) => { clientIds.push(prefix) },
         flush: () => { flushes += 1; return onFlush() },
         ...(acknowledged ? { acknowledged: (docId: string, revision: number, version: number) => { acks.push({ docId, revision, version }); acknowledged(docId, revision, version) } } : {}),
       })

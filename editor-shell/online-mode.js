@@ -10,6 +10,8 @@
     view: 'Bạn có quyền xem tài liệu này, không sửa được nội dung.'
   }
   var RANK = { view: 0, comment: 1, edit: 2 }
+  /** The live room let this editor in to view only: its editor slots are taken (openapi, "Live limits"). */
+  online.EDITOR_LIMIT_MESSAGE = 'Đã đủ 10 người sửa, bạn đang ở chế độ xem'
 
   // Anything unknown maps to the narrowest mode; the server enforces the role anyway.
   online.modeOf = function (role) { return MODES[role] || 'view' }
@@ -17,6 +19,8 @@
   online.canManageSharing = function (role) { return role === 'owner' || role === 'editor' }
   /** True when `next` takes away something `current` allowed. */
   online.isDowngrade = function (current, next) { return RANK[next] < RANK[current] }
+  /** The narrower of two modes; a missing cap leaves `mode` as it is. */
+  online.capMode = function (mode, cap) { return cap && RANK[cap] !== undefined && RANK[cap] < RANK[mode] ? cap : mode }
 
   online.createModeBadge = function (bar) {
     var badge = document.createElement('span')
@@ -28,12 +32,13 @@
     bar.insertBefore(badge, save || bar.querySelector('.erp-shell__nav'))
     return {
       element: badge,
-      render: function (mode) {
+      /** `notice` 'editor_limit' when the live room, not the role, keeps this user from editing. */
+      render: function (mode, notice) {
         var label = LABELS[mode]
         badge.hidden = !label
         badge.setAttribute('data-erp-mode', label ? mode : '')
         badge.textContent = label || ''
-        badge.title = label ? HINTS[mode] : ''
+        badge.title = label ? (notice === 'editor_limit' && mode === 'view' ? online.EDITOR_LIMIT_MESSAGE : HINTS[mode]) : ''
       }
     }
   }

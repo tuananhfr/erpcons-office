@@ -37,6 +37,8 @@ export class FakeElement {
   parent: FakeElement | null = null
   children: FakeElement[] = []
   attributes: Record<string, string> = {}
+  style: Record<string, string> = {}
+  innerHTML = ''
   listeners: Record<string, Listener[]> = {}
   private content = ''
   private doc: FakeDocument

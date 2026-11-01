@@ -86,7 +86,7 @@
   function primary() { return saver.get(new URLSearchParams(location.search).get('doc')) }
   function renderAccess() {
     var doc = primary()
-    if (modeBadge) modeBadge.render(doc && doc.open ? doc.mode : null)
+    if (modeBadge) modeBadge.render(doc && doc.open ? doc.mode : null, liveNotice)
     if (!docBar) return
     var signedIn = doc && doc.open && !doc.accessLost
     docBar.render({ share: signedIn && online.canManageSharing(doc.role) && doc.canShare !== false, history: signedIn && doc.mode === 'edit' })
@@ -148,6 +148,11 @@
     next.set('doc', id)
     next.delete('version')
     try { history.replaceState(history.state, '', location.pathname + '?' + next.toString()) } catch (e) { /* the URL only matters on reload */ }
+    // The copy has its own room.
+    if (live && liveId !== id) {
+      stopLive()
+      startLive(id)
+    }
     render()
   }
   function randomKey() {
@@ -260,14 +265,15 @@
     }
     if (found.kind !== 'ok' || found.doc.id !== doc.id || doc.accessLost) return
     var meta = found.doc
-    var mode = online.modeOf(meta.role)
+    // The live room may narrow the role's mode (its editor slots are taken); it never widens it.
+    var mode = online.capMode(online.modeOf(meta.role), liveMode)
     var reader = mode !== 'edit'
     // A reader catches up in place; an editor's newer versions come through the conflict flow as in v1.
     if ((reader || doc.mode !== 'edit') && meta.version > doc.version && !doc.pending) {
       return opener.openLatest(doc.id, true)
     }
     saver.setCanShare(doc.id, meta.canShare)
-    if (mode === doc.mode && meta.canDownload === doc.canDownload) return
+    if (mode === doc.mode && meta.canDownload === doc.canDownload && meta.role === doc.role) return
     if (online.isDowngrade(doc.mode, mode)) return downgrade(doc.id, mode, meta.canDownload, meta.role)
     setAccess(doc.id, mode, meta.canDownload, meta.role)
   }
@@ -280,6 +286,75 @@
     },
     onResult: applyAccess
   })
+
+  // The live room (online-live.js): who else is here, and role changes or revocations as they happen. The check above
+  // stays as the fallback for whatever the room cannot say (canDownload, can_share) and for a page without a channel.
+  var presence = bar && !viewingVersion ? online.createPresence(bar) : null
+  var live = null
+  var liveId = null
+  // The room's narrower mode for this member and its reason, kept across reconnects until the next hello says otherwise.
+  var liveMode = null
+  var liveNotice = null
+  var LIVE_MODES = ['edit', 'comment', 'view']
+  function startLive(id) {
+    if (live || viewingVersion || typeof window.WebSocket !== 'function') return
+    liveId = id
+    live = online.createLive({
+      ticket: function () {
+        // Another account's token must never open this page's room (see the otherAccount dialog).
+        if (account.status() !== 'signed-in' || !sameAccount()) return Promise.resolve({ kind: 'signIn' })
+        return api.createLiveTicket(id)
+      },
+      connect: function (ticket) { return new window.WebSocket(online.liveUrl(location, id, ticket)) },
+      backoff: online.backoff,
+      onHello: function (hello) {
+        hostApi.call('setClientId', online.clientId)
+        if (presence) presence.render(hello.members, hello.you)
+        applyLiveMode(hello.mode, hello.notice)
+      },
+      onPresence: function (members) { if (presence) presence.render(members, live ? live.you() : null) },
+      onMode: applyLiveMode,
+      // Access is gone: the same path as a check that found the document missing.
+      onRevoked: function () {
+        stopLive()
+        applyAccess({ kind: 'notFound' })
+      },
+      onRefused: function () {
+        stopLive()
+        watcher.now()
+      }
+    })
+    live.start()
+  }
+  function stopLive() {
+    if (live) live.stop()
+    live = null
+    liveId = null
+    if (presence) presence.clear()
+  }
+  function applyLiveMode(mode, notice) {
+    if (LIVE_MODES.indexOf(mode) === -1) return
+    var before = liveNotice
+    liveMode = mode
+    liveNotice = mode === 'view' && notice === 'editor_limit' ? notice : null
+    var doc = primary()
+    if (!doc || !doc.open || doc.accessLost || doc.id !== liveId) return render()
+    if (liveNotice && !before && window.erpShellNotice) window.erpShellNotice(online.EDITOR_LIMIT_MESSAGE, 'status', 10000)
+    if (before && !liveNotice && mode === 'edit' && window.erpShellNotice) window.erpShellNotice('Đã có chỗ trống, bạn có thể sửa tài liệu.', 'status', 6000)
+    var target = online.capMode(online.modeOf(doc.role), mode)
+    if (target !== doc.mode) {
+      // A downgrade goes through flush → setMode → flush; the check then brings role, can_share and canDownload.
+      if (online.isDowngrade(doc.mode, target)) downgrade(doc.id, target, doc.canDownload).then(function () { watcher.now() })
+      else {
+        setAccess(doc.id, target, doc.canDownload)
+        watcher.now()
+      }
+    } else if (online.modeOf(doc.role) !== mode) {
+      // The room knows of a role change the page has not read yet.
+      watcher.now()
+    }
+    render()
+  }
 
   var panel = online.createPanel({
     onMessage: function (type) {
@@ -361,6 +436,11 @@
     }
     // The profile (and its name) may arrive after the first open.
     if (now && sameAccount()) hostApi.call('setUser', online.hostUser(account))
+    if (!now) stopLive()
+    else if (sameAccount() && !live) {
+      var doc = primary()
+      if (doc && doc.open && !doc.accessLost) startLive(doc.id)
+    }
     signedIn = now
   })
   window.addEventListener('online', function () { if (sameAccount()) saver.resume() })
@@ -381,6 +461,8 @@
   } else {
     opener.load(docId).then(function () {
       watcher.start()
+      var doc = primary()
+      if (doc && doc.open) startLive(doc.id)
       if (shareOnOpen) online.pageShare(null)
     })
   }

@@ -28,6 +28,8 @@
     var bar = document.querySelector('.erp-shell')
     var badge = bar ? online.createModeBadge(bar) : null
     var docBar = bar ? online.createDocBar(bar, { onDownload: download }) : null
+    var presence = bar ? online.createPresence(bar) : null
+    var live = null
 
     var hostApi = online.createHost({
       save: function () { return Promise.resolve({ status: 'failed', retryable: false, message: online.messages.readOnly }) },
@@ -72,15 +74,41 @@
         }
         show(found, false)
         watcher.start()
+        startLive(found.doc.id)
       })
+    }
+    // The room shows a link holder to the others without a name, and shows it nobody's name either (server rule).
+    function startLive(id) {
+      if (live || typeof window.WebSocket !== 'function') return
+      live = online.createLive({
+        ticket: function () { return linkApi.createLiveTicket(token, id) },
+        connect: function (ticket) { return new window.WebSocket(online.liveUrl(location, id, ticket)) },
+        backoff: online.backoff,
+        onHello: function (hello) {
+          hostApi.call('setClientId', online.clientId)
+          if (presence) presence.render(hello.members, hello.you)
+        },
+        onPresence: function (members) { if (presence) presence.render(members, live ? live.you() : null) },
+        onRevoked: function () { stopLive(); gone() },
+        onRefused: function () { stopLive(); watcher.now() }
+      })
+      live.start()
+    }
+    function stopLive() {
+      if (live) live.stop()
+      if (presence) presence.clear()
+    }
+    function gone() {
+      watcher.stop()
+      dialogs.gone(true, false)
     }
 
     var watcher = online.createWatcher({
       check: function () { return linkApi.getLink(token) },
       onResult: function (outcome) {
         if (outcome.kind === 'notFound') {
-          watcher.stop()
-          dialogs.gone(true, false)
+          stopLive()
+          gone()
           return
         }
         if (outcome.kind !== 'ok' || !current) return

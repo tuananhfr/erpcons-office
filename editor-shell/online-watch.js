@@ -1,7 +1,7 @@
 (function () {
   // Re-reads a document's metadata while it is open: a changed role reaches the editor as setMode, a newer version
-  // reaches a read-only reader in place, and a removed permission shows at the next check. Phase 2 has no live channel
-  // yet (plan §9), so this polls, and only while the page is visible.
+  // reaches a read-only reader in place, and a removed permission shows at the next check. The live room (online-live.js)
+  // reports role changes at once; this poll, only while the page is visible, covers the rest and a page without it.
   var online = window.erpOnline = window.erpOnline || {}
   var INTERVAL = 30 * 1000
 

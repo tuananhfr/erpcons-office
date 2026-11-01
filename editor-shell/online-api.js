@@ -156,7 +156,17 @@
         }, function () { return { kind: 'offline' } })
       })
     }
-    return { getDocument: getDocument, getContent: getContent, putContent: putContent, createDocument: createDocument, uploadFile: uploadFile, getVersionContent: getVersionContent }
+    // The live room's one-time ticket (openapi `createLiveTicket`); it is never logged or kept past its one use.
+    function createLiveTicket(id) {
+      return call(path(id, '/live-ticket'), { method: 'POST', headers: { Accept: 'application/json' } }, liveTicketOf)
+    }
+    return { getDocument: getDocument, getContent: getContent, putContent: putContent, createDocument: createDocument, uploadFile: uploadFile, getVersionContent: getVersionContent, createLiveTicket: createLiveTicket }
+  }
+
+  function liveTicketOf(response) {
+    return readJson(response).then(function (body) {
+      return body && typeof body.ticket === 'string' && LINK_TOKEN.test(body.ticket) ? { kind: 'ok', ticket: body.ticket } : MALFORMED
+    })
   }
 
   online.isLinkToken = function (token) { return typeof token === 'string' && LINK_TOKEN.test(token) }
@@ -187,6 +197,19 @@
             return doc ? { kind: 'ok', doc: doc } : MALFORMED
           })
         })
+      },
+      /** The live room's ticket for a link holder: the link token decides, never a signed-in account. */
+      createLiveTicket: function (token, id) {
+        if (!online.isLinkToken(token)) return Promise.resolve({ kind: 'notFound' })
+        var sent
+        try {
+          sent = fetchFn('/api/v1/documents/' + encodeURIComponent(id) + '/live-ticket', {
+            method: 'POST', headers: { Accept: 'application/json', 'X-Link-Token': token }, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'
+          })
+        } catch (e) { return Promise.resolve({ kind: 'offline' }) }
+        return sent.then(function (response) {
+          return response.ok ? liveTicketOf(response) : problem(response)
+        }, function () { return { kind: 'offline' } })
       },
       getLinkContent: function (token) {
         return call(token, '/content', 'application/octet-stream', function (response) {

@@ -142,6 +142,7 @@ erpHost.ready({
   acknowledged(docId, revision, version) {},
   setMode(docId, mode, canDownload) {},   // v2: access changed while the document is open
   setUser(user) {},      // v2: { id, name } of the signed-in PI account, or null for an anonymous link viewer
+  setClientId(prefix) {}, // v2, optional (M3): this page's id prefix for ids the editor creates
 })
 ```
 
@@ -161,6 +162,13 @@ erpHost.ready({
   reaches the server or, if access is gone, the pending store and "Lưu bản của tôi thành bản sao".
 - `setUser` names the author the fork writes into anything it creates for this user (comments, revision marks) instead
   of the local preference name. Called before the first `open` and on account changes.
+- `setClientId(prefix)` (optional; the shell feature-detects it like every handler past `open`): `prefix` is 6
+  lowercase hex characters (24 random bits), drawn once per page load. The shell calls it right after `ready`, before
+  the first `open`, and again (same value) after every `hello` of the live room, also on the public link page. The fork
+  mixes it into every id it newly creates (Văn bản `w14:paraId`, list and comment ids; Trình chiếu slide and shape ids;
+  PDF `/NM`) so that two people adding things to the same document at once never produce the same id. Ids already in
+  the file never change on save or reopen. A fork that never receives it picks its own random prefix: an id never
+  rests on a local counter alone.
 
 ### Rules in `view` and `comment` mode
 
@@ -189,9 +197,18 @@ erpHost.ready({
   `setMode(docId, 'view', …)`, and offers "Lưu bản của tôi thành bản sao" into the user's own root folder.
 - Every downgrade (role change seen on refresh, or the 403/404 above) follows the sequence in `setMode`: `flush()`,
   `setMode`, and a second `flush()` when the document is still dirty; a 403/404 on that save ends in the same offer.
-- Phase 2 has no live channel, so while the page is visible the shell re-reads the document every 30 s: a changed role
-  or `canDownload` becomes `setMode` (after `flush()` when it is a downgrade and edits are in hand), a newer version
-  reaches a reader as `open` with `preserveView`, and a removed permission ends in a "not found" notice.
+- While the page is visible the shell re-reads the document every 30 s: a changed role or `canDownload` becomes
+  `setMode` (after `flush()` when it is a downgrade and edits are in hand), a newer version reaches a reader as `open`
+  with `preserveView`, and a removed permission ends in a "not found" notice.
+- Live room (M3, `online-live.js`; server contract in erpcons-office-server `docs/openapi.yaml`, "Live channel"): once
+  the document is open the shell trades the PI token (on the link page the link token in `X-Link-Token`) for a one-time
+  ticket and opens `wss://<origin>/api/v1/documents/<id>/live?ticket=…`; every reconnect (backoff as for saves, at
+  least 30 s after a full room) takes a fresh ticket. The bar shows the other members (`online-presence.js`). The room's
+  `mode` acts at once: a downgrade follows the `setMode` sequence above, an upgrade (a freed editor slot, a role
+  raised) is applied and the role read again. The room only ever narrows the role's mode: past its editor limit an
+  editor stays in `view` with the notice "Đã đủ 10 người sửa, bạn đang ở chế độ xem" until a slot frees. `bye`
+  `revoked` (close 4003) takes the same path as a check that found the document gone. Leaving the page sends `bye`.
+  The 30 s check stays as the fallback (`canDownload`, `can_share`, a page whose channel cannot open).
 - `/<editor>/?doc=<id>&version=<seq>` opens that version in `view` mode (the history's "Xem"); nothing is saved.
 - `/<editor>/#link=<token>` (public view link): no sign-in, `setUser(null)` whoever is signed in, `mode: 'view'`, every
   save answers `failed`; "Tải về" in the shell bar when `canDownload`. The token is only ever in the fragment, which
