@@ -8,9 +8,24 @@
   // An editor applies a burst of remote region updates one by one; anchors are placed again once it settles.
   var RESOLVE_WAIT = 1500
   var ANCHOR_MAX_BYTES = 8 * 1024
+  // Every member reads the whole list on comments.changed without a thread; anchor patches while someone types
+  // would otherwise make each page fetch it every 1.5 s.
+  var FULL_RELOAD_GAP = 5000
   var NO_SELECTION = 'Chọn nội dung để nhận xét'
 
   function sameJson(a, b) { return JSON.stringify(a) === JSON.stringify(b) }
+  // The server's 8 KiB anchor limit counts UTF-8 bytes; Vietnamese text takes 2–3 per character.
+  function utf8Length(text) {
+    var length = 0
+    for (var i = 0; i < text.length; i++) {
+      var code = text.charCodeAt(i)
+      if (code < 0x80) length += 1
+      else if (code < 0x800) length += 2
+      else if (code >= 0xd800 && code <= 0xdbff) { length += 4; i++ } else length += 3
+    }
+    return length
+  }
+  function anchorFits(anchor) { return utf8Length(JSON.stringify(anchor)) <= ANCHOR_MAX_BYTES }
 
   /**
    * deps: { api (online-comments-api.js), host (online-host.js), doc() → the page's document record | null,
@@ -38,6 +53,9 @@
     var resolveTimer = null
     var deepLink = null
     var anchorWaiting = null
+    var knownRole = null
+    var soonTimer = null
+    var soonAgain = false
 
     var panel = online.createCommentsPanel({
       onClose: function () { closePanel() },
@@ -133,6 +151,20 @@
         }
       })
     }
+    // A whole-list read that follows the room, not the user: at most one per FULL_RELOAD_GAP, the last never lost.
+    function loadSoon() {
+      if (soonTimer) {
+        soonAgain = true
+        return
+      }
+      load()
+      soonTimer = setTimeout(function () {
+        soonTimer = null
+        if (!soonAgain) return
+        soonAgain = false
+        loadSoon()
+      }, FULL_RELOAD_GAP)
+    }
     function refreshThread(threadId) {
       if (!UUID.test(threadId)) return
       var id = docId
@@ -213,7 +245,7 @@
       Promise.resolve(deps.host.call('anchorOfSelection')).then(function (anchor) {
         var json = anchor && typeof anchor === 'object' && !Array.isArray(anchor) ? JSON.stringify(anchor) : null
         if (!json || online.commentAnchor.isDocument(anchor)) return deps.notice(NO_SELECTION)
-        if (json.length > ANCHOR_MAX_BYTES) return deps.notice('Không gắn được nhận xét vào chỗ này. Hãy chọn đoạn ngắn hơn.')
+        if (!anchorFits(anchor)) return deps.notice('Không gắn được nhận xét vào chỗ này. Hãy chọn đoạn ngắn hơn.')
         if (!sameJson(draftAnchor, anchor)) draftKey = null
         draftAnchor = anchor
         openPanel()
@@ -229,7 +261,8 @@
       var id = docId
       Promise.resolve(deps.host.call('resolveAnchors', threads)).then(function (updates) {
         if (id !== docId || !visible) return
-        var changes = online.anchorChanges(updates, store)
+        // An anchor the server would refuse (422) is left as it is rather than sent again on every pause.
+        var changes = online.anchorChanges(updates, store).filter(function (change) { return !change.anchor || anchorFits(change.anchor) })
         if (!changes.length) return
         mutations += 1
         changes.forEach(function (change) {
@@ -244,7 +277,7 @@
         })
         render()
         return deps.api.patchAnchors(id, changes).then(function (outcome) {
-          if (outcome.kind !== 'ok') load()
+          if (outcome.kind !== 'ok') loadSoon()
         })
       }, function () { /* the editor could not place them now; the next content change tries again */ })
     }
@@ -296,6 +329,14 @@
         var doc = deps.doc()
         var nowVisible = rights().see
         var id = doc ? doc.id : null
+        var role = doc ? doc.role : null
+        var roleChanged = role !== knownRole
+        knownRole = role
+        if (nowVisible && visible && id === docId && roleChanged) {
+          // can_resolve came with the last list and belongs to the old role.
+          canResolve = null
+          load()
+        }
         if (nowVisible && (!visible || id !== docId)) {
           visible = true
           docId = id
@@ -334,7 +375,7 @@
           var ids = changedIds
           changedIds = null
           changedTimer = null
-          if (ids['*']) return load()
+          if (ids['*']) return loadSoon()
           Object.keys(ids).forEach(refreshThread)
         }, CHANGED_WAIT)
       },

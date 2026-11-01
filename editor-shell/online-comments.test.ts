@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { FakeComments } from './fake-comments.ts'
 import { FakeEvent, type FakeElement } from './fake-dom.ts'
-import { DOC_ID, FakeOffice } from './fake-office.ts'
+import { DOC_ID, FakeOffice, problem } from './fake-office.ts'
 import { fakeWebSocket, type FakeSocket } from './fake-websocket.ts'
 import { flush, onlinePage, type HostDoc, type PageOptions } from './online-harness.ts'
 
@@ -542,5 +542,76 @@ describe('placing anchors again (resolveAnchors)', () => {
     socket.receive({ type: 'hello', v: 1, you: 'm2', mode: 'edit', notice: null, colour: '#1f6feb', seq: 1, leader: 'm1', members: [], limits: {} })
     await tick(page, 2000)
     expect(fork.resolved).toEqual([])
+  })
+})
+
+describe('load on the server and stale rights (M6 review)', () => {
+  const hello = (mode = 'edit') => ({ type: 'hello', v: 1, you: 'm1', mode, notice: null, colour: '#1f6feb', seq: 1, leader: 'm1', members: [{ id: 'm1', kind: 'user', name: 'An', colour: '#1f6feb', mode, state: 'active' }], limits: {} })
+  async function livePage(role = 'owner', options: ForkOptions & { seed?: (c: FakeComments) => void; office?: FakeOffice } = {}) {
+    const ws = fakeWebSocket()
+    const ctx = await commentPage(role, { ...options, WebSocket: ws.WebSocket })
+    const socket = ws.sockets[0] as FakeSocket
+    socket.accept()
+    socket.receive(hello())
+    await ctx.page.settle()
+    return { ...ctx, ws, socket }
+  }
+
+  it('a storm of comments.changed (anchor patches while someone types) reads the whole list at most every 5 s', async () => {
+    const { page, comments, socket } = await livePage()
+    const lists = () => commentCalls(comments, 'GET').filter(c => /\/comments\?/.test(c.path)).length
+    const before = lists()
+    for (let i = 0; i < 4; i++) {
+      socket.receive({ type: 'comments.changed', v: 1, thread_id: null })
+      await tick(page, 1000)
+    }
+    expect(lists()).toBe(before + 1)
+    await tick(page, 2000)
+    // The last change is never lost: one trailing read once the gap is over.
+    expect(lists()).toBe(before + 2)
+  })
+
+  it('a failed anchor PATCH does not read the list again at once', async () => {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1, 2, 3), null, 'owner')
+    // Registered before the fake comment routes, so it answers every PATCH first.
+    office.on(call => (call.method === 'PATCH' ? problem(429, 'RATE_LIMITED', { message_vi: 'x', request_id: 'r', retryable: true }) : undefined), false)
+    let turn = 0
+    const { page, comments } = await livePage('owner', {
+      office,
+      seed: c => { c.seed(DOC_ID, { anchor: ANCHOR }) },
+      resolve: threads => [{ id: threads[0].id, anchor: { ...ANCHOR, order: [9, ++turn] }, status: 'open' }],
+    })
+    const lists = () => commentCalls(comments, 'GET').filter(c => /\/comments\?/.test(c.path)).length
+    await tick(page, 2000)
+    const before = lists()
+    for (let i = 0; i < 3; i++) {
+      page.host!.opened(DOC_ID, true)
+      await tick(page, 1600)
+    }
+    expect(office.calls.filter(c => c.method === 'PATCH').length).toBeGreaterThanOrEqual(2)
+    expect(lists() - before).toBeLessThanOrEqual(1)
+  })
+
+  it('an anchor over 8 KiB in UTF-8 (short in UTF-16) is refused before any request', async () => {
+    const label = 'Ồ'.repeat(3000)
+    const { page, comments } = await commentPage('owner', { anchor: () => ({ v: 1, region: 'para:1', label }) })
+    barButton(page, 'comment').click()
+    await page.settle()
+    expect(page.notices.at(-1)?.text).toBe('Không gắn được nhận xét vào chỗ này. Hãy chọn đoạn ngắn hơn.')
+    expect(panel(page).hidden).toBe(true)
+    expect(commentCalls(comments, 'POST')).toEqual([])
+  })
+
+  it('an editor turned commenter in the room loses "Đánh dấu đã xử lý" at once', async () => {
+    const { page, office, socket } = await livePage('editor', { seed: c => { c.seed(DOC_ID, { anchor: ANCHOR }) } })
+    barButton(page, 'comments').click()
+    await page.settle()
+    expect(q(page, '[data-erp-thread-resolve]')).not.toBeNull()
+    office.setRole(DOC_ID, 'commenter')
+    socket.receive({ type: 'mode', v: 1, mode: 'comment' })
+    await tick(page, 1000)
+    expect(q(page, '[data-erp-mode]')?.textContent).toBe('Chỉ nhận xét')
+    expect(q(page, '[data-erp-thread-resolve]')).toBeNull()
+    expect(q(page, '[data-erp-thread-delete]')).toBeNull()
   })
 })
