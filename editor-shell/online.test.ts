@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { FakeEvent, actionLabels, buttonNamed } from './fake-dom.ts'
 import { FakeIdb } from './fake-idb.ts'
 import { DOC_ID, FakeOffice, OTHER_ID, problem } from './fake-office.ts'
 import { flush, onlinePage, type PageOptions } from './online-harness.ts'
+
+// The whole page runs in node for each test; a loaded machine took 6 s for the longest retry tests.
+vi.setConfig({ testTimeout: 30 * 1000 })
 
 const NOT_FOUND = 'Không tìm thấy tài liệu hoặc bạn không có quyền mở'
 const bytes = (...values: number[]) => new Uint8Array(values)
