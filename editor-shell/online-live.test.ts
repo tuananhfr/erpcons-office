@@ -137,13 +137,14 @@ describe('presence in the bar', () => {
     expect(presence(page)!.hidden).toBe(true)
   })
 
-  it('past three faces a "+N"; the narrow bar uses its own count after one face', async () => {
+  it('past three faces a "+N"; the phone bar shows how many others instead of the faces', async () => {
     const { page, sockets } = await livePage()
     const others = ['Bình', 'Chi', 'Dũng', 'Giang', 'Hà'].map((name, at) => member(`m${at + 2}`, { name }))
     join(sockets[0], { members: [member('m1', { name: 'An' }), ...others] })
     expect(faces(page)).toHaveLength(3)
     expect(textOf(presence(page)!.querySelectorAll('.erp-shell__face--more-wide'))).toEqual(['+2'])
-    expect(textOf(presence(page)!.querySelectorAll('.erp-shell__face--more-narrow'))).toEqual(['+4'])
+    expect(textOf(presence(page)!.querySelectorAll('.erp-shell__face--count'))).toEqual(['5'])
+    expect(faces(page).every(f => f.className.includes('--wide'))).toBe(true)
     expect(peopleButton(page).getAttribute('aria-label')).toBe('5 người khác đang mở tài liệu. Xem danh sách')
   })
 
@@ -152,6 +153,9 @@ describe('presence in the bar', () => {
     join(sockets[0])
     sockets[0].receive({ type: 'presence', v: 1, seq: 2, members: [member('m1'), member('m4', { name: 'Lê Hoa' })] })
     expect(textOf(faces(page))).toEqual(['H'])
+    // One other person: their face on the phone bar too, no count.
+    expect(faces(page)[0].className).not.toContain('--wide')
+    expect(presence(page)!.querySelectorAll('.erp-shell__face--count')).toHaveLength(0)
     sockets[0].drop(1006)
     expect(presence(page)!.hidden).toBe(true)
   })

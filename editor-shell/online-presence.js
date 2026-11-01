@@ -2,9 +2,9 @@
   // Who else has the document open (the live room's members): overlapping initials in the shell bar, "+N" past the
   // first few, and a list on click. Link holders and names the server withholds stay anonymous.
   var online = window.erpOnline = window.erpOnline || {}
-  // Faces shown before "+N": the narrow bar (under 480 px, shell.css) keeps one, the others three.
+  // Faces shown before "+N". The phone bar (under 480 px, shell.css) has room for one circle: the face of the one
+  // other person, or how many others there are.
   var WIDE = 3
-  var NARROW = 1
   var COLOUR = /^#[0-9a-f]{6}$/i
   var FALLBACK = '#5b6b7a'
   // bootstrap-icons 1.13.1 person-fill (MIT), the set the shell bar already uses.
@@ -115,22 +115,22 @@
       button.textContent = ''
       others.slice(0, WIDE).forEach(function (member, at) {
         var el = face(member, 'erp-shell__face', false)
-        if (at >= NARROW) el.className += ' erp-shell__face--wide'
+        if (others.length > 1) el.className += ' erp-shell__face--wide'
         el.setAttribute('data-erp-presence-member', member.mode === 'edit' ? 'edit' : 'view')
         el.setAttribute('role', 'img')
         el.setAttribute('aria-label', online.memberName(member) + ' ' + activity(member))
         el.title = online.memberName(member) + ' · ' + activity(member)
         button.appendChild(el)
       })
-      ;[[WIDE, 'erp-shell__face--more-wide'], [NARROW, 'erp-shell__face--more-narrow']].forEach(function (pair) {
-        var rest = others.length - pair[0]
-        if (rest <= 0) return
+      function chip(text, className) {
         var more = document.createElement('span')
-        more.className = 'erp-shell__face erp-shell__face--more ' + pair[1]
-        more.textContent = '+' + rest
+        more.className = 'erp-shell__face erp-shell__face--more ' + className
+        more.textContent = text
         more.setAttribute('aria-hidden', 'true')
         button.appendChild(more)
-      })
+      }
+      if (others.length > WIDE) chip('+' + (others.length - WIDE), 'erp-shell__face--more-wide')
+      if (others.length > 1) chip(String(others.length), 'erp-shell__face--count')
       var label = others.length === 1 ? online.memberName(others[0]) + ' ' + activity(others[0]) : others.length + ' người khác đang mở tài liệu'
       button.setAttribute('aria-label', label + '. Xem danh sách')
       button.title = others.length > 1 ? label : ''

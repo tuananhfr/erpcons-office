@@ -282,7 +282,8 @@ html.erp-embedded .erp-shell { display: none; }
   .erp-shell__online-btn:not(.erp-shell__online-btn--primary) .erp-shell__online-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 /* Presence (online-presence.js): one button holding the others' faces, each ringed in the bar's surface so overlaps
-   read as separate people; the list opens under it like the account panel. Colours come from the server. */
+   read as separate people; the list opens under it, towards the bar's middle (the faces sit left of the document
+   buttons). Colours come from the server. */
 .erp-shell__people { position: relative; flex: none; display: flex; align-items: center; }
 .erp-shell__people[hidden], .erp-shell__people-panel[hidden] { display: none; }
 .erp-shell__people-btn {
@@ -299,13 +300,14 @@ html.erp-embedded .erp-shell { display: none; }
 /* Idle (tab hidden or no input for a while): still listed, drawn quieter. */
 .erp-shell__face--idle { opacity: 0.55; }
 .erp-shell__face--more { background: var(--erp-surface-2); color: var(--erp-ink); font-size: 11px; letter-spacing: -0.02em; }
-.erp-shell__face--more-narrow { display: none; }
+.erp-shell__face--count { display: none; }
 @media (max-width: 479px) {
+  .erp-shell__people-btn { padding: 0; }
   .erp-shell__face--wide, .erp-shell__face--more-wide { display: none; }
-  .erp-shell__face--more-narrow { display: inline-flex; }
+  .erp-shell__face--count { display: inline-flex; }
 }
 .erp-shell__people-panel {
-  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; box-sizing: border-box;
+  position: absolute; left: 0; top: calc(100% + 8px); z-index: 60; box-sizing: border-box;
   width: max-content; min-width: 220px; max-width: min(320px, calc(100vw - 24px - var(--erp-inset-left) - var(--erp-inset-right)));
   max-height: calc(100dvh - var(--erp-top) - var(--erp-bottom) - 16px); overflow: auto;
   padding: 8px; border: 1px solid var(--erp-border); border-radius: 8px; background: var(--erp-surface); color: var(--erp-ink);
@@ -318,10 +320,13 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__people-text { display: grid; min-width: 0; }
 .erp-shell__people-name { font-weight: 600; overflow-wrap: anywhere; }
 .erp-shell__people-mode { color: var(--erp-text-2); font-size: 12px; }
-/* Near the left edge of a phone the panel would leave the screen; it hangs from the bar's right edge instead. */
+/* A phone's bar leaves no room to hang it from the faces: it spans the screen under the bar. */
 @media (max-width: 479px) {
   .erp-shell__people { position: static; }
-  .erp-shell__people-panel { right: calc(12px + var(--erp-inset-right)); top: calc(var(--erp-top) + 4px); position: fixed; }
+  .erp-shell__people-panel {
+    position: fixed; top: calc(var(--erp-top) + 4px); left: calc(12px + var(--erp-inset-left)); right: calc(12px + var(--erp-inset-right));
+    width: auto; max-width: none;
+  }
 }
 /* An online document adds the save state, badge and buttons to a bar sized for the Free tier. What gives way, widest
    first: the brand words (the logo stays), then the editor name (it is in the menu and the tab title), then the gaps. */
