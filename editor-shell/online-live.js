@@ -26,8 +26,9 @@
   /**
    * deps: { ticket() → Promise<outcome> (online-api.js kinds), connect(ticket) → WebSocket, backoff(attempt, retryAfter),
    * onHello(msg), onPresence(members), onMode(mode, notice), onLeader(id), onRevoked(), onRefused(), onMessage(msg),
-   * onDown() }
-   * onMessage: the co-editing messages (online-regions.js); onDown: a greeted session ended.
+   * onDown(), onComments(threadId) }
+   * onMessage: the co-editing messages (online-regions.js); onDown: a greeted session ended; onComments(threadId |
+   * null): `comments.changed`.
    * onRevoked: the server ended the session because access is gone (bye `revoked`, 4003); onRefused: the ticket was
    * refused with 403/404. Neither reconnects.
    */
@@ -115,6 +116,9 @@
         call('onMode', msg.mode, msg.notice || null)
       } else if (msg.type === 'leader') {
         call('onLeader', typeof msg.leader === 'string' ? msg.leader : null)
+      } else if (msg.type === 'comments.changed') {
+        // Which thread changed, never what: the page reads it again (M5).
+        call('onComments', typeof msg.thread_id === 'string' ? msg.thread_id : null)
       } else if (msg.type === 'bye') {
         byeReason = msg.reason
       } else if (REGION_TYPES.indexOf(msg.type) !== -1) {

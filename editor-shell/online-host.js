@@ -18,7 +18,7 @@
 
   /**
    * deps: { save(id, bytes, options) → Promise<SaveResult>, dirty(id, dirty), opened(id, ok, reason), closed(id),
-   * user() → { id, name } | null }
+   * user() → { id, name } | null, commentClicked(threadId) }
    */
   online.createHost = function (deps) {
     var handlers = null
@@ -68,7 +68,9 @@
       },
       regionChanged: function (regionId, payload) { if (regions) regions.changed(String(regionId), payload) },
       regionDidEndEdit: function (regionId) { if (regions) regions.didEndEdit(String(regionId)) },
-      selectionChanged: function (regionId, range) { if (regions) regions.selection(String(regionId), range) }
+      selectionChanged: function (regionId, range) { if (regions) regions.selection(String(regionId), range) },
+      // v3 comments: the user clicked a thread's mark in the document.
+      commentClicked: function (threadId) { if (deps.commentClicked) deps.commentClicked(String(threadId)) }
     })
 
     return {

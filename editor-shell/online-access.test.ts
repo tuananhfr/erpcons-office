@@ -61,11 +61,11 @@ describe('modes from the role', () => {
     expect(page.idb.rows('pending')).toEqual([])
   })
 
-  it('a commenter reads "Chỉ xem" until web comments come (M5), with no Chia sẻ or Lịch sử', async () => {
+  it('a commenter reads "Chỉ nhận xét" (M5 web comments), with no Chia sẻ or Lịch sử', async () => {
     const page = await opened({ office: office('commenter') })
     expect(page.opened[0]).toMatchObject({ mode: 'comment' })
-    expect(modeBadge(page)).toBe('Chỉ xem')
-    expect(page.document.querySelector('[data-erp-mode]')!.title).toBe('Nhận xét trên web sẽ có sau, hiện chỉ xem được')
+    expect(modeBadge(page)).toBe('Chỉ nhận xét')
+    expect(page.document.querySelector('[data-erp-mode]')!.title).toBe('Bạn có thể xem và nhận xét, không sửa được nội dung.')
     expect(shown(page, 'share')).toBe(false)
     expect(shown(page, 'history')).toBe(false)
   })

@@ -3,10 +3,9 @@
   // allows, and the bar says so next to the save state.
   var online = window.erpOnline = window.erpOnline || {}
   var MODES = { owner: 'edit', editor: 'edit', commenter: 'comment', viewer: 'view', link: 'view' }
-  // Comments on the web come with M5; until then comment mode reads like view mode, in the forks' words too.
-  var LABELS = { comment: 'Chỉ xem', view: 'Chỉ xem' }
+  var LABELS = { comment: 'Chỉ nhận xét', view: 'Chỉ xem' }
   var HINTS = {
-    comment: 'Nhận xét trên web sẽ có sau, hiện chỉ xem được',
+    comment: 'Bạn có thể xem và nhận xét, không sửa được nội dung.',
     view: 'Bạn có quyền xem tài liệu này, không sửa được nội dung.'
   }
   var RANK = { view: 0, comment: 1, edit: 2 }

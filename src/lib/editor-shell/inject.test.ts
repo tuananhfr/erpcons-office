@@ -122,9 +122,9 @@ describe('injectEditorShell', () => {
     const rule = out.match(/#wordcraft_canvas\{[^}]*\}/)![0]
     expect(rule).toContain('top:var(--erp-top)!important')
     expect(rule).toContain('left:var(--erp-inset-left)!important')
-    expect(rule).toContain('right:var(--erp-inset-right)!important')
+    expect(rule).toContain('right:var(--erp-right, var(--erp-inset-right))!important')
     expect(rule).toContain('bottom:var(--erp-bottom)!important')
-    expect(rule).toContain('width:calc(100% - var(--erp-inset-left) - var(--erp-inset-right))!important')
+    expect(rule).toContain('width:calc(100% - var(--erp-inset-left) - var(--erp-right, var(--erp-inset-right)))!important')
     expect(rule).toContain('height:calc(100% - var(--erp-top) - var(--erp-bottom))!important')
   })
 

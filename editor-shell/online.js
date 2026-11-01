@@ -33,6 +33,8 @@
   if (!params.has('doc')) return
   // Set by the editor's "Chia sẻ" after it saved a local file here (online-share.js); one use only.
   var shareOnOpen = params.get('share') === '1'
+  // A mail's link to one comment thread; it leaves the URL once handled, so a reload is a plain open.
+  var commentParam = params.get('comment')
   if (params.has('share')) {
     params.delete('share')
     try { history.replaceState(history.state, '', location.pathname + '?' + params.toString()) } catch (e) { /* the URL only matters on reload */ }
@@ -69,7 +71,11 @@
   var bar = document.querySelector('.erp-shell')
   var indicator = bar ? online.createIndicator(bar) : null
   var modeBadge = bar ? online.createModeBadge(bar) : null
-  var docBar = bar && !viewingVersion ? online.createDocBar(bar, { onShare: openShare, onHistory: openHistory }) : null
+  var docBar = bar && !viewingVersion ? online.createDocBar(bar, {
+    onShare: openShare, onHistory: openHistory,
+    onComment: function () { if (comments) comments.add() },
+    onComments: function () { if (comments) comments.toggle() }
+  }) : null
   var renderQueued = false
   // Coalesced: after a save resolves, the editor's dirty(false) follows at once; showing the state in between
   // would flash "Chưa lưu lên máy chủ".
@@ -83,13 +89,19 @@
     }, 0)
   }
   // The document in the URL speaks for the bar; a copy saved from a conflict takes its place there.
-  function primary() { return saver.get(new URLSearchParams(location.search).get('doc')) }
+  function pageDocId() { return new URLSearchParams(location.search).get('doc') }
+  function primary() { return saver.get(pageDocId()) }
   function renderAccess() {
     var doc = primary()
     if (modeBadge) modeBadge.render(doc && doc.open ? doc.mode : null, liveNotice)
+    if (comments) comments.update()
     if (!docBar) return
     var signedIn = doc && doc.open && !doc.accessLost
-    docBar.render({ share: signedIn && online.canManageSharing(doc.role) && doc.canShare !== false, history: signedIn && doc.mode === 'edit' })
+    docBar.render({
+      share: signedIn && online.canManageSharing(doc.role) && doc.canShare !== false, history: signedIn && doc.mode === 'edit',
+      comment: Boolean(comments && comments.canWrite()), comments: Boolean(comments && comments.visible()),
+      commentCount: comments ? comments.openCount() : 0, commentsOpen: Boolean(comments && comments.isOpen())
+    })
   }
   var idb = null
   try { idb = window.indexedDB || null } catch (e) { idb = null }
@@ -128,6 +140,7 @@
     opened: function (id, ok, reason) {
       openedIds[id] = Boolean(ok)
       if (ok && regions && id === liveId) regions.opened()
+      if (ok && comments && id === pageDocId()) comments.opened()
       if (ok) return
       var doc = saver.get(id)
       var intake = window.erpIntake
@@ -137,13 +150,15 @@
       saver.closed(id)
     },
     closed: function (id) { saver.closed(id) },
-    user: function () { return online.hostUser(account) }
+    user: function () { return online.hostUser(account) },
+    commentClicked: function (threadId) { if (comments) comments.clicked(threadId) }
   })
   // Optional in v1: an editor built before acknowledged() stays dirty until its next save.
   function acknowledge(id, revision, version) { hostApi.call('acknowledged', id, revision, version) }
   function deliver(doc) {
     openedIds[doc.docId] = false
     if (regions && doc.docId === liveId) regions.loaded()
+    if (comments && doc.docId === pageDocId()) comments.loaded()
     return hostApi.deliver(doc)
   }
   var opener = online.createOpener({
@@ -156,6 +171,7 @@
     var next = new URLSearchParams(location.search)
     next.set('doc', id)
     next.delete('version')
+    next.delete('comment')
     try { history.replaceState(history.state, '', location.pathname + '?' + next.toString()) } catch (e) { /* the URL only matters on reload */ }
     // The copy has its own room.
     if (live && liveId !== id) {
@@ -276,6 +292,9 @@
     var meta = found.doc
     // The live room may narrow the role's mode (its editor slots are taken); it never widens it.
     var mode = online.capMode(online.modeOf(meta.role), liveMode)
+    // Without a live room nothing says when comments change; the check reads them again, unless the new role
+    // may not (its 403 would ask for this check again).
+    if (comments && !(live && live.connected()) && online.commentRights(meta.role, mode, null).see) comments.poll()
     var reader = mode !== 'edit'
     // A reader catches up in place; an editor's newer versions come through the conflict flow as in v1. A co-editing
     // room already brings every change as it happens.
@@ -309,6 +328,7 @@
   var liveMode = null
   var liveNotice = null
   var LIVE_MODES = ['edit', 'comment', 'view']
+  var greetedOnce = false
   function startLive(id) {
     if (live || viewingVersion || typeof window.WebSocket !== 'function') return
     liveId = id
@@ -331,7 +351,10 @@
       reload: function () { return opener.openLatest(id, true) },
       ask: function (list) { return dialogs.regionConflict(list.length) },
       onChange: function () { if (cosave) cosave.update() },
-      onRoomChange: function () { if (cosave) cosave.roomChanged() },
+      onRoomChange: function () {
+        if (cosave) cosave.roomChanged()
+        if (comments) comments.contentChanged()
+      },
       onLeader: function (now) { if (cosave) cosave.leader(now) },
       onSaved: function (seq) { if (cosave) cosave.saved(seq) },
       onSaveRequest: function () { if (cosave) cosave.saveRequest() },
@@ -349,6 +372,9 @@
       backoff: online.backoff,
       onHello: function (hello) {
         hostApi.call('setClientId', online.clientId)
+        // A rejoin may have missed comments.changed; the first hello finds the list still on its way.
+        if (comments && greetedOnce) comments.resync()
+        greetedOnce = true
         online.setEditorLimit(hello.limits)
         if (presence) presence.render(hello.members, hello.you)
         applyLiveMode(hello.mode, hello.notice)
@@ -363,6 +389,7 @@
       },
       onLeader: function (leader) { regions.leader(leader) },
       onMessage: function (message) { regions.receive(message) },
+      onComments: function (threadId) { if (comments) comments.changed(threadId) },
       onDown: function () {
         regions.down()
         cosave.down()
@@ -413,6 +440,24 @@
     }
     render()
   }
+
+  // Comments (online-comments.js): owner, editors and commenters, never a version page.
+  var comments = bar && !viewingVersion ? online.createComments({
+    api: online.createCommentsApi(account.apiFetch),
+    host: hostApi,
+    doc: primary,
+    notice: function (text) { if (window.erpShellNotice) window.erpShellNotice(text, 'status', 6000) },
+    // One page places anchors again for everyone: the room's leader, or each page while no one leads.
+    resolver: function () { return !(live && live.connected()) || !regions || regions.leaderId() === null || regions.isLeader() },
+    onAccessChanged: function () { watcher.now() },
+    onChange: render,
+    onDeepLinkDone: function () {
+      var next = new URLSearchParams(location.search)
+      if (!next.has('comment')) return
+      next.delete('comment')
+      try { history.replaceState(history.state, '', location.pathname + '?' + next.toString()) } catch (e) { /* the URL only matters on reload */ }
+    }
+  }) : null
 
   var panel = online.createPanel({
     onMessage: function (type) {
@@ -523,6 +568,7 @@
       var doc = primary()
       if (doc && doc.open) startLive(doc.id)
       if (shareOnOpen) online.pageShare(null)
+      if (comments && commentParam !== null) comments.deepLink(commentParam)
     })
   }
 })()

@@ -675,6 +675,8 @@
       phase: function () { return phase },
       you: function () { return you },
       isLeader: function () { return leader !== null && leader === you },
+      /** The room's leader member id, or null (nobody edits, or no room). */
+      leaderId: function () { return leader },
       /** Members in `edit` mode, this page included. */
       editors: function () { return members.filter(function (member) { return member.mode === 'edit' }).length },
       /** How many edits this page made so far; a save remembers it to know when they all reached the room. */

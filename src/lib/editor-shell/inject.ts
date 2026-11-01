@@ -97,10 +97,12 @@ function navLinks(current: EditorEntry, editors: readonly EditorEntry[]): string
 function headTags(editor: EditorEntry, assets: ShellAssets): string {
   // Upstream styles pin the canvas to the viewport; keep it below the bar, inside the safe area and above the
   // keyboard (shell.css vars) for both layouts (absolute and flow). A canvas is a replaced element: without an
-  // explicit size, left/right/bottom would leave it at its bitmap size.
+  // explicit size, left/right/bottom would leave it at its bitmap size. `--erp-right` (shell.css) also leaves room for
+  // the comments side sheet on desktop; the fallback keeps an older shell.css working.
+  const right = 'var(--erp-right, var(--erp-inset-right))'
   const below = (id: string) =>
-    `#${id}{position:absolute!important;top:var(--erp-top)!important;left:var(--erp-inset-left)!important;right:var(--erp-inset-right)!important;bottom:var(--erp-bottom)!important;`
-    + `width:calc(100% - var(--erp-inset-left) - var(--erp-inset-right))!important;height:calc(100% - var(--erp-top) - var(--erp-bottom))!important}`
+    `#${id}{position:absolute!important;top:var(--erp-top)!important;left:var(--erp-inset-left)!important;right:${right}!important;bottom:var(--erp-bottom)!important;`
+    + `width:calc(100% - var(--erp-inset-left) - ${right})!important;height:calc(100% - var(--erp-top) - var(--erp-bottom))!important}`
   const placement = [editor.canvasId, editor.loadingId].filter((id): id is string => Boolean(id)).map(below).join('')
   // The editors pan and pinch themselves; without this the browser may still claim the gesture (scroll, zoom)
   // and Chrome warns about eframe's non-passive document touch listeners.
