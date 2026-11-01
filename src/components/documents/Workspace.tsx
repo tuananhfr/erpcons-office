@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { createDocumentsApi } from '@/lib/documents/api.ts'
 import { documentUrl, type KindInfo } from '@/lib/documents/formats.ts'
 import { MESSAGES } from '@/lib/documents/problem.ts'
-import { canEdit, isOwner } from '@/lib/documents/roles.ts'
+import { documentActions, isOwner } from '@/lib/documents/roles.ts'
 import { ROOT_VIEW, type Crumb } from '@/lib/documents/route.ts'
 import { createSharingApi } from '@/lib/documents/sharing-api.ts'
 import type { ApiFetch, DocumentItem, Folder, Page, Result, SharedDocument } from '@/lib/documents/types.ts'
@@ -98,15 +98,14 @@ export function Workspace({ apiFetch, userId }: { apiFetch: ApiFetch; userId: st
     navigate({ kind: 'folder', folderId: folder.id, trail: [...base, { id: folder.id, name: folder.name }] })
   }, [navigate, folderId, trail])
 
-  // Plan §3: what each role may do decides what its menu offers; the server refuses the rest anyway.
-  const documentItems = (doc: DocumentItem, open: () => void): MenuItem[] => [
-    { label: 'Mở', icon: icons.open, onSelect: open },
-    { label: 'Chia sẻ', icon: icons.share, onSelect: () => setDialog({ kind: 'share', doc }) },
-    ...(canEdit(doc) ? [
-      { label: 'Lịch sử phiên bản', icon: icons.history, onSelect: () => setDialog({ kind: 'history', doc }) },
-      { label: 'Đổi tên', icon: icons.rename, onSelect: () => setDialog({ kind: 'rename', target: targetOfDocument(doc) }) },
-    ] : []),
-  ]
+  const documentItems = (doc: DocumentItem, open: () => void): MenuItem[] => documentActions(doc).map((action): MenuItem => {
+    switch (action) {
+      case 'open': return { label: 'Mở', icon: icons.open, onSelect: open }
+      case 'share': return { label: 'Chia sẻ', icon: icons.share, onSelect: () => setDialog({ kind: 'share', doc }) }
+      case 'history': return { label: 'Lịch sử phiên bản', icon: icons.history, onSelect: () => setDialog({ kind: 'history', doc }) }
+      case 'rename': return { label: 'Đổi tên', icon: icons.rename, onSelect: () => setDialog({ kind: 'rename', target: targetOfDocument(doc) }) }
+    }
+  })
   const menu = (target: MoveTarget, open: () => void, doc?: DocumentItem) => <RowMenu label={`Thao tác với “${target.name}”`} items={[
     ...(doc ? documentItems(doc, open) : [
       { label: 'Mở', icon: icons.open, onSelect: open },

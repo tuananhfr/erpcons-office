@@ -20,3 +20,14 @@ export const GRANT_ROLE_OPTIONS: readonly { role: GrantRole; label: string }[] =
 export const canEdit = (doc: Pick<DocumentItem, 'role'>) => doc.role === 'owner' || doc.role === 'editor'
 /** Only the owner moves, trashes and purges. */
 export const isOwner = (doc: Pick<DocumentItem, 'role'>) => doc.role === 'owner'
+
+export type DocumentAction = 'open' | 'share' | 'history' | 'rename'
+
+/** What a document row's menu offers the caller (plan §3); the server refuses the rest anyway. */
+export function documentActions(doc: Pick<DocumentItem, 'role' | 'canShare'>): DocumentAction[] {
+  return [
+    'open',
+    ...(doc.canShare ? ['share' as const] : []),
+    ...(canEdit(doc) ? ['history' as const, 'rename' as const] : []),
+  ]
+}

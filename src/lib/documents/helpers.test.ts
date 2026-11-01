@@ -6,6 +6,7 @@ import { KINDS, documentUrl } from './formats.ts'
 import { createIdempotency, randomKey } from './idempotency.ts'
 import { nameError, normalizeName } from './names.ts'
 import { quotaLevel, quotaPercent, quotaSummary } from './quota.ts'
+import { documentActions } from './roles.ts'
 import { ROOT_VIEW, parseView, viewHash, viewState } from './route.ts'
 import { checkUpload, maxUploadBytes } from './upload-check.ts'
 
@@ -145,5 +146,16 @@ describe('route', () => {
     expect(parseView('#thung-rac', null)).toEqual({ kind: 'trash' })
     expect(parseView('#thu-muc=../../x', null)).toEqual(ROOT_VIEW)
     expect(parseView('', null)).toEqual(ROOT_VIEW)
+  })
+})
+
+describe('documentActions', () => {
+  it('offers Chia sẻ only to a caller who may share, history and rename only to the owner and editors', () => {
+    expect(documentActions({ role: 'owner', canShare: true })).toEqual(['open', 'share', 'history', 'rename'])
+    expect(documentActions({ role: 'editor', canShare: true })).toEqual(['open', 'share', 'history', 'rename'])
+    // The owner turned "editors can share" off.
+    expect(documentActions({ role: 'editor', canShare: false })).toEqual(['open', 'history', 'rename'])
+    expect(documentActions({ role: 'commenter', canShare: false })).toEqual(['open'])
+    expect(documentActions({ role: 'viewer', canShare: false })).toEqual(['open'])
   })
 })
