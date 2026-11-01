@@ -251,9 +251,9 @@ erpHost.selectionChanged(regionId, range) // caret or selection, for the other p
 
 - `regionId` and `payload` are strings the fork defines (table below). A payload is the region's **whole** content
   in the fork's own serialisation, never a delta: the shell coalesces the calls of 150 ms into one `region.update` and
-  may replace an unsent payload with a newer one. A `region.update` over the room's `limits.max_region_message_bytes` (default 1 MiB)
-  stays on this device with the notice "Một thay đổi quá lớn để gửi…"; it still reaches storage through the leader's
-  save.
+  may replace an unsent payload with a newer one. A `region.update` over the room's `limits.max_region_message_bytes`
+  (default 1 MiB) stays on this device with the notice "Một thay đổi quá lớn để gửi…"; it reaches storage only
+  through this page's own save while it is the leader.
 - `regionWillEdit` resolves `true` once the room granted the lock (renewed every 2 s by the shell while the region is
   edited or has unsent changes, released after `regionDidEndEdit` once its changes are acknowledged), `false` when
   someone else holds it or the page may not edit. Without a room (offline, still joining, no live channel) it resolves
@@ -299,7 +299,8 @@ regionConflict(regionId) // → 'mine' | 'theirs' or a Promise of it (below)
   cùng sửa…") instead of the server's `NOT_LEADER`, and stores it once it leads or edits alone.
 - The shell re-reads the document when the room says another page stored a newer version, so the leader's next save
   names the right ETag. A rejoin after `REPLAY_GONE` (updates older than the last save are gone) calls `open` with
-  `preserveView: true` and the latest stored content; edits not yet sent are then checked under the conflict rule.
+  `preserveView: true` and the latest stored content; edits not yet acknowledged are then checked under the conflict
+  rule and sent as new updates (the old room's `cid`s are never reused).
 
 ### Region ids
 
