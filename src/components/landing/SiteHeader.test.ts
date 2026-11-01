@@ -35,6 +35,8 @@ describe('SiteHeader account entry', () => {
     const html = renderToStaticMarkup(createElement(SiteHeader))
     expect(html.match(/<button type="button" class="erp-account__sign-up">Đăng ký<\/button>/g)).toHaveLength(2)
     expect(html).not.toContain('/dang-ky/')
+    // The menu's copy carries the class that keeps it shown between 768 and 1023 px (landing-sections.css).
+    expect(html.slice(html.indexOf('erp-mobile-menu'))).toContain('erp-account erp-account--menu erp-account--sign-up')
   })
 
   it('moves the ERPCons link out of the bar next to the account entry, keeping it in the menu', () => {

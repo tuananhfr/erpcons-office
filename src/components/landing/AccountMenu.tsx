@@ -81,7 +81,7 @@ export function AccountMenu({ variant, icon, signUp = false }: { variant: 'heade
 
   if (!signedIn) {
     const busy = snapshot.status === 'signing-in'
-    return <div className={`erp-account erp-account--${variant}`}>
+    return <div className={`erp-account erp-account--${variant}${signUp ? ' erp-account--sign-up' : ''}`}>
       <button type="button" className="erp-account__sign-in" disabled={busy} aria-busy={busy}
         onClick={() => { void account()?.signIn() }}>
         {icon}Đăng nhập

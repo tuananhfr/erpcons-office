@@ -14,7 +14,10 @@ describe('site header styles', () => {
     const tablet = block('(min-width: 768px) and (max-width: 1023px)')
     expect(tablet).toMatch(/\.erp-header-actions\s*\{\s*margin-left:\s*auto;/)
     expect(tablet).toMatch(/\.erp-install--header \.erp-install__button\s*\{[^}]*gap:\s*6px;[^}]*padding-inline:\s*10px;/)
-    expect(tablet).toMatch(/\.erp-mobile-menu \.erp-install--menu, \.erp-mobile-menu \.erp-account--menu\s*\{\s*display:\s*none;/)
+    expect(tablet).toMatch(/\.erp-mobile-menu \.erp-install--menu, \.erp-mobile-menu \.erp-account--menu:not\(\.erp-account--sign-up\)\s*\{\s*display:\s*none;/)
+    // Signed out, the header has no room for "Đăng ký" below 1280 px: the menu keeps it, without a second Đăng nhập.
+    expect(tablet).toMatch(/\.erp-mobile-menu \.erp-account--sign-up \.erp-account__sign-in, \.erp-mobile-menu \.erp-account--sign-up \.erp-account__note\s*\{\s*display:\s*none;/)
+    expect(tablet).not.toMatch(/erp-account__sign-up\s*\{\s*display:\s*none/)
     const mobile = block('(max-width: 767px)')
     expect(mobile).toMatch(/\.erp-header-actions\s*\{\s*display:\s*none;/)
   })
