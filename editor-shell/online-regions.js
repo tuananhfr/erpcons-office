@@ -13,10 +13,14 @@
   // SERVER_BUSY on an update: the server's log budget is full for now; the update goes again after this.
   var BUSY_WAIT = 2000
   var DEFAULT_REGION_BYTES = 1024 * 1024
+  var REGION_ID_BYTES = 256
+  var RELOAD_WAIT_MAX = 30 * 1000
 
   function noop() {}
   function isSeq(value) { return typeof value === 'number' && value >= 0 && Math.floor(value) === value }
   function isText(value) { return typeof value === 'string' && value.length > 0 }
+  // Maps keyed by region or member ids from the fork or the room: no inherited keys such as __proto__.
+  function dict() { return Object.create(null) }
   function utf8Length(text) {
     var length = 0
     for (var i = 0; i < text.length; i++) {
@@ -26,6 +30,12 @@
       else if (code >= 0xd800 && code <= 0xdbff) { length += 4; i++ } else length += 3
     }
     return length
+  }
+  // The server's rule (erpcons-office-server live/region.rs): a refused id would only bring lock retries forever.
+  function isRegionId(value) {
+    if (!isText(value) || utf8Length(value) > REGION_ID_BYTES || /[\u0000-\u001f\u007f-\u009f]/.test(value)) return false
+    var sheet = value.indexOf('sheet:') === 0 ? value.slice(6) : null
+    return sheet === null || (sheet.length > 0 && sheet.indexOf(':') === -1)
   }
 
   /**
@@ -47,10 +57,10 @@
     var cidCount = 0
     var you = null
     // This page's member ids of earlier sessions too: a replay may bring back its own unacknowledged update.
-    var mine = {}
+    var mine = dict()
     var leader = null
     var members = []
-    var table = {}
+    var table = dict()
     // offline: no greeted session; waiting: greeted, the content or the editor is not ready; replaying; synced.
     var phase = 'offline'
     var applied = null
@@ -62,24 +72,24 @@
     var reloading = false
     var reloadTries = 0
     // region → { editing, granted, resolving, auto }: locks this page holds or wants.
-    var locks = {}
-    var acquiring = {}
-    var retryTimers = {}
-    var deniedWait = {}
+    var locks = dict()
+    var acquiring = dict()
+    var retryTimers = dict()
+    var deniedWait = dict()
     var renewTimer = null
     // region → { payload, first }: edits inside the 150 ms window.
-    var buffer = {}
+    var buffer = dict()
     var bufferTimer = null
     var changeCount = 0
     // Edits on their way: { cid, region, payload, first, sent }, in the order they were made.
     var outbox = []
     // region → { payload, author, seq }: remote updates held back over this page's own unsent edits.
-    var theirs = {}
+    var theirs = dict()
     // Regions whose content the editor lost in a reload (REPLAY_GONE) while it still had unsent edits there.
-    var reloaded = {}
+    var reloaded = dict()
     var resolving = false
     var tooBigNoticed = false
-    var cursors = {}
+    var cursors = dict()
     var cursorTimer = null
     var cursorWaiting = null
 
@@ -220,7 +230,7 @@
     }
 
     function willEdit(region) {
-      if (!isText(region) || !deps.editable()) return Promise.resolve(false)
+      if (!isRegionId(region) || !deps.editable()) return Promise.resolve(false)
       var lock = locks[region]
       if (lock && lock.granted) {
         lock.editing = true
@@ -250,7 +260,7 @@
     // ---- Outgoing edits
 
     function changedRegion(region, payload) {
-      if (!isText(region) || typeof payload !== 'string' || !deps.editable()) return
+      if (!isRegionId(region) || typeof payload !== 'string' || !deps.editable()) return
       changeCount += 1
       if (buffer[region]) buffer[region].payload = payload
       else buffer[region] = { payload: payload, first: changeCount }
@@ -266,10 +276,13 @@
         var waiting = null
         for (var i = 0; i < outbox.length; i++) if (outbox[i].region === region && !outbox[i].sent) waiting = outbox[i]
         // A region's content is whole in each payload: an unsent older one is simply replaced.
-        if (waiting) waiting.payload = edit.payload
-        else outbox.push({ cid: nextCid(), region: region, payload: edit.payload, first: edit.first, sent: false })
+        if (waiting) {
+          waiting.payload = edit.payload
+          // The newer content may fit where the older did not.
+          waiting.tooBig = false
+        } else outbox.push({ cid: nextCid(), region: region, payload: edit.payload, first: edit.first, sent: false })
       })
-      buffer = {}
+      buffer = dict()
       pump()
     }
     function sendEdit(edit) {
@@ -283,11 +296,17 @@
       }
       if (deps.send(message)) edit.sent = true
     }
+    function inFlight(region) {
+      for (var i = 0; i < outbox.length; i++) if (outbox[i].region === region && outbox[i].sent) return true
+      return false
+    }
     function pump() {
       if (phase !== 'synced' || !v3() || !deps.editable()) return
       outbox.forEach(function (edit) {
         if (edit.sent || edit.tooBig || edit.busy) return
         var region = edit.region
+        // A connection that stopped answering must not pile up whole payloads: the next one waits for this ack.
+        if (inFlight(region)) return
         var lock = locks[region]
         if (lock && lock.granted) {
           if (lock.resolving) return
@@ -402,6 +421,8 @@
         // An update ordered after this page's own one is the region's content now, here too.
         if (remote.seq > msg.seq) call('applyRemote', edit.region, remote.payload, remote.author)
       }
+      // A newer edit of the region may have waited for this ack.
+      pump()
       maybeRelease(edit.region)
       changed()
     }
@@ -506,14 +527,15 @@
           startSync()
         })
       }
-      if (reloadTries > 1) setTimeout(start, 1000)
+      if (reloadTries > 1) setTimeout(start, Math.min(RELOAD_WAIT_MAX, 1000 * Math.pow(2, reloadTries - 2)))
       else start()
     }
 
     function receive(msg) {
       switch (msg.type) {
         case 'locks':
-          table = msg.locks && typeof msg.locks === 'object' ? msg.locks : {}
+          table = dict()
+          if (msg.locks && typeof msg.locks === 'object') Object.keys(msg.locks).forEach(function (region) { table[region] = msg.locks[region] })
           showLocks()
           // A lock someone let go may be the one an edit waits for.
           Object.keys(retryTimers).forEach(function (region) {
@@ -621,7 +643,7 @@
         // The server dropped this page's locks with the old connection; unacked edits go again with their cids.
         Object.keys(locks).forEach(function (region) { locks[region].granted = false })
         outbox.forEach(function (edit) { edit.sent = false })
-        table = {}
+        table = dict()
         phase = 'waiting'
         showPresence()
         showLocks()
@@ -630,7 +652,7 @@
       },
       presence: function (list) {
         members = Array.isArray(list) ? list : []
-        var present = {}
+        var present = dict()
         members.forEach(function (member) { present[member.id] = true })
         var gone = Object.keys(cursors).filter(function (author) { return !present[author] })
         gone.forEach(function (author) { delete cursors[author] })
@@ -644,7 +666,7 @@
         Object.keys(acquiring).forEach(function (cid) { settleAcquire(cid, null, 0) })
         Object.keys(locks).forEach(function (region) { locks[region].granted = false })
         Object.keys(retryTimers).forEach(function (region) { clearTimeout(retryTimers[region]) })
-        retryTimers = {}
+        retryTimers = dict()
         outbox.forEach(function (edit) { edit.sent = false })
         clearTimeout(renewTimer)
         renewTimer = null
@@ -652,8 +674,8 @@
         cursorTimer = null
         cursorWaiting = null
         members = []
-        cursors = {}
-        table = {}
+        cursors = dict()
+        table = dict()
         showCursors()
         showLocks()
         if (leader !== null) setLeader(null, false)
@@ -662,7 +684,7 @@
       /** The editor was handed new content of this document: whatever it showed before is gone. */
       loaded: function () {
         applied = null
-        cursors = {}
+        cursors = dict()
         if (phase !== 'offline') phase = 'waiting'
       },
       /** The editor opened the content it was handed (an editor that registered late sees the room now). */

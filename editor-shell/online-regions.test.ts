@@ -697,3 +697,87 @@ describe('offline edits and their conflict', () => {
     expect(page.dialogId()).toBeNull()
   })
 })
+
+describe('untrusted sizes, ids and a struggling room (M6 review)', () => {
+  async function holding(region: string, extra: Msg = {}) {
+    const ctx = await coPage()
+    await sync(ctx.page, ctx.sockets[0], extra)
+    const granted = ctx.host.regionWillEdit(region)
+    await grantNext(ctx.page, ctx.sockets[0])
+    expect(await granted).toBe(true)
+    return ctx
+  }
+
+  it('an edit too big to send, then trimmed: the smaller payload goes out and the lock is let go', async () => {
+    const { page, sockets, host } = await holding('para:a', { limits: { ...hello().limits, max_region_message_bytes: 300 } })
+    host.regionChanged('para:a', 'x'.repeat(400))
+    await tick(page, 150)
+    expect(sent(sockets[0], 'region.update')).toHaveLength(0)
+    expect(page.notices.at(-1)?.text).toContain('quá lớn')
+    host.regionChanged('para:a', 'ngắn')
+    await tick(page, 150)
+    const updates = sent(sockets[0], 'region.update')
+    expect(updates).toMatchObject([{ region: 'para:a', payload: 'ngắn' }])
+    sockets[0].receive({ type: 'ack', v: 1, cid: updates[0].cid, seq: 11 })
+    host.regionDidEndEdit('para:a')
+    await tick(page, 2000)
+    expect(sent(sockets[0], 'lock.release')).toEqual([{ type: 'lock.release', v: 1, region: 'para:a' }])
+  })
+
+  it('one update per region on its way: newer edits wait (coalesced) for its ack', async () => {
+    const { page, sockets, host } = await holding('shape:s1:a')
+    host.regionChanged('shape:s1:a', 'v1')
+    await tick(page, 150)
+    host.regionChanged('shape:s1:a', 'v2')
+    await tick(page, 150)
+    host.regionChanged('shape:s1:a', 'v3')
+    await tick(page, 150)
+    const first = sent(sockets[0], 'region.update')
+    expect(first.map(m => m.payload)).toEqual(['v1'])
+    sockets[0].receive({ type: 'ack', v: 1, cid: first[0].cid, seq: 11 })
+    await page.settle()
+    expect(sent(sockets[0], 'region.update').map(m => m.payload)).toEqual(['v1', 'v3'])
+  })
+
+  it('REPLAY_GONE again and again: each reload waits longer (not one per second forever)', async () => {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1, 2, 3))
+    const { page, sockets, log } = await coPage({ office })
+    const socket = sockets[0]
+    socket.accept()
+    socket.receive(hello())
+    await page.settle()
+    let answered = 0
+    const before = log.opened.length
+    for (let t = 0; t < 20; t++) {
+      const replays = sent(socket, 'region.replay').length
+      if (replays > answered) {
+        answered = replays
+        socket.receive({ type: 'error', v: 1, code: 'REPLAY_GONE', saved_seq: 40, saved_version: null })
+      }
+      await tick(page, 500)
+    }
+    expect(log.opened.length - before).toBeLessThanOrEqual(5)
+    expect(log.opened.length - before).toBeGreaterThanOrEqual(3)
+  })
+
+  it('a region id the server would refuse (too long, control characters, nested sheet) is never asked for', async () => {
+    const { page, sockets, host } = await coPage()
+    await sync(page, sockets[0])
+    const bad = ['para:' + 'x'.repeat(300), 'para:a\u0007b', 'sheet:a:b', 'cell:s1:\u0085A1']
+    const answers = bad.map(region => host.regionWillEdit(region))
+    bad.forEach(region => host.regionChanged(region, 'x'))
+    await tick(page, 6000)
+    expect(await Promise.all(answers)).toEqual([false, false, false, false])
+    expect(sent(sockets[0], 'lock.acquire')).toEqual([])
+    expect(sent(sockets[0], 'region.update')).toEqual([])
+  })
+
+  it('a remote region named like an object key (__proto__) is applied like any other', async () => {
+    const { page, sockets, log } = await coPage()
+    await sync(page, sockets[0])
+    sockets[0].receive(update(11, '__proto__', 'x'))
+    sockets[0].receive(update(12, 'constructor', 'y'))
+    await page.settle()
+    expect(log.applied).toEqual([['__proto__', 'x', 'm2'], ['constructor', 'y', 'm2']])
+  })
+})
