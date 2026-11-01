@@ -81,14 +81,21 @@
     })
   }
 
-  online.createApi = function (apiFetch) {
-    function call(path, init, onOk) {
+  /** call(path, init, onOk) through erpAccount.apiFetch, failures mapped to the outcomes above (online-comments-api.js too). */
+  online.apiCaller = function (apiFetch) {
+    return function call(path, init, onOk) {
       var sent
       try { sent = apiFetch(path, init) } catch (error) { return Promise.reject(error) }
       return sent.then(function (response) {
         return response.ok ? onOk(response) : problem(response)
       }, function (error) { return thrown(error) })
     }
+  }
+  online.readJson = readJson
+  online.MALFORMED = MALFORMED
+
+  online.createApi = function (apiFetch) {
+    var call = online.apiCaller(apiFetch)
     function path(id, rest) { return '/api/v1/documents/' + encodeURIComponent(id) + (rest || '') }
     function getDocument(id) {
       return call(path(id), { method: 'GET', headers: { Accept: 'application/json' } }, function (response) {
