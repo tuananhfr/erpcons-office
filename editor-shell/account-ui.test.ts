@@ -42,7 +42,8 @@ class FakeNode {
     return false
   }
   all(): FakeNode[] { return this.children.flatMap(c => [c, ...c.all()]) }
-  matches(selector: string) {
+  matches(selector: string): boolean {
+    if (selector.includes(',')) return selector.split(',').some(part => this.matches(part.trim()))
     const attr = /^\[([a-z-]+)\]$/.exec(selector)
     return attr ? this.attrs.has(attr[1]) : this.tag === selector
   }
@@ -94,8 +95,8 @@ function parse(html: string, doc: FakeDocument): FakeNode {
   return root
 }
 
-function slotMarkup(account = true): string {
-  const page = injectEditorShell(TRUNK, EDITORS[0], EDITORS, { css: '', script: '', account })
+function slotMarkup(account = true, online = false): string {
+  const page = injectEditorShell(TRUNK, EDITORS[0], EDITORS, { css: '', script: '', account, online })
   const start = page.indexOf('<div class="erp-shell__account"')
   return start === -1 ? '' : page.slice(start, page.indexOf('</header>', start))
 }
@@ -212,6 +213,29 @@ describe('shell account slot', () => {
     ui.emit(signedIn({ orgs: [{ id: 'org_xd', name: 'Công ty Xây dựng Ví dụ', role: 'member' }], activeOrg: { id: 'org_xd', name: 'Công ty Xây dựng Ví dụ', role: 'member' } }))
     expect(buttons().map(b => b.getAttribute('aria-pressed'))).toEqual(['false', 'true'])
     expect(ui.q('toggle').getAttribute('aria-label')).toBe('Tài khoản: Nguyễn Văn An · Công ty Xây dựng Ví dụ')
+  })
+
+  it('links to Tài liệu của tôi in a new tab from the panel, only with online documents on', () => {
+    expect(slotMarkup(true, false)).not.toContain('data-erp-account-documents')
+    const ui = mount(signedIn(), slotMarkup(true, true))
+    const link = ui.q('documents')
+    expect(link.tag).toBe('a')
+    expect([link.getAttribute('href'), link.getAttribute('target'), link.getAttribute('rel')]).toEqual(['/tai-lieu/', '_blank', 'noopener'])
+    expect(link.textContent).toBe('Tài liệu của tôi')
+    expect(ui.q('panel').contains(link)).toBe(true)
+    ui.click(ui.q('toggle'))
+    expect(ui.document.activeElement).toBe(link)
+    ui.key('ArrowDown')
+    expect(ui.document.activeElement).toBe(ui.q('sign-out'))
+    ui.key('ArrowDown')
+    expect(ui.document.activeElement).toBe(link)
+    ui.click(link)
+    expect(ui.q('panel').hidden).toBe(true)
+  })
+
+  it('shows the link only to a signed-in user (it lives in the account panel)', () => {
+    const ui = mount(snapshot(), slotMarkup(true, true))
+    expect(ui.q('documents').visible()).toBe(false)
   })
 
   it('signs out from the panel and falls back to the sign-in button', () => {

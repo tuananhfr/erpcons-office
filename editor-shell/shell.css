@@ -241,6 +241,7 @@ html.erp-embedded .erp-shell { display: none; }
 }
 .erp-shell__account-action:hover { background: var(--erp-surface-2); }
 .erp-shell__account-action[aria-pressed="true"] { font-weight: 700; box-shadow: inset 2px 0 0 var(--erp-crimson); cursor: default; }
+.erp-shell__account-documents { margin-bottom: 4px; color: var(--erp-ink); text-decoration: none; }
 .erp-shell__account-sign-out { margin-top: 4px; border-top: 1px solid var(--erp-border); border-radius: 0 0 6px 6px; }
 .erp-shell__account-note {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 61; box-sizing: border-box; width: min(320px, calc(100vw - 24px - var(--erp-inset-left) - var(--erp-inset-right)));

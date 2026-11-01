@@ -31,7 +31,7 @@
   }
 
   function buttons() {
-    return Array.prototype.slice.call(panel.querySelectorAll('button')).filter(function (b) { return !b.hidden && !b.disabled })
+    return Array.prototype.slice.call(panel.querySelectorAll('button, a')).filter(function (b) { return !b.hidden && !b.disabled })
   }
   function setOpen(next, restoreFocus) {
     open = next
@@ -116,6 +116,8 @@
     showNote(snapshot.error)
   }
 
+  var documentsLink = part('documents')
+  if (documentsLink) documentsLink.addEventListener('click', function () { setOpen(false) })
   signInButton.addEventListener('click', function () { account.signIn() })
   toggle.addEventListener('click', function () { setOpen(!open) })
   signOutButton.addEventListener('click', function () {
