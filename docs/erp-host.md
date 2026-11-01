@@ -229,6 +229,96 @@ input, paste and drop), that `setMode` both ways keeps the document and its undo
 false` disables Save As / Export / Print / copy, that `preserveView` keeps the listed view state, and that `setUser`
 becomes the author of a new in-file comment in `edit` mode.
 
+## v3 (M4): region co-editing
+
+Status: contract in `tmp/briefs/office-next/plan-m4.md` ("Shell ↔ fork"); room protocol in erpcons-office-server
+`docs/openapi.yaml`, "Co-editing (M4)". Shell side: `editor-shell/online-regions.js` (locks, updates, acks, replay,
+cursors, conflicts) and `online-leader.js` (who saves, and when).
+
+`erpHost.version` stays `2`: the v3 calls are added to the same object, so a v2 fork keeps working unchanged. Detection
+goes by feature both ways: a fork uses region co-editing when `typeof erpHost.regionWillEdit === 'function'`, and the
+shell treats a fork as v3 when the handlers it gave to `ready` include `applyRemote`. Without `applyRemote` the shell
+keeps the M3 behaviour (whole-file saves, presence in the bar only) and never sends a region message for that page.
+
+### Editor → shell
+
+```js
+erpHost.regionWillEdit(regionId)          // → Promise<boolean>: may this page edit the region now?
+erpHost.regionChanged(regionId, payload)  // after each finished edit step of that region
+erpHost.regionDidEndEdit(regionId)        // the user left the region (caret moved away, inline editor closed)
+erpHost.selectionChanged(regionId, range) // caret or selection, for the other people's cursors
+```
+
+- `regionId` and `payload` are strings the fork defines (table below). A payload is the region's **whole** content
+  in the fork's own serialisation, never a delta: the shell coalesces the calls of 150 ms into one `region.update` and
+  may replace an unsent payload with a newer one. A `region.update` over the room's `limits.max_region_message_bytes` (default 1 MiB)
+  stays on this device with the notice "Một thay đổi quá lớn để gửi…"; it still reaches storage through the leader's
+  save.
+- `regionWillEdit` resolves `true` once the room granted the lock (renewed every 2 s by the shell while the region is
+  edited or has unsent changes, released after `regionDidEndEdit` once its changes are acknowledged), `false` when
+  someone else holds it or the page may not edit. Without a room (offline, still joining, no live channel) it resolves
+  `true` at once: the edit is kept and synced after the join, under the conflict rule below. The fork asks before the
+  first change of a region and does not change it on `false`.
+- `range` is a string the fork defines (its own selection encoding). The shell sends at most one cursor per 100 ms,
+  in `edit` and `comment` mode only.
+
+### Shell → editor (handlers given to `ready`, all optional except `applyRemote` for v3)
+
+```js
+applyRemote(regionId, payload, author)  // a region's content as the room has it now
+showPresence(members)  // [{ id, kind, name, colour, mode, state, person, you }]
+showLocks(locks)       // [{ region, holder, name, colour, mine }]: the whole table each time
+showCursors(cursors)   // [{ author, name, colour, region, range }]: the whole set each time
+lockDenied(regionId)   // a lock this page was editing under is gone (lapsed or taken over)
+isLeader(flag)         // this page is (no longer) the room's leader
+regionConflict(regionId) // → 'mine' | 'theirs' or a Promise of it (below)
+```
+
+- `applyRemote` is called once per room seq, in seq order, and also with this page's own payload when a conflict
+  answer `mine` must restore it after a reload. The fork applies it synchronously as one step that is not on the
+  user's undo stack (an earlier own undo step of that region is skipped, plan-m4 "Undo theo người"), marks the document
+  dirty and keeps the view. `author` is the room member id, to be looked up in `showPresence`.
+- `person` groups the tabs of one person; `you` marks this page's member. Names may be empty (anonymous link viewer).
+- **Conflict:** edits made while the page had no room are sent after the join, each once its region's lock is granted.
+  When the room changed that region meanwhile (replay, or a reload after `REPLAY_GONE`), the shell asks
+  `regionConflict(regionId)` for each such region, one at a time ("Giữ bản của tôi" / "Dùng bản mới"). `mine` sends
+  this page's edit; `theirs` drops it and calls `applyRemote` with the room's content. An answer that is neither, a
+  throw or a rejection counts as `mine`. A fork without `regionConflict` gets the shell's dialog, which asks once for
+  all the regions ("Có N chỗ người khác vừa sửa"); closing it some other way also means `mine`.
+
+### Saving in a room
+
+- Only the room's leader stores the document: 30 s after the last change in the room (at the latest every 2 minutes
+  while changes never pause), at once on `save.request`, on Ctrl+S (`reason: 'manual'`) or `flush`, when it leaves as
+  the last editor and on `pagehide` (best effort). Its PUT carries `X-Live-Seq` with the last room update its bytes
+  hold, so the server never stores content older than what it has.
+- The fork keeps calling `save` as in v1. On a page that is not the leader the shell answers `saved` (with the current
+  version) as soon as the room has acknowledged every region edit those bytes contain, and `offline` until then; it
+  sends no PUT. The bytes stay in the pending store until the room has them, as for any unsaved change.
+- A v2 fork in a room with several editors: a page that is not the leader holds its save (`offline`, "Đang có người khác
+  cùng sửa…") instead of the server's `NOT_LEADER`, and stores it once it leads or edits alone.
+- The shell re-reads the document when the room says another page stored a newer version, so the leader's next save
+  names the right ETag. A rejoin after `REPLAY_GONE` (updates older than the last save are gone) calls `open` with
+  `preserveView: true` and the latest stored content; edits not yet sent are then checked under the conflict rule.
+
+### Region ids
+
+| Fork | Regions | Order lock (taken for structural edits) |
+|---|---|---|
+| PDF | `annot:<NM>`, `field:<full field name>` | `pages` |
+| Trình chiếu | `shape:<slideId>:<shapeId>`, `slide:<slideId>` | `slides` |
+| Bảng tính | `cell:<sheetId>:<A1>` (payload carries the sheet's structure counter) | `sheet:<sheetId>` |
+| Văn bản | `para:<paraId>`, `table:<paraId>` | `*` (the 36 whole-document commands of the spike) |
+
+The ids rest on the stable ids of M3 (`setClientId`). Each fork lists its exact payload format in its own
+`ERPCONS-CHANGES.md`; the shell never reads a payload.
+
+### Tests each fork adds (v3)
+
+With a fake `erpHost`: no change to a region after `regionWillEdit` resolved `false`; `regionChanged` after each step
+with the whole region; `applyRemote` applied once, not undoable, view kept, document dirty; `lockDenied` ends the
+inline edit without losing typed text; `regionConflict` both answers; a v2 shell (no `regionWillEdit`) keeps v2 saves.
+
 ## Tests each fork adds
 
 Unit/headless tests in the fork for rules 1–6 and 10–11 with a fake `erpHost` (revision passed and acknowledged,
