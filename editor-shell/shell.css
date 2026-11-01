@@ -356,20 +356,28 @@ html.erp-embedded .erp-shell { display: none; }
 }
 .erp-shell__online-count[hidden] { display: none; }
 .erp-shell__online-btn[aria-pressed="true"] { background: #e8eef9; border-color: #9db7e3; color: #1d3f7a; }
-@media (max-width: 1023px) {
-  /* Icon-only there: the count rides on the icon's corner instead of widening the 32px button. */
+/* The comment buttons and "Lịch sử" go icon-only below 1280 px: with the nav, the faces of the room and "Chia sẻ"
+   their words would push the account off a 1024 px bar. */
+@media (max-width: 1279px) {
+  .erp-shell__online-btn:is([data-erp-online-comment], [data-erp-online-comments], [data-erp-online-history]) { width: 32px; padding: 0; }
+  .erp-shell__online-btn:is([data-erp-online-comment], [data-erp-online-comments], [data-erp-online-history]) .erp-shell__online-label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  /* The count rides on the icon's corner instead of widening the 32px button. */
   .erp-shell__online-btn[data-erp-online-comments] { position: relative; }
   .erp-shell__online-btn[data-erp-online-comments] .erp-shell__online-count { position: absolute; top: -5px; right: -6px; box-shadow: 0 0 0 2px var(--erp-surface); }
 }
-/* A phone bar with the mode badge and the comments button has no room for "Đã lưu": a reader saves nothing of
-   their own, so a settled state keeps only its dot (the words stay in the title and for screen readers). */
+/* A phone bar with the comments button, the faces and a mode badge or the document buttons has no room for
+   "Đã lưu": a settled state keeps only its green dot (the words stay in the title and for screen readers); saving,
+   unsaved and errors keep their words. */
 @media (max-width: 479px) {
-  .erp-shell:has(.erp-shell__mode:not([hidden])) .erp-shell__save.erp-shell__draft--ok .erp-shell__draft-short {
+  .erp-shell:has([data-erp-online-comments]:not([hidden])) .erp-shell__save.erp-shell__draft--ok .erp-shell__draft-short {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
 }
-/* Phones add a comment from the panel's own button: the bar has no room for both. */
-@media (max-width: 767px) { .erp-shell__online-btn[data-erp-online-comment] { display: none; } }
+/* Under 1024 px the bar also holds the nav or menu and the faces of the room: a comment is added from the panel's
+   own button (or Ctrl+Alt+M), not from the bar. */
+@media (max-width: 1023px) { .erp-shell__online-btn[data-erp-online-comment] { display: none; } }
 @media (min-width: 1024px) { html.erp-comments-open { --erp-right: calc(var(--erp-inset-right) + 360px); } }
 
 .erp-comments {
