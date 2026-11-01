@@ -340,19 +340,22 @@ limit still reads them.
 
 ### Anchors
 
-An anchor is a JSON object the fork defines (at most 8 KiB compact), stored by the server as it is and handed back
-unchanged. The shell reads only these optional fields:
+An anchor is a JSON object the fork defines (at most 8 KiB compact; numbers integers or decimals between 1e-6 and 1e15
+in size, or 0), stored by the server as it is (key order may change) and handed back. The forks write
+`{ "v": 1, "region", "pos", "soft", "label" }`; the shell reads only these fields:
 
 | Field | Type | Use |
 |---|---|---|
-| `region` | string, 1–256 bytes | the stable region id (table in v3 above); sent as the thread's `region` |
-| `order` | array of 1–8 finite numbers | the position key the panel sorts placed threads by, compared element by element (Văn bản `[block, offset]`, Bảng tính `[sheet, row, col]`, Trình chiếu `[slide, shape z]`, PDF `[page, y, x]`) |
-| `quote` | string | the text shown above the thread (Văn bản: the selected text; Bảng tính: `Sheet1!B4`; Trình chiếu: the slide title and shape; PDF: the text under the quads); cut at 200 characters |
-| `kind` | `'document'` | reserved: a thread without a place |
+| `v` | number | the fork's anchor format; a fork that cannot read a newer `v` leaves the thread alone |
+| `region` | string (1–256 bytes) or null | the stable region id (table in v3 above); sent as the thread's `region`, null clears it |
+| `label` | string | where the thread sits, shown above it in the panel (PDF "Trang 3", Bảng tính `Sheet1!B4`, Trình chiếu the slide); cut at 200 characters |
+| `order` | array of 1–8 finite numbers, optional | a position key the panel sorts placed threads by, compared element by element; without it threads keep their creation order |
+| `quote` | string, optional | the older name of `label`, read when there is no `label` |
+| `kind` | `'document'` | reserved: a thread without a place (written by the shell) |
 
-Everything else is the fork's own: the position inside the region and the soft anchor of plan v2 §6 (Văn bản the text
-plus 32 characters on each side; Bảng tính the cell's value or formula; Trình chiếu the slide title and shape id; PDF
-page, quads and text). The fork lists its exact anchor format in its `ERPCONS-CHANGES.md`.
+`pos` (the position inside the region) and `soft` (the soft anchor of plan v2 §6: Văn bản the text plus 32 characters
+on each side; Bảng tính the cell's value or formula; Trình chiếu the slide title and shape id; PDF page, quads and
+text) are the fork's own. The fork lists its exact anchor format in its `ERPCONS-CHANGES.md`.
 
 ### Editor → shell
 
@@ -360,32 +363,38 @@ page, quads and text). The fork lists its exact anchor format in its `ERPCONS-CH
 erpHost.commentClicked(threadId)  // the user clicked a thread's mark in the document
 ```
 
-The shell opens the panel on that thread (under "Đã xử lý" when it is resolved).
+The shell opens the panel on that thread (under "Đã xử lý" when it is resolved). The fork calls it only when the host
+object has it.
 
 ### Shell → editor (handlers given to `ready`, all optional)
 
+The calls carry no document id: they apply to the host document the fork opened last.
+
 ```js
-anchorOfSelection()            // → anchor | null (or a Promise of it): the place of a new thread
-showComments(threads)          // [{ id, anchor, status }]: every placed thread, the whole set each time
-focusAnchor(anchor, threadId)  // scroll to the anchor and highlight it
-resolveAnchors(threads)        // → [{ threadId, anchor?, status? }] (or a Promise of it)
+anchorOfSelection()            // → anchor | null, at once (the selection as of the previous frame)
+showComments(threads)          // [{ id, anchor, status, count }]: every placed thread, the whole set each time
+focusAnchor(anchor, threadId)  // scroll to the anchor and highlight it (forks read the first argument only)
+resolveAnchors(threads)        // → Promise of [{ id, anchor, status }], settled on a later frame
 ```
 
 - `anchorOfSelection` is called on "Thêm nhận xét" (bar or panel) and Ctrl+Alt+M (Cmd+Option+M), in `edit` and
-  `comment` mode only. `null` means nothing is selected: the shell shows "Chọn nội dung để nhận xét" and opens nothing.
-- `showComments` carries no names or words. `status` is `open`, `resolved` or `orphaned`; the fork draws a mark for
-  each `open` thread it can place and none for the others. It places them itself, with the same rules as
-  `resolveAnchors`, every time the content changes. Called after the fork opened the document (`opened(…, true)`) and
-  whenever that list changes.
+  `comment` mode only. `null` means nothing anchorable is selected: the shell shows "Chọn nội dung để nhận xét" and
+  opens nothing. An anchor over 8 KiB is refused with "Không gắn được nhận xét vào chỗ này. Hãy chọn đoạn ngắn hơn."
+- `showComments` carries no names or words: `count` is the number of comments not deleted. `status` is `open`,
+  `resolved` or `orphaned`; the fork draws a mark for each `open` thread it can place and none for the others. It places
+  them itself, with the same rules as `resolveAnchors`, every time the content changes. Called after the fork opened
+  the document (`opened(…, true)`) and whenever that list changes.
 - `focusAnchor` follows a click on a thread in the panel and a deep link `?doc=<id>&comment=<thread>` (the mails' link);
   the shell waits for `opened` before calling it.
 - `resolveAnchors(threads)` (same entries as `showComments`) asks the fork to place every thread again on the content it
-  now shows and to return only what changed: a new `anchor` (same shape, updated position and soft anchor) and/or a
-  `status` of `open` (found again) or `orphaned` (region gone and the soft anchor not found). The region id comes first,
-  then the soft anchor. A resolved thread keeps its status. The shell calls it 1.5 s after the fork opened a new version
-  (`open`, also with `preserveView`) and after a burst of `applyRemote`, and sends the changes as one
-  `PATCH /documents/{id}/comments/anchors` (batches of 200). Only one page does this for everyone: the live room's
-  leader, or every page while no one leads (no room, or nobody editing).
+  now shows. It answers each thread it could read with its anchor as it is now (same shape, updated position and soft
+  anchor; unchanged when not found) and `status` `open` (found) or `orphaned` (region gone and the soft anchor not
+  found). The region id comes first, then the soft anchor. A thread left out of the answer (an anchor with a newer `v`)
+  is unchanged, never orphaned. The shell compares each answer with what it has (anchors with sorted keys), keeps only
+  real changes, never moves a resolved thread's status, and sends them as one `PATCH /documents/{id}/comments/anchors`
+  (batches of 200). It calls it 1.5 s after the fork opened a new version (`open`, also with `preserveView`) and after a
+  burst of `applyRemote`. Only one page does this for everyone: the live room's leader, or every page while no one
+  leads (no room, or nobody editing). An older `threadId` key in the answer is still read.
 
 ### Live refresh
 
@@ -395,11 +404,11 @@ without a live room reads the list again on its 30 s check.
 
 ### Tests each fork adds (v3 comments)
 
-With a fake `erpHost`: `anchorOfSelection` null without a selection and an anchor with `region`, `order` and `quote`
+With a fake `erpHost`: `anchorOfSelection` null without a selection and an anchor with `v`, `region` and `label`
 for each selection kind; a saved file holds no server comment; `showComments` draws marks only for `open`;
 `focusAnchor` scrolls to the place; `resolveAnchors` keeps an anchor whose region moved, follows the soft anchor when
-the region id changed, returns `orphaned` when both are gone and nothing for an unchanged thread; a click on a mark
-calls `commentClicked` with its thread id.
+the region id changed, returns `orphaned` when both are gone, the same anchor for an unchanged thread and leaves out
+an anchor of a newer `v`; a click on a mark calls `commentClicked` with its thread id.
 
 ## Tests each fork adds
 

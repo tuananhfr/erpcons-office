@@ -256,7 +256,7 @@ describe('adding a comment', () => {
     const id = comments.threads[0].id
     expect(threadIds(page)).toEqual([id])
     expect(card(page, id).className).toContain('erp-thread--active')
-    expect(fork.shown.at(-1)).toEqual([{ id, anchor: ANCHOR, status: 'open' }])
+    expect(fork.shown.at(-1)).toEqual([{ id, anchor: ANCHOR, status: 'open', count: 1 }])
   })
 
   it('an editor without anchorOfSelection: a document-wide thread, labelled "Nhận xét chung"', async () => {
@@ -347,7 +347,7 @@ describe('thread actions', () => {
     await page.settle()
     expect(threadIds(page)).toEqual([])
     expect(q(page, '[data-erp-online-count]')!.hidden).toBe(true)
-    expect(fork.shown.at(-1)).toEqual([{ id, anchor: ANCHOR, status: 'resolved' }])
+    expect(fork.shown.at(-1)).toEqual([{ id, anchor: ANCHOR, status: 'resolved', count: 1 }])
     q(page, '[data-erp-comments-filter="resolved"]')!.click()
     expect(threadIds(page)).toEqual([id])
     expect(card(page, id).textContent).toContain('Đã xử lý bởi Nguyễn Văn An')
@@ -506,6 +506,32 @@ describe('placing anchors again (resolveAnchors)', () => {
     await tick(page, 2000)
     expect(fork.resolved).toHaveLength(1)
     expect(commentCalls(comments, 'PATCH')).toEqual([])
+  })
+
+  it('the forks’ shape: every thread back as { id, anchor, status } a frame later, keys reordered, one left out; only the moved one is sent', async () => {
+    const kept = { v: 1, region: 'annot:1', pos: { page: 0, quads: [1, 2, 3, 4] }, soft: { text: 'cũ' }, label: 'Trang 1' }
+    const moved = { v: 1, region: 'annot:2', pos: { page: 1 }, soft: { text: 'mới' }, label: 'Trang 2' }
+    const { page, comments, fork } = await commentPage('owner', {
+      seed: c => { c.seed(DOC_ID, { anchor: kept, replies: [{ body: 'Một' }] }); c.seed(DOC_ID, { anchor: moved }); c.seed(DOC_ID, { anchor: { v: 2, x: 1 } }) },
+      resolve: threads => new Promise(done => setTimeout(() => done([
+        { id: threads[0].id, anchor: { label: 'Trang 1', soft: { text: 'cũ' }, pos: { quads: [1, 2, 3, 4], page: 0 }, region: 'annot:1', v: 1 }, status: 'open' },
+        { id: threads[1].id, anchor: { ...moved, pos: { page: 2 }, label: 'Trang 3' }, status: 'open' },
+      ]), 16)) as never,
+    })
+    expect(fork.shown.at(-1)).toEqual([
+      { id: comments.threads[0].id, anchor: kept, status: 'open', count: 2 },
+      { id: comments.threads[1].id, anchor: moved, status: 'open', count: 1 },
+      { id: comments.threads[2].id, anchor: { v: 2, x: 1 }, status: 'open', count: 1 },
+    ])
+    await tick(page, 2000)
+    // The fork answers on a later frame (a real timer here, outside the page's clock).
+    await new Promise(done => setTimeout(done, 40))
+    await page.settle()
+    expect(JSON.parse(commentCalls(comments, 'PATCH')[0].body as string).updates).toEqual([
+      { thread_id: comments.threads[1].id, anchor: { ...moved, pos: { page: 2 }, label: 'Trang 3' }, region: 'annot:2' },
+    ])
+    barButton(page, 'comments').click()
+    expect(card(page, comments.threads[1].id).textContent).toContain('Trang 3')
   })
 
   it('in a room led by someone else the page leaves it to the leader', async () => {

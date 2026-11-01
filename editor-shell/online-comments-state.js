@@ -18,9 +18,11 @@
     for (var i = 0; i < anchor.order.length; i++) if (typeof anchor.order[i] !== 'number' || !isFinite(anchor.order[i])) return null
     return anchor.order
   }
+  // The forks' `label` (where the thread sits: "Trang 3", "Sheet1!B4"); an older `quote` (the selected words) otherwise.
   function quoteOf(anchor) {
-    if (!anchor || typeof anchor.quote !== 'string') return ''
-    var quote = anchor.quote.replace(/\s+/g, ' ').trim()
+    var text = anchor && typeof anchor.label === 'string' && anchor.label.trim() ? anchor.label : anchor && anchor.quote
+    if (typeof text !== 'string') return ''
+    var quote = text.replace(/\s+/g, ' ').trim()
     return quote.length > QUOTE_MAX ? quote.slice(0, QUOTE_MAX - 1) + '…' : quote
   }
   function regionOf(anchor) {
@@ -118,28 +120,40 @@
   /** What the editor gets in showComments and resolveAnchors: placed threads only, never names or words. */
   online.commentsForEditor = function (threads) {
     return threads.filter(function (thread) { return !isDocumentAnchor(thread.anchor) }).map(function (thread) {
-      return { id: thread.id, anchor: thread.anchor, status: thread.status }
+      var count = thread.comments.filter(function (comment) { return !comment.deletedAt }).length
+      return { id: thread.id, anchor: thread.anchor, status: thread.status, count: count }
     })
+  }
+
+  // The server keeps anchors as JSON whose key order it may change: compared with sorted keys, not as sent.
+  function stableJson(value) {
+    if (Array.isArray(value)) return '[' + value.map(stableJson).join(',') + ']'
+    if (value && typeof value === 'object') {
+      return '{' + Object.keys(value).sort().map(function (key) { return JSON.stringify(key) + ':' + stableJson(value[key]) }).join(',') + '}'
+    }
+    return JSON.stringify(value)
   }
 
   /**
    * The PATCH anchors entries for what the editor's resolveAnchors returned, keeping only real changes.
-   * updates: [{ threadId, anchor?, status?: 'open' | 'orphaned' }]; anything else is dropped.
+   * updates: [{ id, anchor?, status?: 'open' | 'orphaned' }] (or `threadId`); omitted threads are unchanged.
    */
   online.anchorChanges = function (updates, store) {
     if (!Array.isArray(updates)) return []
     var changes = []
     var seen = {}
     updates.forEach(function (update) {
-      if (!update || typeof update.threadId !== 'string' || seen[update.threadId]) return
-      var thread = store.get(update.threadId)
+      // The forks answer with `id`, as showComments gave it; `threadId` is the earlier name.
+      var threadId = update && (typeof update.id === 'string' ? update.id : update.threadId)
+      if (typeof threadId !== 'string' || seen[threadId]) return
+      var thread = store.get(threadId)
       if (!thread || isDocumentAnchor(thread.anchor)) return
       // The fork's first word on a thread counts; a repeat is a fork bug, not a second move.
       seen[thread.id] = true
       var change = { thread_id: thread.id }
       var differs = false
       var anchor = update.anchor
-      if (anchor && typeof anchor === 'object' && !Array.isArray(anchor) && !isDocumentAnchor(anchor) && JSON.stringify(anchor) !== JSON.stringify(thread.anchor)) {
+      if (anchor && typeof anchor === 'object' && !Array.isArray(anchor) && !isDocumentAnchor(anchor) && stableJson(anchor) !== stableJson(thread.anchor)) {
         change.anchor = anchor
         change.region = regionOf(anchor)
         differs = true
