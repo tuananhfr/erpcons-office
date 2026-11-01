@@ -5,6 +5,7 @@ import path from 'node:path'
 import { REPO_ROOT } from '../src/lib/build/workspace.ts'
 import { API_PROXY_ENV, apiProxyBase, backwardHeaders, forwardHeaders, upstreamUrl } from '../src/lib/preview/api-proxy.ts'
 import { cacheControlFor, contentTypeFor, pickEncoding, resolveRequest } from '../src/lib/preview/static-server.ts'
+import { proxyUpgrade } from '../src/lib/preview/ws-proxy.ts'
 
 const root = path.join(REPO_ROOT, 'out')
 const port = Number(process.env.PORT ?? 3011)
@@ -24,7 +25,7 @@ function proxy(req: http.IncomingMessage, res: http.ServerResponse, target: URL,
   req.pipe(upstream)
 }
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const target = apiBase && upstreamUrl(apiBase, req.url ?? '/')
   if (apiBase && target) { proxy(req, res, target, apiBase); return }
   const resolved = resolveRequest(req.url ?? '/', isDirectory)
@@ -50,4 +51,11 @@ http.createServer((req, res) => {
   })
   if (req.method === 'HEAD') { res.end(); return }
   fs.createReadStream(body).pipe(res)
-}).listen(port, () => console.log(`ERPCons Văn phòng preview: http://localhost:${port}/${apiBase ? ` (/api/ → ${apiBase.origin})` : ''}`))
+})
+// The live room's WebSocket (/api/v1/documents/<id>/live); anything else asking to upgrade is dropped.
+server.on('upgrade', (req, socket, head) => {
+  const target = apiBase && upstreamUrl(apiBase, req.url ?? '/')
+  if (!apiBase || !target) { socket.destroy(); return }
+  proxyUpgrade(req, socket, head, target, apiBase)
+})
+server.listen(port, () => console.log(`ERPCons Văn phòng preview: http://localhost:${port}/${apiBase ? ` (/api/ → ${apiBase.origin})` : ''}`))
