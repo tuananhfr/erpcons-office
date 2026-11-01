@@ -182,9 +182,8 @@ erpHost.ready({
     under rules 1–6 until it is `saved` or stopped by a conflict or a non-retryable failure; nothing new can make it
     dirty.
 14. **A visible state.** The fork shows its read-only look (disabled editing commands; Văn bản may use Read Mode); the
-    shell adds the badge "Chỉ xem" next to the title. Until web comments (M5), `comment` reads as view only: the
-    badge also says "Chỉ xem", and the shell's and the fork's notice say "Nhận xét trên web sẽ có sau, hiện chỉ xem
-    được". The shell's "Chia sẻ" button is for owners and editors only, and only while the document's `can_share`
+    shell adds the badge "Chỉ xem" (`view`) or "Chỉ nhận xét" (`comment`, since M5: the content stays read-only and
+    the shell's comments panel takes comments, see "v3 (M5): anchored comments") next to the title. The shell's "Chia sẻ" button is for owners and editors only, and only while the document's `can_share`
     is not false (an editor loses it when the owner turns "editors can share" off).
 15. **Logs** as rule 7.
 
@@ -319,6 +318,88 @@ The ids rest on the stable ids of M3 (`setClientId`). Each fork lists its exact 
 With a fake `erpHost`: no change to a region after `regionWillEdit` resolved `false`; `regionChanged` after each step
 with the whole region; `applyRemote` applied once, not undoable, view kept, document dirty; `lockDenied` ends the
 inline edit without losing typed text; `regionConflict` both answers; a v2 shell (no `regionWillEdit`) keeps v2 saves.
+
+## v3 (M5): anchored comments
+
+Status: plan `tmp/briefs/office-next/plan-m5.md`; server contract in erpcons-office-server `docs/openapi.yaml`,
+"Comments". Shell side: `editor-shell/online-comments-api.js` (HTTP), `online-comments-state.js` (anchors, order,
+sections, rights), `online-comments-panel.js` (the "Nhận xét" panel) and `online-comments.js` (composition, live refresh,
+editor calls).
+
+Comments live on the server, never in the file: the fork must not write them into the document it saves, and comments
+already in the file (DOCX/XLSX/PPTX comments, PDF annotations) stay content, separate from these. Detection goes by
+feature, as for regions: the shell calls each handler below only when the fork gave it to `ready`. A fork without
+`anchorOfSelection` still gets a working panel: every new thread is document-wide (anchor `{ "kind": "document" }`) and
+reads "Nhận xét chung".
+
+Who sees what (plan-m5, "Quyền"): owner, editors and commenters see and add comments; owner and editors also resolve,
+reopen and delete whole threads (the list's `can_resolve`); everyone edits and deletes only their own comments.
+Viewers, link holders and version pages (`&version=`) get no comments at all: no panel, no bar buttons, no request and
+an empty `showComments([])`. Adding needs `edit` or `comment` mode; an editor kept in `view` by the live room's editor
+limit still reads them.
+
+### Anchors
+
+An anchor is a JSON object the fork defines (at most 8 KiB compact), stored by the server as it is and handed back
+unchanged. The shell reads only these optional fields:
+
+| Field | Type | Use |
+|---|---|---|
+| `region` | string, 1–256 bytes | the stable region id (table in v3 above); sent as the thread's `region` |
+| `order` | array of 1–8 finite numbers | the position key the panel sorts placed threads by, compared element by element (Văn bản `[block, offset]`, Bảng tính `[sheet, row, col]`, Trình chiếu `[slide, shape z]`, PDF `[page, y, x]`) |
+| `quote` | string | the text shown above the thread (Văn bản: the selected text; Bảng tính: `Sheet1!B4`; Trình chiếu: the slide title and shape; PDF: the text under the quads); cut at 200 characters |
+| `kind` | `'document'` | reserved: a thread without a place |
+
+Everything else is the fork's own: the position inside the region and the soft anchor of plan v2 §6 (Văn bản the text
+plus 32 characters on each side; Bảng tính the cell's value or formula; Trình chiếu the slide title and shape id; PDF
+page, quads and text). The fork lists its exact anchor format in its `ERPCONS-CHANGES.md`.
+
+### Editor → shell
+
+```js
+erpHost.commentClicked(threadId)  // the user clicked a thread's mark in the document
+```
+
+The shell opens the panel on that thread (under "Đã xử lý" when it is resolved).
+
+### Shell → editor (handlers given to `ready`, all optional)
+
+```js
+anchorOfSelection()            // → anchor | null (or a Promise of it): the place of a new thread
+showComments(threads)          // [{ id, anchor, status }]: every placed thread, the whole set each time
+focusAnchor(anchor, threadId)  // scroll to the anchor and highlight it
+resolveAnchors(threads)        // → [{ threadId, anchor?, status? }] (or a Promise of it)
+```
+
+- `anchorOfSelection` is called on "Thêm nhận xét" (bar or panel) and Ctrl+Alt+M (Cmd+Option+M), in `edit` and
+  `comment` mode only. `null` means nothing is selected: the shell shows "Chọn nội dung để nhận xét" and opens nothing.
+- `showComments` carries no names or words. `status` is `open`, `resolved` or `orphaned`; the fork draws a mark for
+  each `open` thread it can place and none for the others. It places them itself, with the same rules as
+  `resolveAnchors`, every time the content changes. Called after the fork opened the document (`opened(…, true)`) and
+  whenever that list changes.
+- `focusAnchor` follows a click on a thread in the panel and a deep link `?doc=<id>&comment=<thread>` (the mails' link);
+  the shell waits for `opened` before calling it.
+- `resolveAnchors(threads)` (same entries as `showComments`) asks the fork to place every thread again on the content it
+  now shows and to return only what changed: a new `anchor` (same shape, updated position and soft anchor) and/or a
+  `status` of `open` (found again) or `orphaned` (region gone and the soft anchor not found). The region id comes first,
+  then the soft anchor. A resolved thread keeps its status. The shell calls it 1.5 s after the fork opened a new version
+  (`open`, also with `preserveView`) and after a burst of `applyRemote`, and sends the changes as one
+  `PATCH /documents/{id}/comments/anchors` (batches of 200). Only one page does this for everyone: the live room's
+  leader, or every page while no one leads (no room, or nobody editing).
+
+### Live refresh
+
+The room sends `comments.changed { thread_id }` (never the content) to the members who may read comments: the shell
+reads that thread again (gone: removed), or the whole list when `thread_id` is null, and after every rejoin. A page
+without a live room reads the list again on its 30 s check.
+
+### Tests each fork adds (v3 comments)
+
+With a fake `erpHost`: `anchorOfSelection` null without a selection and an anchor with `region`, `order` and `quote`
+for each selection kind; a saved file holds no server comment; `showComments` draws marks only for `open`;
+`focusAnchor` scrolls to the place; `resolveAnchors` keeps an anchor whose region moved, follows the soft anchor when
+the region id changed, returns `orphaned` when both are gone and nothing for an unchanged thread; a click on a mark
+calls `commentClicked` with its thread id.
 
 ## Tests each fork adds
 
