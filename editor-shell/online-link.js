@@ -1,7 +1,7 @@
 (function () {
   // The public view link `/<editor>/#link=<token>` (plan §8): opens without signing in, read-only, with "Tải về" when
-  // the owner allows downloads. online.js takes the token out of the address bar; from then on it lives in memory
-  // only: never logged or stored, and sent only in the X-Link-Token header to this origin's API.
+  // the owner allows downloads. The token stays in the address bar's fragment (online.js), which no request carries;
+  // the shell never logs or stores it and sends it only in the X-Link-Token header to this origin's API.
   var online = window.erpOnline = window.erpOnline || {}
 
   function noop() {}

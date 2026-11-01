@@ -69,7 +69,9 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     + `?open=<id>[,<id>…]`, delivered as a synthetic `drop` on the canvas; bytes stay queued until the fork reports
     `window.erpIntakeResult(name, size, ok)` (see `docs/file-transfer.md`). Also handles PWA `launchQueue` ("Open with").
   - `share.js`: `window.erpCanShareFiles(mime?)` / `window.erpShare(bytes, name, mime)` for the forks' "Chia sẻ"
-    export (Web Share, download fallback; off when embedded).
+    export (Web Share, download fallback; off when embedded). With online documents on, `online-share.js` replaces
+    both (not embedded, not the link page): the page's `?doc=` document opens the Cloud share dialog, a local file
+    offers "Lưu lên Tài liệu của tôi và chia sẻ" (upload, then `?doc=<id>&share=1`) or a copy (`docs/file-transfer.md`).
   - `keys.js`: blocks browser defaults (Ctrl+R/L/D, F5…) eframe doesn't cancel; never clipboard keys.
   - Clipboard (web): no shell JS. Each `apps/<fork>-web/src/clipboard.rs` (Word, Grid, Deck) listens for `paste`
     in the capture phase (text/html, text/rtf, text/plain, images) and writes `ClipboardItem` on copy; the
@@ -97,11 +99,12 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     token attached, one refresh + retry on 401, then `unauthenticated`.
   - Online documents (`docs/erp-host.md`, `docs/adr/online-tier.md`): `ONLINE_ENABLED` in `src/config/online.ts` (on;
     needs `PI_ACCOUNT_ENABLED` too). Only then `assets.ts` adds `ONLINE_SCRIPTS` before `host-bridge.js`: parts
-    `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/host/bar/panel/link.js` on `window.erpOnline`,
+    `online-backoff/api/pending/state/mode/dialogs/saver/open/watch/host/bar/panel/link/share.js` on `window.erpOnline`,
     composed by `online.js`, which defines `window.erpHost` v2 for a signed-in user on `/<editor>/?doc=<id>`
     (`&version=<seq>` read-only) and, via `online-link.js`, for anyone on the public link `/<editor>/#link=<token>`
     (never when embedded). The bar's "Chia sẻ" / "Lịch sử" open `/tai-lieu/chia-se/` and `/tai-lieu/lich-su/` (the same
-    React dialogs as `/tai-lieu/`) in a same-origin frame that answers by `postMessage` (`online-panel.js`). Phase 2
+    React dialogs as `/tai-lieu/`) in a same-origin frame that answers by `postMessage` (`online-panel.js`). The account
+    panel links to `/tai-lieu/` (new tab). Phase 2
     has no live channel: `online-watch.js` re-reads the document every 30 s while visible. Pending
     unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`
     turns PI + online on in `assemble.mts`, and only together with `ERPCONS_ALLOW_LOCAL_PROVENANCE=1`, which build-info
@@ -121,8 +124,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
   - `crash-guard.js`: a wasm trap / OOM / eframe panic ("panicked at" on `console.error`) shows a
     blocking "reload" dialog with the last draft time; embedded, it also posts `crashed`.
   - `sw.js`: network-first for pages, cache-first for assets, keeps old-build files while a tab
-    of that build is open. The public view link keeps its token in the fragment (`#link=`, removed from the address bar
-    at once, sent only as `X-Link-Token`), so no request or cache key carries it. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
+    of that build is open. The public view link keeps its token in the fragment (`#link=`, kept in the address bar on the link
+    page only so F5 and copying work, sent only as `X-Link-Token`), so no request or cache key carries it. It also answers the manifest's `share_target` (POST `/share-target/`, up to 5 files):
     files join the same `pending` queue as the landing picker under one `batchId`, then a 303 to
     `/nhan-tep/?batch=<id>`, which waits for the user's click. Only a same-origin referrer with exactly one valid
     file goes straight to `/<editor>/?open=<id>`: the OS share sheet and a cross-site page that strips its referrer

@@ -9,26 +9,34 @@
   var SAVES_WAIT = 10 * 1000
   // Intake message keys the editor may give with opened(false); anything else reads as unreadable bytes.
   var OPENED_REASONS = ['unsupported', 'parserFailed']
-  // A public link token leaves the address bar first, whatever this page turns out to be (another path, extra
-  // parameters, embedded, no account script): later URLs, bookmarks and shared screens never show it. The history
-  // entry of the original navigation still holds it, so a link only ends by its expiry or a reset.
   var linkHash = /^#link=([^&]*)$/.exec(location.hash)
-  if (/^#link=/.test(location.hash)) {
-    try { history.replaceState(history.state, '', location.pathname + location.search) } catch (e) { /* kept in memory either way */ }
-  }
   var online = window.erpOnline
   var account = window.erpAccount
   var editor = location.pathname.split('/')[1]
   var params = new URLSearchParams(location.search)
-  if (!online || !account || typeof account.apiFetch !== 'function') return
-  if (EDITORS.indexOf(editor) === -1 || location.pathname !== '/' + editor + '/') return
+  var usable = Boolean(online && account && typeof account.apiFetch === 'function')
+  var editorPage = EDITORS.indexOf(editor) !== -1 && location.pathname === '/' + editor + '/'
   // erpHost and the ERP embed bridge are never active together.
-  if (params.get('embed') === 'erpcons' || params.get('host') === 'parent') return
-  if (!params.has('doc') && linkHash) {
+  var embedded = params.get('embed') === 'erpcons' || params.get('host') === 'parent'
+  var linkPage = Boolean(linkHash) && usable && editorPage && !embedded && !params.has('doc')
+  // The link page keeps its token in the address bar, so F5 and copying the URL work (as Google Docs): a fragment
+  // reaches no request or Referer. Any other page has no use for a `#link=` fragment and drops it at once.
+  if (/^#link=/.test(location.hash) && !linkPage) {
+    try { history.replaceState(history.state, '', location.pathname + location.search) } catch (e) { /* not used here either way */ }
+  }
+  if (!usable || !editorPage || embedded) return
+  if (linkPage) {
     online.startLink({ token: linkHash[1], account: account, fetch: window.fetch.bind(window) })
     return
   }
+  online.installShare(account)
   if (!params.has('doc')) return
+  // Set by the editor's "Chia sẻ" after it saved a local file here (online-share.js); one use only.
+  var shareOnOpen = params.get('share') === '1'
+  if (params.has('share')) {
+    params.delete('share')
+    try { history.replaceState(history.state, '', location.pathname + '?' + params.toString()) } catch (e) { /* the URL only matters on reload */ }
+  }
   var status = account.status()
   if (status === 'disabled') return
   var dialogs = online.dialogs
@@ -295,6 +303,16 @@
     flush().then(function () { panel.open('history', doc.id) })
   }
 
+  // The editor's own "Chia sẻ" (online-share.js): true when it was for this page's document and the share dialog
+  // opened, false when it was but this user may not share it, null when it was for another (local) document.
+  online.pageShare = function (name) {
+    var doc = primary()
+    if (!doc || !doc.open || (name !== null && !online.sameDocument(name, doc.title, doc.format))) return null
+    if (doc.accessLost || !online.canManageSharing(doc.role) || doc.canShare === false) return false
+    openShare()
+    return true
+  }
+
   // The editor gets 10 s to hand over its edits, then the saves it started get as long again.
   function flush() {
     return within(hostApi.flush(), FORK_FLUSH_WAIT).then(function () { return within(saver.idle(), SAVES_WAIT) })
@@ -361,6 +379,9 @@
   if (viewingVersion) {
     opener.loadVersion(docId, parseInt(versionParam, 10))
   } else {
-    opener.load(docId).then(function () { watcher.start() })
+    opener.load(docId).then(function () {
+      watcher.start()
+      if (shareOnOpen) online.pageShare(null)
+    })
   }
 })()

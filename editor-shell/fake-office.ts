@@ -132,8 +132,10 @@ export class FakeOffice {
     if (!call.headers['Idempotency-Key']) return problem(422, 'INVALID_REQUEST')
     const file = form.get('file') as Blob
     const id = `c0de0000-0000-4000-8000-${String(++this.created).padStart(12, '0')}`
-    const title = String(form.get('title'))
-    const format = (file as File).name.split('.').pop() ?? ''
+    const name = (file as File).name
+    // Without a title the server takes the file name without its extension (the documents page's upload).
+    const title = form.has('title') ? String(form.get('title')) : name.replace(/\.[^.]*$/, '')
+    const format = name.split('.').pop() ?? ''
     this.add(id, title, format, new Uint8Array(await file.arrayBuffer()), (form.get('folder_id') as string | null) ?? null)
     return this.json(201, this.meta(this.docs.get(id)!), { ETag: this.etag(id, 1) })
   }

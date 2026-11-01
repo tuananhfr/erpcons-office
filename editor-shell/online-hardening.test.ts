@@ -156,7 +156,18 @@ describe('F1: explicit sign-out', () => {
   })
 })
 
-describe('S2: a #link= fragment never stays in the address bar', () => {
+describe('S2: a #link= fragment stays only on the link page itself', () => {
+  it('the link page keeps it, so a reload opens the same link', async () => {
+    const store = office()
+    store.links.set(TOKEN, DOC_ID)
+    const page = await opened({ office: store, search: '', hash: `#link=${TOKEN}`, account: { status: 'signed-out', sub: '' } })
+    expect(page.history.urls).toEqual([])
+    expect(page.location.hash).toBe(`#link=${TOKEN}`)
+    expect(page.opened).toHaveLength(1)
+    expect(JSON.stringify(page.logs)).not.toContain(TOKEN)
+  })
+
+
   it.each([
     ['with ?doc=', { search: `?doc=${DOC_ID}`, hash: `#link=${TOKEN}` }, `/van-ban/?doc=${DOC_ID}`],
     ['embedded', { search: '?embed=erpcons&parent=https%3A%2F%2Ferp.example', hash: `#link=${TOKEN}` }, '/van-ban/?embed=erpcons&parent=https%3A%2F%2Ferp.example'],

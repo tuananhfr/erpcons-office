@@ -10,7 +10,7 @@ import type { ShellAssets } from './inject.ts'
 export const SHELL_SCRIPTS = ['shell.js', 'account.js', 'account-ui.js', 'viewport.js', 'file-picker.js', 'intake.js', 'open-file.js', 'share.js', 'keys.js', 'drafts.js', 'drafts-ui.js', 'host-bridge.js', 'crash-guard.js']
 
 // Shipped only with online documents on (src/config/online.ts); online.js composes the parts before it.
-export const ONLINE_SCRIPTS = ['online-backoff.js', 'online-api.js', 'online-pending.js', 'online-state.js', 'online-mode.js', 'online-dialogs.js', 'online-saver.js', 'online-open.js', 'online-watch.js', 'online-host.js', 'online-bar.js', 'online-panel.js', 'online-link.js', 'online.js']
+export const ONLINE_SCRIPTS = ['online-backoff.js', 'online-api.js', 'online-pending.js', 'online-state.js', 'online-mode.js', 'online-dialogs.js', 'online-saver.js', 'online-open.js', 'online-watch.js', 'online-host.js', 'online-bar.js', 'online-panel.js', 'online-link.js', 'online-share.js', 'online.js']
 
 /** The shell scripts of an editor page, in run order. */
 export function shellScripts(online: boolean): string[] {

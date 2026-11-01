@@ -87,6 +87,15 @@ file first and returns `false` silently when it is refused (e.g. a macro-enabled
 Embedded pages never share. Cancelling the sheet does nothing; a later failure (activation lost) downloads the file
 and says so; success shows "Đã gửi bản xuất ‘name’".
 
+With online documents on, `editor-shell/online-share.js` replaces both functions on an editor page that is neither
+embedded nor the public link page: `erpCanShareFiles` says yes, so every editor shows its "Chia sẻ". `erpShare` then
+opens the Cloud share dialog when the name is the one the editor gives the page's `?doc=` document (owners and editors
+who may share; anyone else gets the plain behaviour above). A local `.docx/.xlsx/.pptx/.pdf` returns `true` and opens a
+choice: "Lưu lên Tài liệu của tôi và chia sẻ" (the documents page's upload, then `/<editor>/?doc=<id>&share=1`, which
+opens the share dialog once and drops `share`), "Gửi bản sao" (the share sheet from the dialog's own click; "Tải bản sao
+xuống" where the browser cannot share the type) and "Đóng"; signed out, the first button is "Đăng nhập để lưu lên
+Cloud" and continues with the upload once signed in. Other formats keep the plain behaviour.
+
 ## Build
 
 `scripts/assemble.mts` injects the shell script and fills the worker's `/*__INTAKE__*/` placeholder. No Rust changes

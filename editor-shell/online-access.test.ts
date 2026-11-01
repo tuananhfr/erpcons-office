@@ -402,13 +402,13 @@ describe('the public link page /<editor>/#link=<token>', () => {
     expect(store.linkCalls).toHaveLength(asked)
   })
 
-  it('takes the token out of the address bar before the first request', async () => {
+  it('keeps the token in the address bar (reload, copy the URL) and sends it only as X-Link-Token', async () => {
     const { store, options } = linkPage()
-    const page = onlinePage(options)
-    expect(page.history.urls).toEqual(['/van-ban/'])
-    expect(page.location.hash).toBe('')
+    const page = await opened(options)
+    expect(page.history.urls).toEqual([])
+    expect(page.location.hash).toBe(`#link=${TOKEN}`)
     expect(store.linkCalls.length).toBeGreaterThan(0)
-    expect(page.hashAtFetch.every(hash => hash === '')).toBe(true)
+    for (const call of store.linkCalls) expect(call.path).not.toContain(TOKEN)
   })
 
   it('a token in the query is not a link page: no request carries it', async () => {

@@ -195,10 +195,12 @@ erpHost.ready({
 - `/<editor>/?doc=<id>&version=<seq>` opens that version in `view` mode (the history's "Xem"); nothing is saved.
 - `/<editor>/#link=<token>` (public view link): no sign-in, `setUser(null)` whoever is signed in, `mode: 'view'`, every
   save answers `failed`; "Tải về" in the shell bar when `canDownload`. The token is only ever in the fragment, which
-  reaches no server log or Referer: the shell removes any `#link=` fragment with `history.replaceState` first, on every
-  page and before any request, keeps the token in memory only (no storage, no logs) and sends it as `X-Link-Token` to
-  `GET /api/v1/link` and `/api/v1/link/content`. The history entry of the original navigation still holds it, so a
-  link ends only by expiry or reset. Signing in on that page continues on `/<editor>/?doc=<id>` when the account has
+  reaches no request, server log or Referer. Since 2026-11-02 the link page keeps it in the address bar, as Google Docs
+  does, so a reload opens the link again and the URL can be copied from there: the browser history kept it anyway (the
+  original navigation), and the link only lets people view, and the owner can reset it at any time. Any other page with
+  a `#link=` fragment (with `?doc=`, embedded, extra parameters, no account script) still drops it with
+  `history.replaceState` before any request. The shell never stores or logs the token and sends it only as
+  `X-Link-Token` to `GET /api/v1/link` and `/api/v1/link/content`. Signing in on that page continues on `/<editor>/?doc=<id>` when the account has
   its own access to the document, and stays on the link view otherwise. The editor pages carry
   `<meta name="referrer" content="no-referrer">` when online documents are on.
 - `&version=<seq>`: the shell tracks that version with no ETag and refuses every save on the page.

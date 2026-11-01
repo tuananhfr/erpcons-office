@@ -137,6 +137,18 @@
         })
       })
     }
+    // As the documents page uploads: no title, so the server takes the file name without its extension.
+    function uploadFile(bytes, name, idempotencyKey) {
+      var form = new FormData()
+      form.append('file', new Blob([bytes], { type: 'application/octet-stream' }), name)
+      var init = { method: 'POST', headers: { Accept: 'application/json', 'Idempotency-Key': idempotencyKey }, body: form }
+      return call('/api/v1/documents', init, function (response) {
+        return readJson(response).then(function (body) {
+          var doc = documentOf(body)
+          return doc ? { kind: 'ok', doc: doc } : MALFORMED
+        })
+      })
+    }
     function getVersionContent(id, seq) {
       return call(path(id, '/versions/' + encodeURIComponent(String(seq)) + '/content'), { method: 'GET', headers: { Accept: 'application/octet-stream' } }, function (response) {
         return response.arrayBuffer().then(function (buffer) {
@@ -144,7 +156,7 @@
         }, function () { return { kind: 'offline' } })
       })
     }
-    return { getDocument: getDocument, getContent: getContent, putContent: putContent, createDocument: createDocument, getVersionContent: getVersionContent }
+    return { getDocument: getDocument, getContent: getContent, putContent: putContent, createDocument: createDocument, uploadFile: uploadFile, getVersionContent: getVersionContent }
   }
 
   online.isLinkToken = function (token) { return typeof token === 'string' && LINK_TOKEN.test(token) }

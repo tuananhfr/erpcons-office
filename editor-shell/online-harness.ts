@@ -47,6 +47,8 @@ export interface PageOptions {
   random?: number
   /** No window.erpAccount, as on a page built without the account script. */
   noAccount?: boolean
+  /** window.navigator (Web Share for share.js); empty by default. */
+  navigator?: Record<string, unknown>
 }
 
 export function onlinePage(options: PageOptions = {}) {
@@ -95,7 +97,8 @@ export function onlinePage(options: PageOptions = {}) {
     fetch: (path: string, init?: RequestInit) => { hashAtFetch.push(location.hash); return office.linkFetch(path, init) },
     URL: Object.assign(Object.create(URL), { createObjectURL: () => 'blob:fake', revokeObjectURL: () => {} }),
     document, location, history,
-    URLSearchParams, Uint8Array, ArrayBuffer, FormData, Blob, Response,
+    URLSearchParams, Uint8Array, ArrayBuffer, FormData, Blob, File, Response,
+    navigator: options.navigator ?? {},
     crypto: globalThis.crypto,
     Math: Object.assign(Object.create(Math), { random: () => options.random ?? 0.5 }),
     setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
