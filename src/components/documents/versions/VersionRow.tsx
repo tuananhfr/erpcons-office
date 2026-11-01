@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { formatBytes, formatMoment } from '@/lib/documents/display.ts'
 import type { Version } from '@/lib/documents/types.ts'
 import { useIcon } from '../IconsContext.tsx'
@@ -9,11 +10,20 @@ import { RestoreConfirm } from './RestoreConfirm.tsx'
 
 export type VersionAsk = 'restore' | 'delete'
 
+/** The older saves folded under this row (version-groups.ts) and the button that shows them. */
+export interface VersionFold {
+  count: number
+  expanded: boolean
+  /** Id of the list the button shows and hides. */
+  listId: string
+  onToggle: () => void
+}
+
 /**
  * One version: when, by whom, how big; open it read-only in a new tab, download it, or restore it. The owner's menu
  * deletes an old version; the current one is never offered.
  */
-export function VersionRow({ version, current, viewUrl, canDelete, asking, busy, onDownload, onAsk, onRestore, onDelete, onCancel }: {
+export function VersionRow({ version, current, viewUrl, canDelete, asking, busy, onDownload, onAsk, onRestore, onDelete, onCancel, fold, children }: {
   version: Version
   /** The document's current version number. */
   current: number
@@ -26,11 +36,15 @@ export function VersionRow({ version, current, viewUrl, canDelete, asking, busy,
   onRestore: () => void
   onDelete: () => void
   onCancel: () => void
+  fold?: VersionFold
+  /** The folded rows, under this one. */
+  children?: ReactNode
 }) {
   const view = useIcon('view')
   const download = useIcon('download')
   const restore = useIcon('restore')
   const trash = useIcon('trash')
+  const expand = useIcon('expand')
   const isCurrent = version.version === current
   const label = `phiên bản ${version.version}`
   return <li className="erp-versions-row" data-current={isCurrent || undefined}>
@@ -44,6 +58,10 @@ export function VersionRow({ version, current, viewUrl, canDelete, asking, busy,
         {version.authorName && <span>{version.authorName}</span>}
         <span>{formatBytes(version.size)}</span>
       </p>
+      {fold && <button type="button" className="erp-versions-row__fold" aria-expanded={fold.expanded} aria-controls={fold.listId} onClick={fold.onToggle}>
+        <span className="erp-versions-row__fold-icon">{expand}</span>
+        {fold.expanded ? `Ẩn ${fold.count} lần lưu trước đó` : `Xem thêm ${fold.count} lần lưu trước đó`}
+      </button>}
     </div>
     <div className="erp-versions-row__actions">
       <a className="erp-docs-icon-btn" href={viewUrl} target="_blank" rel="noopener" aria-label={`Xem ${label} (mở thẻ mới)`} title="Xem">{view}</a>
@@ -56,5 +74,6 @@ export function VersionRow({ version, current, viewUrl, canDelete, asking, busy,
     </div>
     {asking === 'restore' && <RestoreConfirm version={version.version} current={current} busy={busy} onConfirm={onRestore} onCancel={onCancel} />}
     {asking === 'delete' && !isCurrent && <DeleteVersionConfirm version={version.version} busy={busy} onConfirm={onDelete} onCancel={onCancel} />}
+    {children}
   </li>
 }

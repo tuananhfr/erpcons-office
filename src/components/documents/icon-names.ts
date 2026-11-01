@@ -12,6 +12,7 @@ export const DOC_ICONS = {
   restore: 'arrow-counterclockwise',
   more: 'three-dots-vertical',
   crumb: 'chevron-right',
+  expand: 'chevron-down',
   home: 'house',
   rename: 'pencil',
   move: 'folder-symlink',

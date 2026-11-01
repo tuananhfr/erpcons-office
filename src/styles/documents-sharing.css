@@ -142,6 +142,20 @@ html:has(.erp-docs-panel), body:has(.erp-docs-panel) { background: transparent; 
 .erp-versions-confirm p { margin: 0; font-size: 14px; line-height: 1.55; }
 .erp-versions-confirm[data-tone="danger"] { border-color: #f1b8bf; background: #fff7f8; }
 .erp-versions .erp-docs-list__more { padding: 4px 0 0; border-top: 0; }
+/* Saves folded under their group's newest one: a text button (not icon-only) and the older rows inset under it. */
+.erp-versions-row__fold { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: 0 0 -10px -8px; padding: 0 8px; border: 0; border-radius: var(--erp-radius-sm); background: none; color: var(--erp-blue); font: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; text-align: left; cursor: pointer; }
+.erp-versions-row__fold:hover { background: var(--erp-surface-2); }
+.erp-versions-row__fold:focus-visible { outline: 3px solid var(--erp-focus); outline-offset: -1px; }
+.erp-versions-row__fold-icon { display: inline-grid; place-items: center; font-size: 12px; }
+.erp-versions-row__fold[aria-expanded="true"] .erp-versions-row__fold-icon { transform: rotate(180deg); }
+@media (prefers-reduced-motion: no-preference) {
+  .erp-versions-row__fold-icon { transition: transform 160ms ease-out; }
+}
+/* Out of the head row's padding and tint: the older saves must not read as part of the current version. */
+.erp-versions__fold { grid-column: 1 / -1; display: grid; margin: 6px -8px -10px -14px; padding: 0 8px 0 34px; border-top: 1px solid #edf3f9; border-radius: 0 0 calc(var(--erp-radius-md) - 1px) calc(var(--erp-radius-md) - 1px); background: #fff linear-gradient(var(--erp-border), var(--erp-border)) no-repeat 20px 10px / 2px calc(100% - 20px); list-style: none; }
+.erp-versions__fold[hidden] { display: none; }
+.erp-versions__fold .erp-versions-row { padding: 8px 0; }
+.erp-versions__fold .erp-versions-row__title { font-size: 14px; font-weight: 600; }
 
 @media (max-width: 767px) {
   .erp-docs-tabs a { padding-inline: 8px; gap: 6px; white-space: nowrap; }
