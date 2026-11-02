@@ -202,6 +202,12 @@ html.erp-embedded .erp-shell { display: none; }
   .erp-shell__save .erp-shell__draft-full { display: none; }
   .erp-shell__save .erp-shell__draft-short { display: inline; }
 }
+/* At 1280 px the bar with the room's faces and the labelled buttons has no room for "Chưa lưu lên máy chủ": an
+   unsaved state takes its short form there too; the whole sentence stays in the title. */
+@media (max-width: 1365px) {
+  .erp-shell__save.erp-shell__draft--warn .erp-shell__draft-full { display: none; }
+  .erp-shell__save.erp-shell__draft--warn .erp-shell__draft-short { display: inline; }
+}
 /* A long save or draft caption gives way first: the nav, the editor name and the menu would otherwise wrap. */
 .erp-shell__nav, .erp-shell__current, .erp-shell__menu { flex: none; white-space: nowrap; }
 @media (max-width: 479px) { .erp-shell__save { gap: 4px; } }
