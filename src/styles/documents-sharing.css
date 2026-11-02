@@ -129,6 +129,7 @@ html:has(.erp-docs-panel), body:has(.erp-docs-panel) { background: transparent; 
 .erp-versions-row[data-current] { background: var(--erp-bg); }
 /* The list no longer clips its rows, so the shaded first row follows its rounded corners itself. */
 .erp-versions-row:first-child { border-top-left-radius: inherit; border-top-right-radius: inherit; }
+.erp-versions-row:last-child { border-bottom-left-radius: inherit; border-bottom-right-radius: inherit; }
 .erp-versions-row__main { min-width: 0; }
 .erp-versions-row__title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 15px; font-weight: 650; line-height: 1.45; }
 .erp-versions-row__tag { padding: 1px 8px; border-radius: 999px; background: #e4f7ef; color: #0e6b4a; font-size: 12px; font-weight: 700; line-height: 1.5; }
