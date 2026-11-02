@@ -15,7 +15,8 @@
     // Co-editing: the live room holds every edit of this page and its leader stores them (online-leader.js).
     if (doc.room && doc.room.synced && !doc.pending) return { state: 'SERVER_DURABLE', message: LABELS.SERVER_DURABLE }
     if (doc.dirty || doc.pending) {
-      return { state: 'LOCAL_ONLY', message: doc.error && doc.error.offline ? LABELS.LOCAL_ONLY + ' · ' + doc.error.message : LABELS.LOCAL_ONLY }
+      if (!doc.error || !doc.error.offline) return { state: 'LOCAL_ONLY', message: LABELS.LOCAL_ONLY }
+      return { state: 'LOCAL_ONLY', message: LABELS.LOCAL_ONLY + ' · ' + doc.error.message, label: LABELS.LOCAL_ONLY, reason: doc.error.message }
     }
     return { state: 'SERVER_DURABLE', message: LABELS.SERVER_DURABLE }
   }
@@ -30,6 +31,10 @@
     full.className = 'erp-shell__draft-full'
     var status = document.createElement('span')
     status.className = 'erp-shell__save-status'
+    // Present only while offline: it gives way like the name, so the bar keeps its nav at 1280 px.
+    var reason = document.createElement('span')
+    reason.className = 'erp-shell__save-reason'
+    var reasonShown = false
     var name = document.createElement('span')
     name.className = 'erp-shell__save-doc'
     full.appendChild(status)
@@ -59,7 +64,13 @@
       // The visible parts may be cut; the whole sentence stays in the tooltip and the accessible name.
       badge.title = text
       badge.setAttribute('aria-label', text)
-      status.textContent = worst.view.message
+      status.textContent = worst.view.reason ? worst.view.label : worst.view.message
+      reason.textContent = worst.view.reason || ''
+      if (Boolean(worst.view.reason) !== reasonShown) {
+        reasonShown = !reasonShown
+        if (reasonShown) full.insertBefore(reason, name)
+        else full.removeChild(reason)
+      }
       name.textContent = worst.doc.title
       brief.textContent = SHORT[state]
     }

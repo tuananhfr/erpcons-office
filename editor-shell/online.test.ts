@@ -206,6 +206,20 @@ describe('save → SaveResult (docs/erp-host.md table)', () => {
     expect(page.office.puts()).toHaveLength(1)
   })
 
+  it('offline: the reason is its own part of the badge, so only the state keeps its width in the bar', async () => {
+    const page = await opened({ random: 0 })
+    page.office.offline = true
+    page.host!.dirty(DOC_ID, true)
+    await page.host!.save(DOC_ID, bytes(7), { revision: 2, reason: 'auto' })
+    await page.settle()
+    const parts = page.badge()!.querySelector('.erp-shell__draft-full')!.children
+    expect(parts.map(part => [part.className, part.textContent])).toEqual([
+      ['erp-shell__save-status', 'Chưa lưu lên máy chủ'],
+      ['erp-shell__save-reason', 'Không kết nối được máy chủ'],
+      ['erp-shell__save-doc', 'Báo cáo quý'],
+    ])
+  })
+
   it('network error → offline at once, kept and retried with backoff until it lands', async () => {
     const page = await opened({ random: 0 })
     page.office.offline = true

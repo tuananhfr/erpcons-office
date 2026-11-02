@@ -192,7 +192,8 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-shell__save .erp-shell__draft-full { display: flex; flex-wrap: wrap; min-width: 0; height: 20px; }
 .erp-shell__save-status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .erp-shell__save-doc { flex: 1 1 4em; min-width: 4em; max-width: max-content; overflow: hidden; text-overflow: ellipsis; }
-.erp-shell__save-doc::before { content: "·"; margin: 0 0.4em; }
+.erp-shell__save-doc::before, .erp-shell__save-reason::before { content: "·"; margin: 0 0.4em; }
+.erp-shell__save-reason { flex: 0 1 auto; min-width: 4em; overflow: hidden; text-overflow: ellipsis; }
 /* The state never shrinks below its own words (an error may, its title has it all). Under 1024 px the bar also
    holds the nav or menu and the document buttons, so the state takes its short form and the name stays in the title. */
 .erp-shell__save:not(.erp-shell__draft--alert) { min-width: auto; overflow: visible; }
