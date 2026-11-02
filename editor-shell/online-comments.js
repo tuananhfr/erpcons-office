@@ -403,7 +403,8 @@
         var thread = store.get(threadId)
         if (!visible || !thread) return
         openPanel()
-        panel.focusThread(thread.id, online.commentFilterOf(thread))
+        // A click in the document may be the user placing the caret (Word reports clicks inside commented text).
+        panel.focusThread(thread.id, online.commentFilterOf(thread), true)
       },
       /** `?comment=<thread>`: open the panel on it once the threads are known. */
       deepLink: function (threadId) {

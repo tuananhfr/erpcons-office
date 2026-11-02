@@ -525,11 +525,11 @@
       var html = document.documentElement
       if (html && html.classList) html.classList[on ? 'add' : 'remove']('erp-comments-open')
     }
-    function reveal(id) {
+    function reveal(id, keepFocus) {
       var card = body.querySelector('[data-erp-comment-thread="' + id + '"]')
       if (!card) return
       if (typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'nearest' })
-      if (typeof card.focus === 'function') card.focus()
+      if (!keepFocus && typeof card.focus === 'function') card.focus()
     }
 
     return {
@@ -568,11 +568,11 @@
         render()
       },
       /** Shows the thread as the current one, under the filter that lists it. */
-      focusThread: function (id, threadFilter) {
+      focusThread: function (id, threadFilter, keepFocus) {
         activeId = id
         if (threadFilter) filter = threadFilter
         render()
-        reveal(id)
+        reveal(id, keepFocus)
       },
       filter: function () { return filter },
       active: function () { return activeId }

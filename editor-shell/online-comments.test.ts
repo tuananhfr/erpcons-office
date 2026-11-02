@@ -393,6 +393,14 @@ describe('thread actions', () => {
     expect(q(page, '[data-erp-comments-filter="resolved"]')!.getAttribute('aria-selected')).toBe('true')
     expect(card(page, comments.threads[0].id).className).toContain('erp-thread--active')
   })
+
+  it('commentClicked leaves the keyboard on the canvas (Word reports clicks inside commented text)', async () => {
+    const { page, comments } = await commentPage('owner', { seed: c => { c.seed(DOC_ID, { anchor: ANCHOR }) } })
+    page.canvas.focus()
+    ;(page.host as unknown as { commentClicked(id: string): void }).commentClicked(comments.threads[0].id)
+    expect(card(page, comments.threads[0].id).className).toContain('erp-thread--active')
+    expect(page.document.activeElement).toBe(page.canvas)
+  })
 })
 
 describe('deep link ?comment=', () => {
