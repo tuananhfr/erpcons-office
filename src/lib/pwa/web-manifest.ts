@@ -35,7 +35,7 @@ export function webManifest(): MetadataRoute.Manifest {
   return {
     id: '/',
     name: SEO_BRAND,
-    short_name: 'Văn phòng',
+    short_name: 'Office',
     description: SITE.description,
     lang: 'vi',
     start_url: '/',
@@ -52,7 +52,7 @@ export function webManifest(): MetadataRoute.Manifest {
     file_handlers: EDITORS.map((e) => ({
       action: editorPath(e.slug),
       accept: fileHandlerAccept(e),
-      icons: [{ src: `/brand/office/${e.slug}-256.png`, sizes: '256x256', type: 'image/png' }],
+      icons: [{ src: `/brand/office/${e.slug}-office-256.png`, sizes: '256x256', type: 'image/png' }],
     })),
     // Android "Share" to the installed app; editor-shell/sw.js receives the POST and opens the right editor.
     // title/text/url let it answer a link-only share (Zalo, browsers) with guidance; the app then also shows up when
@@ -65,6 +65,6 @@ export function webManifest(): MetadataRoute.Manifest {
     },
     // A share or "Open with" while an editor is open must not navigate that window away from its document.
     launch_handler: { client_mode: 'navigate-new' },
-    shortcuts: EDITORS.map((e) => ({ name: e.name, url: editorPath(e.slug), icons: [{ src: SEO_ASSETS.icon192, sizes: '192x192' }] })),
+    shortcuts: EDITORS.map((e) => ({ name: e.name, url: editorPath(e.slug), icons: [{ src: `/brand/office/${e.slug}-office-256.png`, sizes: '256x256', type: 'image/png' }] })),
   }
 }

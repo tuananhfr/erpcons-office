@@ -59,7 +59,7 @@ var OFFLINE_MESSAGE = 'Không tải được trang này. Hãy kiểm tra kết n
 function messagePage(status, message, retryUrl, links) {
   var pairs = links || (retryUrl ? [[retryUrl, 'Thử lại']] : []).concat([['/', 'Về trang chủ']])
   var html = '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-    + '<title>Văn phòng by ERPCons</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5">'
+    + '<title>Office by ERPCons</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5">'
     + '<p>' + message + '</p><p>' + pairs.map(function (pair) { return '<a href="' + pair[0] + '">' + pair[1] + '</a>' }).join(' · ') + '</p></body></html>'
   return new Response(html, { status: status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }

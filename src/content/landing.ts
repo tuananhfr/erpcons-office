@@ -1,9 +1,12 @@
 import { DESKTOP_DOWNLOADS_ENABLED } from '../config/desktop.ts'
 import { EDITORS } from '../config/editors.ts'
 import sizes from '../generated/editor-sizes.json'
+import { siteFlags } from '../config/site-flags.ts'
+
+const online = siteFlags().online
 
 export const WHY = [
-  { icon: 'shield-lock', title: 'Tệp không rời máy', text: 'Mọi thao tác chạy ngay trong trình duyệt. Tệp không được tải lên máy chủ nào.' },
+  { icon: 'shield-lock', title: 'Chủ động với dữ liệu', text: online ? 'Tệp mở từ máy được xử lý ngay trong trình duyệt. Chỉ tài liệu bạn chọn lưu online mới được tải lên Cloud.' : 'Tệp mở từ máy được xử lý ngay trong trình duyệt, không tải lên máy chủ.' },
   { icon: 'person-check', title: 'Không cần tài khoản', text: 'Mở trang là dùng được, không đăng ký, không đăng nhập.' },
   { icon: 'wifi-off', title: 'Dùng được khi mất mạng', text: 'Sau lần mở đầu tiên khi có mạng, trình soạn thảo vẫn mở được lúc không có kết nối.' },
 ]
@@ -24,14 +27,14 @@ export function firstLoadAnswer(sizes: Record<string, number | null>): string {
 }
 
 export const FAQ = [
-  { question: 'Tệp của tôi có bị tải lên máy chủ không?', answer: 'Không. Tệp được mở và xử lý ngay trong trình duyệt trên máy bạn. Máy chủ chỉ gửi phần mềm trình soạn thảo, không nhận tệp của bạn.' },
-  { question: 'Lưu tệp như thế nào?', answer: 'Dùng lệnh lưu của trình soạn thảo (Ctrl+S hoặc menu Tệp). Tệp được tải về máy bạn.' },
+  { question: 'Tệp của tôi có bị tải lên máy chủ không?', answer: 'Tệp mở từ máy được xử lý ngay trong trình duyệt, không tự động tải lên máy chủ.' + (online ? ' Nếu bạn đăng nhập và chọn lưu online, tài liệu đó được lưu trên Cloud để mở lại và chia sẻ.' : '') },
+  { question: 'Lưu tệp như thế nào?', answer: 'Dùng lệnh lưu của trình soạn thảo (Ctrl+S hoặc menu Tệp) để lưu tệp về máy.' + (online ? ' Khi đăng nhập PI ID, bạn có thể lưu online trong Tài liệu của tôi.' : '') },
   { question: 'Vì sao lần mở đầu tiên chậm?', answer: firstLoadAnswer(sizes) },
   { question: 'Có dùng được trên điện thoại không?', answer: 'Mở được, nhưng giao diện được thiết kế cho màn hình lớn. Để làm việc thoải mái, nên dùng máy tính.' },
   ...(DESKTOP_DOWNLOADS_ENABLED
     ? [{ question: 'Có bản cài trên máy tính không?', answer: 'Có. Đăng nhập PI ID rồi tải bản cài Windows tại mục Tải bản cài trên máy tính.', href: '/#tai-ban-desktop' }]
     : []),
-  { question: 'Có mất phí không?', answer: 'Không. ERPCons Văn phòng miễn phí và không cần tài khoản.' },
+  { question: 'Có mất phí không?', answer: 'Không. ERPCons Office miễn phí và không cần tài khoản.' },
 ]
 
 export const FORK_REPOS = EDITORS.map((e) => ({ name: e.upstreamName, url: `https://github.com/tuananhfr/${e.fork}` }))

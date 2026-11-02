@@ -25,11 +25,11 @@ describe('injectEditorShell', () => {
   it('sets Vietnamese language, title, canonical and drops upstream title/icon', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
     expect(out).toContain('<html lang="vi">')
-    expect(out).toContain('<title>Soạn thảo Word trực tuyến miễn phí | Văn phòng by ERPCons</title>')
+    expect(out).toContain('<title>Soạn thảo Word trực tuyến miễn phí | Office by ERPCons</title>')
     expect(out).toContain('<link rel="canonical" href="https://office.erpcons.ai/van-ban/">')
     expect(out).not.toContain('<title>WordCraft</title>')
     expect(out).not.toContain('wordcraft-45f84b7721cb79a9.ico')
-    expect(out).toContain('<link rel="icon" href="/brand/van-phong-icon-32.png" type="image/png" sizes="32x32">')
+    expect(out).toContain('<link rel="icon" href="/brand/office/office-icon-32.png" type="image/png" sizes="32x32">')
   })
 
   it('puts the bar right after <body> and keeps the engine script untouched', () => {
@@ -95,13 +95,13 @@ describe('injectEditorShell', () => {
 
   it('names the logo link for screen readers, since mobile hides its text', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
-    expect(out).toContain('<a class="erp-shell__brand" href="/" aria-label="Văn phòng by ERPCons, trang chủ">')
+    expect(out).toContain('<a class="erp-shell__brand" href="/" aria-label="Office by ERPCons, trang chủ">')
   })
 
-  it('shows the same Văn phòng logo and wordmark as the landing header', () => {
+  it('shows the same Office logo and wordmark as the landing header', () => {
     const out = injectEditorShell(trunkWord, word, EDITORS, assets)
-    expect(out).toContain('<img src="/brand/van-phong-logo-64.png" alt="" width="28" height="28">')
-    expect(out).toContain('<span>Văn phòng <small>by <b>ERPCons</b></small></span>')
+    expect(out).toContain('<img src="/brand/office/office-logo-64.png" alt="" width="28" height="28">')
+    expect(out).toContain('<span>Offi<b class="erp-shell__brand-accent">ce</b> <small>by <b>ERPCons</b></small></span>')
     expect(out).not.toContain('erpcons-mark.svg')
   })
 

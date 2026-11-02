@@ -11,7 +11,7 @@ export interface EcosystemTool {
   href?: string
 }
 export const ECOSYSTEM_TOOLS: EcosystemTool[] = [
-  { id: 'office', name: 'Văn phòng', description: 'Soạn thảo, bảng tính, trình chiếu và PDF.', icon: 'files', logo: '/brand/van-phong-icon-192.png', color: 'blue', categories: ['Miễn phí', 'Công việc'], href: '/#chuc-nang' },
+  { id: 'office', name: 'Office', description: 'Soạn thảo, bảng tính, trình chiếu và PDF.', icon: 'files', logo: '/brand/office/office-icon-192.png', color: 'blue', categories: ['Miễn phí', 'Công việc'], href: '/#chuc-nang' },
   { id: 'chuyen-nho', name: 'Chuyện Nhỏ', description: 'Bộ công cụ tiện ích hằng ngày.', icon: 'tools', logo: '/brand/ecosystem/chuyen-nho.png', color: 'blue', categories: ['Cuộc sống', 'Công việc'] },
   { id: 'suc-khoe-so', name: 'Sức Khỏe Số', description: 'Kiểm tra website và trải nghiệm sử dụng.', icon: 'heart-pulse', logo: '/brand/ecosystem/suc-khoe-so.png', color: 'cyan', categories: ['Công việc', 'Doanh nghiệp'] },
   { id: 'suc-khoe-dn', name: 'Sức Khỏe DN', description: 'Đánh giá hoạt động doanh nghiệp.', icon: 'bar-chart', logo: '/brand/ecosystem/suc-khoe-dn.png', color: 'green', categories: ['Doanh nghiệp'] },

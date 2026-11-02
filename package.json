@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "brand:assets": "node scripts/make-pwa-icons.mjs && node scripts/make-social-image.mjs",
     "predev": "node scripts/build-editors.mts --skip-rust --allow-missing",
     "dev": "next dev -p 3010",
     "build": "node scripts/build-editors.mts && next build && node scripts/assemble.mts",

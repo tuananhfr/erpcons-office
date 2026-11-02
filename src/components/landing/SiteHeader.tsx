@@ -5,6 +5,7 @@ import { InstallAppButton } from '@/components/InstallAppButton.tsx'
 import { AccountMenu } from '@/components/landing/AccountMenu.tsx'
 import { DESKTOP_DOWNLOADS_ENABLED } from '@/config/desktop.ts'
 import { siteFlags } from '@/config/site-flags.ts'
+import { ThemeToggle } from './ThemeToggle.tsx'
 
 type Page = 'home' | 'explore' | 'guide' | 'documents'
 
@@ -33,9 +34,10 @@ export function SiteHeader({ active = 'home' }: { active?: Page }) {
   return <header className="erp-site-header">
     <a className="erp-skip" href="#noi-dung">Đến nội dung chính</a>
     <div className="erp-container erp-site-header__inner">
-      <Brand />
+      <div className="erp-header-brand"><Brand /><span className="erp-free-badge">Miễn phí</span></div>
       <nav className="erp-desktop-nav" aria-label="Điều hướng chính"><Navigation active={active} /></nav>
       <div className="erp-header-actions">
+        {active === 'home' && <ThemeToggle />}
         <Install variant="header" />
         <Account variant="header" />
         {/* Next to the account entry it never fits on one line; the menu and the footer keep the link. */}

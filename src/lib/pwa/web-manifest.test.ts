@@ -9,16 +9,16 @@ describe('webManifest', () => {
   const manifest = webManifest()
 
   it('has what Chrome needs to offer installation', () => {
-    expect(manifest.name).toBe('Văn phòng by ERPCons')
-    expect(manifest.short_name).toBe('Văn phòng')
+    expect(manifest.name).toBe('Office by ERPCons')
+    expect(manifest.short_name).toBe('Office')
     expect(manifest.start_url).toBe('/')
     expect(manifest.display).toBe('standalone')
     const sizes = (manifest.icons ?? []).filter((i) => i.purpose !== 'maskable').map((i) => i.sizes)
     expect(sizes).toEqual(expect.arrayContaining(['192x192', '512x512']))
   })
 
-  it('ships a maskable icon so Android shapes do not crop the round logo', () => {
-    expect(manifest.icons).toContainEqual({ src: '/brand/van-phong-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' })
+  it('ships a maskable icon so Android shapes do not crop the Office mark', () => {
+    expect(manifest.icons).toContainEqual({ src: '/brand/office/office-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' })
   })
 
   it('keeps the whole site in one app scope', () => {
@@ -52,10 +52,10 @@ describe('webManifest', () => {
 
   it('provides a distinct local PNG icon for each file handler', () => {
     const expected = [
-      { action: '/van-ban/', file: 'van-ban-256.png' },
-      { action: '/bang-tinh/', file: 'bang-tinh-256.png' },
-      { action: '/trinh-chieu/', file: 'trinh-chieu-256.png' },
-      { action: '/pdf/', file: 'pdf-256.png' },
+      { action: '/van-ban/', file: 'van-ban-office-256.png' },
+      { action: '/bang-tinh/', file: 'bang-tinh-office-256.png' },
+      { action: '/trinh-chieu/', file: 'trinh-chieu-office-256.png' },
+      { action: '/pdf/', file: 'pdf-office-256.png' },
     ]
     const handlers = manifest.file_handlers as { action: string; icons?: { src: string; sizes: string; type: string }[] }[]
     expect(handlers).toHaveLength(4)

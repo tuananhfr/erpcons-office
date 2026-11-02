@@ -1,25 +1,33 @@
-import Image from 'next/image'
 import { Icon } from '@/components/Icon.tsx'
 import { OnlineInvite } from '@/components/landing/OnlineInvite.tsx'
 import { OpenFileButton } from '@/components/landing/OpenFileButton.tsx'
 import { siteFlags } from '@/config/site-flags.ts'
+import { NewDocumentMenu } from './NewDocumentMenu.tsx'
+import { OfficePreview } from './OfficePreview.tsx'
 
 export function Hero() {
   return <section className="erp-hero" aria-labelledby="hero-title">
     <div className="erp-container erp-hero__inner">
       <div className="erp-hero__copy">
-        <h1 id="hero-title">Mở tệp là<br /><span>làm việc.</span></h1>
-        <p className="erp-hero__lead">Soạn văn bản, bảng tính, trình chiếu và PDF ngay trên trình duyệt.</p>
-        <p className="erp-hero__tagline">Miễn phí. Nhanh. Tiện lợi.</p>
+        <p className="erp-hero__eyebrow">BỘ CÔNG CỤ VĂN PHÒNG TRỰC TUYẾN</p>
+        <h1 id="hero-title">Làm việc<br /><span>mọi lúc, mọi nơi.</span></h1>
+        <p className="erp-hero__lead">Soạn thảo, bảng tính, trình chiếu, đọc và chỉnh sửa PDF.<br className="erp-hero__desktop-break" /> Dùng ngay trên web hoặc cài đặt PWA. Miễn phí, không cần đăng nhập.</p>
         <div className="erp-hero__actions">
-          <OpenFileButton icon={<Icon name="folder2-open" />} />
-          <a className="erp-btn erp-btn--secondary" href="#chuc-nang"><Icon name="grid" /> Chọn công cụ</a>
+          <OpenFileButton label="Mở tệp từ thiết bị" icon={<Icon name="folder2-open" />} />
+          <NewDocumentMenu />
         </div>
-        <p className="erp-hero__trust"><Icon name="shield-check" /> Không cần tài khoản <span>·</span> Tệp xử lý trên thiết bị</p>
+        <ul className="erp-hero__benefits">
+          <li><Icon name="lightning-charge" /><span>Dùng ngay<small>không cần tài khoản</small></span></li>
+          {siteFlags().online
+            ? <li><Icon name="cloud" /><span>Lưu trữ Cloud<small>khi có PI ID</small></span></li>
+            : <li><Icon name="wifi-off" /><span>Làm việc ngoại tuyến<small>sau lần mở đầu tiên</small></span></li>}
+          <li><Icon name="pc-display" /><span>Linh hoạt mỗi ngày<small>Web, PWA, Windows</small></span></li>
+          <li><Icon name="shield-check" /><span>Chủ động dữ liệu<small>trên thiết bị của bạn</small></span></li>
+        </ul>
+        <p className="erp-hero__trust erp-sr-only">Không cần tài khoản <span>·</span> Tệp xử lý trên thiết bị</p>
         {siteFlags().online && <OnlineInvite />}
       </div>
-      {/* Lazy, not preloaded: the art is display:none on phones, where a preload stole bandwidth from the H1 (mobile LCP). */}
-      <div className="erp-hero__art"><Image src="/illustrations/workspace.webp" alt="Góc làm việc bên cửa sổ, laptop, cây xanh và sổ tay." width={1536} height={1024} loading="lazy" fetchPriority="high" sizes="(max-width: 767px) 100vw, 60vw" /></div>
+      <div className="erp-hero__art"><OfficePreview /></div>
     </div>
   </section>
 }

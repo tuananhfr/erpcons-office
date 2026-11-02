@@ -36,7 +36,7 @@ it('renders the suite above individual downloads with both Windows suite links',
   const { assets, releaseUrl } = suiteDownloads()
   for (const asset of assets) expect(html).toContain(`href="${asset.url}"`)
   expect(html).toContain(`href="${releaseUrl}"`)
-  expect(html.indexOf('Tải trọn bộ ERPCons Văn phòng')).toBeLessThan(html.indexOf('Hoặc tải từng ứng dụng'))
+  expect(html.indexOf('Tải trọn bộ ERPCons Office')).toBeLessThan(html.indexOf('Hoặc tải từng ứng dụng'))
 })
 
 it('offers and promises nothing but Windows: no macOS or Linux link, label or install note', () => {

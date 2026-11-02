@@ -143,7 +143,7 @@ function bodyTags(editor: EditorEntry, editors: readonly EditorEntry[], assets: 
   const links = navLinks(editor, editors)
   return [
     `<header class="erp-shell" ${SHELL_MARKER}>`,
-    `<a class="erp-shell__brand" href="/" aria-label="${escapeHtml(SEO_BRAND)}, trang chủ"><img src="${SEO_ASSETS.logo64}" alt="" width="28" height="28"><span>Văn phòng <small>by <b>ERPCons</b></small></span></a>`,
+    `<a class="erp-shell__brand" href="/" aria-label="${escapeHtml(SEO_BRAND)}, trang chủ"><img src="${SEO_ASSETS.logo64}" alt="" width="28" height="28"><span>Offi<b class="erp-shell__brand-accent">ce</b> <small>by <b>ERPCons</b></small></span></a>`,
     `<span class="erp-shell__current">${escapeHtml(editor.name)}</span>`,
     `<nav class="erp-shell__nav" aria-label="Chức năng">${links}</nav>`,
     `<details class="erp-shell__menu"><summary>Chức năng</summary><nav aria-label="Chức năng">${links}</nav></details>`,

@@ -1,17 +1,17 @@
 import { SITE, type EditorEntry } from '../../config/editors.ts'
 
-export const SEO_BRAND = 'Văn phòng by ERPCons'
+export const SEO_BRAND = 'Office by ERPCons'
 export const SEO_ASSETS = {
-  favicon: '/favicon.ico',
-  icon16: '/brand/van-phong-icon-16.png',
-  icon32: '/brand/van-phong-icon-32.png',
-  icon192: '/brand/van-phong-icon-192.png',
-  icon512: '/brand/van-phong-icon-512.png',
-  maskable512: '/brand/van-phong-maskable-512.png',
-  logo64: '/brand/van-phong-logo-64.png',
-  apple: '/brand/van-phong-apple-180.png',
-  image: '/brand/van-phong-social.png',
-  imageAlt: 'Văn phòng by ERPCons: soạn văn bản, bảng tính, trình chiếu và PDF trực tuyến.',
+  favicon: '/brand/office/office-favicon.ico',
+  icon16: '/brand/office/office-icon-16.png',
+  icon32: '/brand/office/office-icon-32.png',
+  icon192: '/brand/office/office-icon-192.png',
+  icon512: '/brand/office/office-icon-512.png',
+  maskable512: '/brand/office/office-maskable-512.png',
+  logo64: '/brand/office/office-logo-64.png',
+  apple: '/brand/office/office-apple-180.png',
+  image: '/brand/office/office-social.png',
+  imageAlt: 'Office by ERPCons — Làm việc mọi lúc, mọi nơi. Văn bản, Bảng tính, Trình chiếu và PDF.',
 } as const
 
 export interface PageSeo {
@@ -39,13 +39,13 @@ export const EXPLORE_SEO = createPageSeo(
 export const GUIDE_SEO = createPageSeo(
   '/huong-dan/',
   'Cài ứng dụng và mở tệp',
-  'Hướng dẫn cài Văn phòng by ERPCons trên máy tính, Android, iPhone và iPad, mở tệp DOCX, XLSX, PPTX, PDF bằng "Mở bằng" hoặc nút Chia sẻ, và nơi lưu tệp.',
+  'Hướng dẫn cài Office by ERPCons trên máy tính, Android, iPhone và iPad, mở tệp DOCX, XLSX, PPTX, PDF bằng "Mở bằng" hoặc nút Chia sẻ, và nơi lưu tệp.',
 )
 
 export const INTAKE_SEO = createPageSeo(
   '/nhan-tep/',
   'Nhận tệp',
-  'Danh sách tệp được chia sẻ vào Văn phòng by ERPCons từ ứng dụng khác, lưu tạm trên thiết bị và mở trong đúng công cụ.',
+  'Danh sách tệp được chia sẻ vào Office by ERPCons từ ứng dụng khác, lưu tạm trên thiết bị và mở trong đúng công cụ.',
 )
 
 export function editorSeo(editor: EditorEntry): PageSeo {

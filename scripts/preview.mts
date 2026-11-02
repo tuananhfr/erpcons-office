@@ -50,4 +50,4 @@ http.createServer((req, res) => {
   })
   if (req.method === 'HEAD') { res.end(); return }
   fs.createReadStream(body).pipe(res)
-}).listen(port, () => console.log(`ERPCons Văn phòng preview: http://localhost:${port}/${apiBase ? ` (/api/ → ${apiBase.origin})` : ''}`))
+}).listen(port, () => console.log(`ERPCons Office preview: http://localhost:${port}/${apiBase ? ` (/api/ → ${apiBase.origin})` : ''}`))

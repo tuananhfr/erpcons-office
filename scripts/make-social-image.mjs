@@ -1,59 +1,46 @@
-// Renders public/brand/van-phong-social.png (1200×630 og:image) with headless Chrome.
-// usage: node scripts/make-social-image.mjs   (CHROME=<path> to override the browser)
-import { execFileSync } from 'node:child_process'
-import fs from 'node:fs'
-import os from 'node:os'
+// Deterministic 1200x630 social card, using exact Office PNG marks (no AI redraw).
+// usage: node scripts/make-social-image.mjs
+import fs from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const logo = pathToFileURL(path.join(root, 'public/brand/van-phong-logo.png')).href
-const target = path.join(root, 'public/brand/van-phong-social.png')
-
-const CHROME_CANDIDATES = [
-  process.env.CHROME,
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-].filter(Boolean)
-const chrome = CHROME_CANDIDATES.find((p) => fs.existsSync(p))
-if (!chrome) throw new Error('Chrome not found; set CHROME=<path to chrome>')
-
-const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=block&subset=vietnamese">
-<style>
-  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
-  body { display: flex; align-items: center; gap: 96px; padding: 0 0 0 114px; box-sizing: border-box;
-    background: linear-gradient(135deg, #fff 45%, #edf5fc); font-family: Inter, sans-serif; color: #082674; }
-  img { width: 270px; height: 270px; flex: none; }
-  .label { margin: 0 0 18px; font-size: 14px; font-weight: 600; letter-spacing: .18em; }
-  h1 { margin: 0 0 26px; font-size: 64px; line-height: 1.12; font-weight: 800; letter-spacing: -.05em; }
-  h1 span { color: #0960ea; }
-  .apps { margin: 0 0 16px; font-size: 21px; color: #4c5e7d; }
-  .note { margin: 0 0 44px; font-size: 17px; color: #4c5e7d; }
-  .url { display: flex; align-items: center; gap: 18px; margin: 0; font-size: 18px; font-weight: 600; }
-  .url::before { content: ''; width: 52px; height: 3px; background: #e81927; }
-</style></head><body>
-  <img src="${logo}" alt="">
-  <div>
-    <p class="label">VĂN PHÒNG BY ERPCONS</p>
-    <h1>Mở tệp là<br><span>làm việc.</span></h1>
-    <p class="apps">Văn bản · Bảng tính · Trình chiếu · PDF</p>
-    <p class="note">Miễn phí. Không cần tài khoản.</p>
-    <p class="url">office.erpcons.ai</p>
-  </div>
-</body></html>`
-
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'erp-social-'))
-try {
-  const page = path.join(dir, 'social.html')
-  fs.writeFileSync(page, html)
-  // The budget lets the web font finish before the shot; without it Chrome may paint the fallback font.
-  execFileSync(chrome, ['--headless=new', '--hide-scrollbars', '--force-device-scale-factor=1', '--allow-file-access-from-files',
-    '--window-size=1200,630', '--virtual-time-budget=8000', `--screenshot=${target}`, pathToFileURL(page).href], { stdio: 'ignore' })
-} finally {
-  fs.rmSync(dir, { recursive: true, force: true })
+const brand = path.join(root, 'public/brand')
+const tools = [
+  ['van-ban', 'Văn bản', 'DOCX'], ['bang-tinh', 'Bảng tính', 'XLSX'],
+  ['trinh-chieu', 'Trình chiếu', 'PPTX'], ['pdf', 'PDF', 'PDF'],
+]
+const cards = tools.map(([, name, extension], index) => {
+  const x = 790 + index % 2 * 168, y = 160 + Math.floor(index / 2) * 174
+  return `<rect x="${x}" y="${y}" width="148" height="154" rx="14" fill="white" stroke="#dce7f1"/>
+    <text x="${x + 74}" y="${y + 120}" text-anchor="middle" font-size="17" font-weight="700">${name}</text>
+    <text x="${x + 74}" y="${y + 141}" text-anchor="middle" font-size="11" fill="#64788c">${extension}</text>`
+}).join('')
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#edf5fc"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1100" cy="70" r="260" fill="#e6f0fb" opacity=".65"/>
+  <g font-family="Arial, sans-serif" fill="#082b4b">
+    <text x="164" y="107" font-size="52" font-weight="700" letter-spacing="-2">Offi<tspan fill="#df1724">ce</tspan></text>
+    <text x="167" y="132" font-size="16">by ERPCons</text>
+    <rect x="362" y="76" width="94" height="31" rx="7" fill="#e7f1fd"/>
+    <text x="409" y="97" font-size="14" text-anchor="middle" font-weight="700">Miễn phí</text>
+    <text x="68" y="203" font-size="13" letter-spacing="2" fill="#586b7d">BỘ CÔNG CỤ VĂN PHÒNG TRỰC TUYẾN</text>
+    <text x="64" y="289" font-size="72" font-weight="700" letter-spacing="-3">Làm việc</text>
+    <text x="64" y="369" font-size="66" font-weight="700" letter-spacing="-3" fill="#df1724">mọi lúc, mọi nơi.</text>
+    <text x="68" y="428" font-size="21" fill="#586b7d">Văn bản · Bảng tính · Trình chiếu · PDF</text>
+    <text x="68" y="463" font-size="17" fill="#586b7d">Dùng ngay trên web. Không cần tài khoản.</text>
+    <path d="M68 551h42" stroke="#df1724" stroke-width="3"/>
+    <text x="126" y="557" font-size="19" font-weight="700">office.erpcons.ai</text>
+    ${cards}
+  </g>
+</svg>`
+const layers = [{ input: await sharp(path.join(brand, 'office/office-mark.png')).resize(84, 84).png().toBuffer(), left: 66, top: 61 }]
+for (const [index, [slug]] of tools.entries()) {
+  layers.push({ input: await sharp(path.join(brand, `office/${slug}-new.png`)).resize(76, 76).png().toBuffer(), left: 826 + index % 2 * 168, top: 178 + Math.floor(index / 2) * 174 })
 }
-console.log(`wrote ${path.relative(root, target)}`)
+const png = await sharp(Buffer.from(svg)).composite(layers).png({ compressionLevel: 9 }).toBuffer()
+// New canonical URL, plus updated legacy copies for previously shared links.
+for (const name of ['office/office-social.png', 'van-phong-social.png', 'og-image.png']) await fs.writeFile(path.join(brand, name), png)
+console.log('Office social card and legacy compatibility copies regenerated (1200x630).')

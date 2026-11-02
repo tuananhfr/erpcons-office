@@ -21,7 +21,7 @@ export function DesktopDownloads() {
 function Downloads() {
   return <>
     <div className="erp-feature erp-downloads__card erp-downloads__suite">
-      <h3>Tải trọn bộ ERPCons Văn phòng</h3>
+      <h3>Tải trọn bộ ERPCons Office</h3>
       <p>Văn bản, Bảng tính, Trình chiếu và PDF trong một lần tải.</p>
       <DesktopDownloadLinks />
     </div>

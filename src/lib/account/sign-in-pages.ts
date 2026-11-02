@@ -12,7 +12,7 @@ const STYLE = [
   '@media (prefers-color-scheme:dark){:root{--ink:#e7eef2;--muted:#b8c4cc;--surface:#101820;--border:#344454;--danger:#ff8a80}}',
   'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--ink);font:400 16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}',
   'main{box-sizing:border-box;width:min(360px,100%);padding:32px 16px;text-align:center}',
-  'img{border-radius:50%}',
+  'img{border-radius:6px;background:#fff;object-fit:contain}',
   '[hidden]{display:none!important}',
   '.error p{color:var(--danger)}',
   'button{min-height:40px;padding:0 20px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font-weight:600;font-size:15px;line-height:1;font-family:inherit;cursor:pointer}',

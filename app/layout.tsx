@@ -16,6 +16,7 @@ import '@/styles/landing-sections.css'
 import '@/styles/explore.css'
 import '@/styles/guide.css'
 import '@/styles/intake.css'
+import '@/styles/home.css'
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'], display: 'swap', variable: '--erp-font' })
 
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   ...pageMetadata(HOME_SEO),
   metadataBase: new URL(SITE.origin),
   icons: brandIcons,
-  appleWebApp: { capable: true, title: 'Văn phòng', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Office', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = { themeColor: PWA_THEME_COLOR, width: 'device-width', initialScale: 1 }

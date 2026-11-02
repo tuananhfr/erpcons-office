@@ -9,17 +9,24 @@ import { Notices } from '@/components/landing/Notices.tsx'
 import { SiteFooter } from '@/components/landing/SiteFooter.tsx'
 import { SiteHeader } from '@/components/landing/SiteHeader.tsx'
 import { WhyUse } from '@/components/landing/WhyUse.tsx'
+import { CloudOffice } from '@/components/landing/CloudOffice.tsx'
+import { HelpCard } from '@/components/landing/HelpCard.tsx'
+import { siteFlags } from '@/config/site-flags.ts'
 import { FAQ } from '@/content/landing.ts'
 import { faqLd, organizationLd, softwareApplicationLd, websiteLd } from '@/lib/seo/structured-data.ts'
 
 export default function HomePage() {
   return (
-    <>
+    <div className="erp-home">
       <SiteHeader />
       <main id="noi-dung">
         <Hero />
         <FeatureGrid />
-        {DESKTOP_DOWNLOADS_ENABLED && <DesktopDownloads />}
+        {siteFlags().online && <CloudOffice />}
+        <div className="erp-container erp-support-grid">
+          {DESKTOP_DOWNLOADS_ENABLED && <DesktopDownloads />}
+          <HelpCard />
+        </div>
         <ExploreBanner />
         <WhyUse />
         <Notices />
@@ -30,6 +37,6 @@ export default function HomePage() {
       <JsonLd data={websiteLd()} />
       <JsonLd data={softwareApplicationLd()} />
       <JsonLd data={faqLd(FAQ)} />
-    </>
+    </div>
   )
 }

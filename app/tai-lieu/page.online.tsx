@@ -9,7 +9,7 @@ import '@/styles/documents.css'
 import '@/styles/documents-sharing.css'
 
 // Built only with online documents on (`page.online.tsx`, see src/config/site-flags.ts). Per-user content: not indexed.
-const SEO = createPageSeo('/tai-lieu/', 'Tài liệu của tôi', 'Tài liệu lưu online của bạn trên Văn phòng by ERPCons: thư mục, tạo mới, tải lên và thùng rác.')
+const SEO = createPageSeo('/tai-lieu/', 'Tài liệu của tôi', 'Tài liệu lưu online của bạn trên Office by ERPCons: thư mục, tạo mới, tải lên và thùng rác.')
 export const metadata: Metadata = { ...pageMetadata(SEO), robots: { index: false, follow: false } }
 
 export default function DocumentsPage() {

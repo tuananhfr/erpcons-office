@@ -14,7 +14,7 @@ describe('FeatureGrid', () => {
       expect(link).toContain('target="_blank"')
       expect(link).toContain('rel="noopener"')
       expect(link).not.toContain('aria-label')
-      const name = link.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+      const name = link.replace(/<span class="erp-feature__description" aria-hidden="true">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
       expect(name).toBe(`${editor.name} ${editor.extension.slice(1).toUpperCase()} (tab mới)`)
     }
   })

@@ -11,7 +11,7 @@ describe('structured data', () => {
       name: 'ERPCons',
       legalName: 'CÔNG TY CỔ PHẦN CÔNG NGHỆ ERPCONS',
       url: 'https://erpcons.ai/',
-      logo: 'https://office.erpcons.ai/brand/van-phong-icon-512.png',
+      logo: 'https://office.erpcons.ai/brand/office/office-icon-512.png',
       taxID: '0111149608',
       telephone: '+84814228888',
       address: {
@@ -34,7 +34,7 @@ describe('structured data', () => {
   it('describes a free browser application', () => {
     expect(softwareApplicationLd()).toMatchObject({
       '@type': 'SoftwareApplication',
-      name: 'Văn phòng by ERPCons',
+      name: 'Office by ERPCons',
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web browser',
       url: 'https://office.erpcons.ai/',
@@ -44,7 +44,7 @@ describe('structured data', () => {
   })
 
   it('uses the same product brand for the website name', () => {
-    expect(websiteLd()).toMatchObject({ '@type': 'WebSite', name: 'Văn phòng by ERPCons', url: 'https://office.erpcons.ai/' })
+    expect(websiteLd()).toMatchObject({ '@type': 'WebSite', name: 'Office by ERPCons', url: 'https://office.erpcons.ai/' })
   })
 
   it('turns FAQ items into a FAQPage', () => {
