@@ -495,6 +495,18 @@ describe('saving in the room', () => {
     expect(puts(page)).toHaveLength(1)
   })
 
+  it('a leader alone in the room stores each save at once: nobody else would keep its edits if the page went away', async () => {
+    const { page, sockets, host } = await leaderPage({ members: [ROOM[0]] })
+    await edit(page, sockets[0], host, 'para:a', 'x', 11)
+    expect(await host.save(DOC_ID, bytes(5, 5), { revision: 1, reason: 'auto' })).toEqual({ status: 'saved', version: 1 })
+    await page.settle()
+    expect(puts(page)).toHaveLength(1)
+    expect(puts(page)[0].headers['X-Live-Seq']).toBe('11')
+    expect(Array.from(page.office.latest(DOC_ID))).toEqual([5, 5])
+    await tick(page, 5 * 60 * 1000)
+    expect(puts(page)).toHaveLength(1)
+  })
+
   it('edits that never pause for 30 s still reach storage within 2 minutes', async () => {
     const { page, sockets, host } = await leaderPage()
     for (let i = 0; i < 12; i++) {

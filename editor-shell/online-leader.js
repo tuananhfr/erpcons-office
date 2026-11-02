@@ -1,8 +1,9 @@
 (function () {
   // Saving while the document's live room is open (plan-m4 "Lưu"; server "Leader" and "Saves" in
   // erpcons-office-server docs/openapi.yaml). With an erpHost v3 editor only the room's leader stores the document:
-  // 30 s after the last change in the room, at once on `save.request`, on Ctrl+S, when it is left as the last editor
-  // and when the page goes away, with X-Live-Seq naming the last update its bytes hold. The other pages never PUT:
+  // 30 s after the last change in the room (at each editor save while it is the only editor), at once on
+  // `save.request`, on Ctrl+S, when it is left as the last editor and when the page goes away, with X-Live-Seq naming
+  // the last update its bytes hold. The other pages never PUT:
   // their edits are safe once the room acknowledged them. An editor without v3 keeps the v2 saves, except that a page
   // which is not the leader holds its bytes while the room has several editors (the server would answer NOT_LEADER).
   var online = window.erpOnline = window.erpOnline || {}
@@ -164,8 +165,11 @@
         heldMark = mark
       }
       var reason = options && options.reason
+      // Alone, the room is the only other copy and it is dropped when the page leaves (a PUT started at pagehide is
+      // often cancelled): each save of the editor is stored at once, as without a room.
+      var alone = editors <= 1
       if (leading && synced()) {
-        if (reason === 'manual' || reason === 'flush') saveNow(reason === 'flush')
+        if (reason === 'manual' || reason === 'flush' || alone) saveNow(reason === 'flush' || alone)
         else if (!quietTimer) schedule()
       }
       room()
