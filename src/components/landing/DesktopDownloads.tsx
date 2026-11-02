@@ -1,4 +1,5 @@
 import { Icon } from '@/components/Icon.tsx'
+import Image from 'next/image'
 import { EDITORS } from '@/config/editors.ts'
 import { siteFlags } from '@/config/site-flags.ts'
 import { DesktopDownloadGate } from './DesktopDownloadGate.tsx'
@@ -7,10 +8,12 @@ import { DesktopDownloadLinks } from './DesktopDownloadLinks.tsx'
 export function DesktopDownloads() {
   const flags = siteFlags()
   const downloads = <Downloads />
-  return <section id="tai-ban-desktop" className="erp-section" aria-labelledby="tai-ban-desktop-title">
+  return <section id="tai-ban-desktop" className="erp-section erp-desktop-download" aria-labelledby="tai-ban-desktop-title">
     <div className="erp-container">
-      <h2 id="tai-ban-desktop-title">Tải bản cài trên máy tính</h2>
-      <p>Làm việc ngoại tuyến, mở tệp từ máy tính với các công cụ như bản web. Bản cài hiện dành cho Windows (64-bit).</p>
+      <div className="erp-desktop-download__heading">
+        <span className="erp-desktop-download__platform"><Icon name="windows" /></span>
+        <div><h2 id="tai-ban-desktop-title">Tải ứng dụng</h2><p>Windows (64-bit) · Làm việc ngay cả khi ngoại tuyến.</p></div>
+      </div>
       {flags.pi
         ? <DesktopDownloadGate signInIcon={<Icon name="box-arrow-in-right" />} signUp={flags.online}>{downloads}</DesktopDownloadGate>
         : downloads}
@@ -20,21 +23,22 @@ export function DesktopDownloads() {
 
 function Downloads() {
   return <>
-    <div className="erp-feature erp-downloads__card erp-downloads__suite">
-      <h3>Tải trọn bộ ERPCons Office</h3>
-      <p>Văn bản, Bảng tính, Trình chiếu và PDF trong một lần tải.</p>
+    <div className="erp-downloads__suite">
+      <div className="erp-downloads__suite-heading"><Image src="/brand/office/office-mark.png" alt="" width={52} height={52} /><div><h3>Trọn bộ ERPCons Office</h3><p>Văn bản, Bảng tính, Trình chiếu và PDF.</p></div></div>
       <DesktopDownloadLinks />
     </div>
-    <h3>Hoặc tải từng ứng dụng</h3>
-    <ul className="erp-features erp-downloads">{EDITORS.map(editor => <li key={editor.slug}
-      className={`erp-feature erp-feature--${editor.slug} erp-downloads__card`}>
-      <h3><Icon name={editor.icon} /> {editor.name} – ERPCons</h3>
-      <DesktopDownloadLinks editor={editor} />
-    </li>)}</ul>
+    <details className="erp-downloads__individual">
+      <summary><Icon name="list-ul" /><span>Tải từng ứng dụng</span><small>4 ứng dụng</small></summary>
+      <ul className="erp-downloads__apps">{EDITORS.map(editor => <li key={editor.slug}>
+        <Image src={`/brand/office/${editor.slug}-new.png`} alt="" width={34} height={38} />
+        <h3>{editor.name}<small>{editor.extension.slice(1).toUpperCase()}</small></h3>
+        <DesktopDownloadLinks editor={editor} />
+      </li>)}</ul>
+    </details>
     <div className="erp-faq erp-downloads__note">
       <details>
-        <summary>Vì sao máy báo cảnh báo khi cài?</summary>
-        <p>Các bộ cài hiện chưa được ký mã (code signing), nên Windows có thể hiển thị cảnh báo.</p>
+        <summary><Icon name="info-circle" /> Thông tin cài đặt</summary>
+        <p><strong>Vì sao máy báo cảnh báo khi cài?</strong> Các bộ cài hiện chưa được ký mã (code signing), nên Windows có thể hiển thị cảnh báo.</p>
         <p>Windows SmartScreen: chọn “Thông tin thêm” (More info) → “Vẫn chạy” (Run anyway).</p>
       </details>
     </div>

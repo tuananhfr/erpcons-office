@@ -146,32 +146,83 @@
 .erp-cloud__actions { border-left: 1px solid var(--erp-border); padding-left: 24px; min-width: 176px; text-align: center; }
 .erp-cloud__actions .erp-btn { min-height: 42px; width: 100%; padding: 8px 14px; font-size: 12px; }
 .erp-cloud__actions > a:last-of-type:not(.erp-btn) { display: block; margin-top: 8px; font-size: 10px; text-decoration: none; }
-.erp-support-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 22px; align-items: stretch; margin-bottom: 32px; }
+.erp-support { margin-bottom: 32px; }
+.erp-support__heading { margin-bottom: 20px; }
+.erp-support__heading h2 { margin: 0 0 5px; font-size: 23px; line-height: 1.4; letter-spacing: -.035em; }
+.erp-support__heading p { margin: 0; font-size: 12px; color: var(--erp-text-2); }
+.erp-support-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .erp-home .erp-support-grid > .erp-section { padding: 24px; border: 1px solid var(--erp-border); border-radius: 8px; }
 .erp-home .erp-support-grid .erp-container { padding: 0; }
 .erp-home .erp-support-grid .erp-section h2, .erp-home .erp-support-grid .erp-help h2 { font-size: 18px; margin: 0 0 8px; }
 .erp-home .erp-support-grid p { font-size: 12px; color: var(--erp-text-2); }
+.erp-desktop-download__heading { display: flex; align-items: center; gap: 14px; }
+.erp-desktop-download__platform { display: grid; place-items: center; width: 46px; height: 46px; flex: none; border-radius: 8px; background: var(--erp-bg); color: var(--erp-blue); font-size: 29px; }
+.erp-home .erp-support-grid .erp-desktop-download__heading h2 { margin-bottom: 4px; }
+.erp-home .erp-desktop-download__heading p { margin: 0; font-size: 11px; }
 .erp-home .erp-downloads__gate { margin: 20px 0 0; padding: 20px; background: var(--erp-bg); border-color: var(--erp-border); }
 .erp-home .erp-downloads__gate h3 { font-size: 15px; }
 .erp-home .erp-downloads__gate-actions { margin-top: 14px; gap: 10px; }
 .erp-home .erp-downloads__gate-actions .erp-btn { min-height: 42px; padding: 8px 16px; font-size: 12px; }
-.erp-home .erp-downloads__card { padding: 18px; }
-.erp-home .erp-downloads__card h3 { font-size: 15px; }
-.erp-home .erp-downloads__note { grid-template-columns: 1fr; }
-.erp-home .erp-downloads { gap: 12px; }
-.erp-home .erp-downloads .erp-btn { font-size: 11px; min-height: 40px; padding: 8px 10px; }
-.erp-help { display: flex; flex-direction: column; border: 1px solid var(--erp-border); border-radius: 8px; padding: 24px; gap: 24px; }
-.erp-help__guide { display: flex; gap: 16px; }
-.erp-help__guide ul { margin: 16px 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 12px; color: var(--erp-text-2); }
+.erp-home .erp-downloads__suite { margin: 20px 0 0; padding-bottom: 16px; border-bottom: 1px solid var(--erp-border); }
+.erp-downloads__suite-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.erp-downloads__suite-heading > img { object-fit: contain; flex: none; padding: 3px; border-radius: 6px; background: #fff; }
+.erp-downloads__suite-heading h3 { margin: 0 0 4px; font-size: 14px; letter-spacing: -.025em; }
+.erp-home .erp-downloads__suite-heading p { margin: 0; font-size: 11px; line-height: 1.6; }
+.erp-home .erp-download-options .erp-downloads__links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; }
+.erp-download-options--suite .erp-downloads__links > li:first-child { flex: 1; min-width: 170px; }
+.erp-home .erp-download-options--suite .erp-btn { min-height: 44px; width: 100%; font-size: 12px; padding: 10px 14px; }
+.erp-home .erp-download-option { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 7px 12px; border: 1px solid var(--erp-border); border-radius: 6px; background: var(--erp-surface); color: var(--erp-text); font-size: 11px; font-weight: 500; line-height: 1.5; text-decoration: none; white-space: nowrap; }
+.erp-home .erp-download-option:hover { background: var(--erp-surface-2); border-color: var(--erp-blue); color: var(--erp-blue); }
+.erp-home .erp-download-options--suite .erp-download-option { min-height: 44px; min-width: 104px; border-color: var(--erp-text); }
+.erp-download-glyph { flex: none; }
+.erp-home .erp-download-release { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; color: var(--erp-text-2); font-size: 10px; text-decoration: none; }
+.erp-home .erp-download-release:hover { color: var(--erp-blue); text-decoration: underline; }
+.erp-download-options__footer { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; }
+.erp-home .erp-download-options__footer p { margin: 0; font-size: 10px; }
+.erp-home .erp-download-options__footer .erp-download-release { margin: 0; color: var(--erp-blue); margin-left: auto; }
+.erp-home .erp-downloads__individual { margin-top: 0; border-bottom: 1px solid var(--erp-border); }
+.erp-downloads__individual > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 12px 2px; list-style: none; cursor: pointer; font-size: 12px; font-weight: 600; }
+.erp-downloads__individual > summary > .erp-icon-wrap { font-size: 18px; color: var(--erp-text-2); }
+.erp-downloads__individual > summary::-webkit-details-marker { display: none; }
+.erp-downloads__individual > summary:hover { background: var(--erp-bg); }
+.erp-downloads__individual > summary small { font-size: 9px; font-weight: 500; color: var(--erp-text-2); margin-left: auto; }
+.erp-downloads__individual > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); margin: -4px 2px 0 4px; }
+.erp-downloads__individual[open] > summary { background: var(--erp-bg); }
+.erp-downloads__individual[open] > summary::after { transform: rotate(225deg); margin-top: 3px; }
+.erp-downloads__apps { list-style: none; margin: 0; padding: 0; }
+.erp-downloads__apps > li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--erp-border); }
+.erp-downloads__apps img { object-fit: contain; padding: 3px; border-radius: 4px; background: #fff; }
+.erp-downloads__apps h3 { font-size: 12px; line-height: 1.5; margin: 0; }
+.erp-downloads__apps h3 small { display: block; font-size: 9px; color: var(--erp-text-2); font-weight: 400; }
+.erp-download-options--tool { display: flex; align-items: center; gap: 8px; }
+.erp-home .erp-download-options--tool .erp-download-option { min-height: 32px; padding: 6px 10px; font-size: 10px; }
+.erp-home .erp-download-options--tool .erp-download-release { display: grid; place-items: center; margin: 0; min-width: 28px; min-height: 32px; border-radius: 5px; font-size: 15px; }
+.erp-download-options__mobile { grid-column: 1 / -1; margin: 4px 0 0; }
+.erp-home .erp-desktop-download .erp-downloads__note { grid-template-columns: 1fr; margin-top: 6px; }
+.erp-home .erp-desktop-download .erp-downloads__note details { padding: 0; border: 0; border-radius: 0; background: none; }
+.erp-home .erp-desktop-download .erp-downloads__note summary { font-size: 11px; font-weight: 400; color: var(--erp-text-2); min-height: 36px; justify-content: flex-start; gap: 10px; }
+.erp-home .erp-desktop-download .erp-downloads__note summary > .erp-icon-wrap { font-size: 18px; }
+.erp-home .erp-desktop-download .erp-downloads__note summary::after { margin-left: auto; font-size: 17px; color: var(--erp-text-2); }
+.erp-home .erp-desktop-download .erp-downloads__note p { font-size: 11px; margin-top: 8px; }
+.erp-help { display: flex; flex-direction: column; border: 1px solid var(--erp-border); border-radius: 8px; padding: 24px; gap: 20px; }
+.erp-help__heading { display: flex; align-items: center; gap: 14px; }
+.erp-help__heading p { margin: 0; }
+.erp-home .erp-support-grid .erp-help__heading h2 { margin-bottom: 4px; }
+.erp-help__icon { width: 46px; height: 46px; background: none; color: var(--erp-blue); font-size: 32px; }
+.erp-help__guide ul { margin: 18px 0 12px; padding: 12px 14px; border-radius: 5px; background: var(--erp-bg); list-style: none; display: grid; gap: 8px; font-size: 11px; color: var(--erp-text-2); }
 .erp-help__guide li { display: flex; align-items: center; gap: 8px; }
 .erp-help__guide li .erp-icon { color: var(--erp-blue); }
-.erp-help__guide a { font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 14px; }
+.erp-home .erp-help__guide > a { font-size: 11px; min-height: 38px; padding: 8px 14px; border-color: var(--erp-text); text-decoration: none; display: inline-flex; align-items: center; gap: 14px; }
 .erp-help__pwa { display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--erp-border); padding-top: 20px; margin-top: auto; }
-.erp-help__pwa > .erp-icon-wrap { font-size: 27px; }
+.erp-help__pwa > .erp-icon-wrap { font-size: 27px; color: var(--erp-blue); }
 .erp-help__pwa h3 { font-size: 13px; margin: 0 0 4px; }
 .erp-home .erp-help__pwa p { margin: 0; font-size: 11px; }
 .erp-help__pwa .erp-install { margin-left: auto; }
-.erp-help__pwa .erp-install__button { font-size: 11px !important; }
+.erp-home .erp-help__pwa .erp-install__button { font-size: 11px; min-height: 40px; padding: 8px 12px; border-color: var(--home-primary); background: var(--home-primary); color: #fff; }
+.erp-home .erp-help__pwa .erp-install__button:hover { background: var(--home-primary-hover); }
+@media (min-width: 1024px) {
+  .erp-home .erp-support-grid > .erp-desktop-download, .erp-support-grid > .erp-help { min-height: 356px; }
+}
 .erp-home .erp-explore-banner { background: var(--erp-surface); padding-block: 0; margin-bottom: 32px; }
 .erp-home .erp-explore-banner > a { background: var(--erp-bg); border-color: var(--erp-border); padding: 22px 24px; border-radius: 8px; }
 .erp-home .erp-explore-banner strong { font-size: 17px; }
@@ -294,15 +345,29 @@
   .erp-cloud li { font-size: 9px; gap: 6px; }
   .erp-cloud li .erp-icon { font-size: 14px; }
   .erp-cloud__actions { border: 0; padding: 0; width: 100%; }
-  .erp-support-grid { gap: 16px; margin-bottom: 24px; }
+  .erp-support { margin-bottom: 24px; }
+  .erp-support__heading h2 { font-size: 20px; }
+  .erp-support__heading p { font-size: 11px; }
+  .erp-support-grid { gap: 16px; }
   .erp-home .erp-support-grid > .erp-section { padding: 20px; }
   .erp-home .erp-support-grid h2 { font-size: 17px; margin-bottom: 8px; }
   .erp-home .erp-support-grid .erp-container { padding: 0; }
   .erp-home .erp-downloads__gate-actions .erp-btn { flex: 1 1 120px; }
-  .erp-home .erp-downloads { grid-template-columns: 1fr; }
+  .erp-home .erp-downloads__suite { margin-top: 20px; }
+  .erp-downloads__suite-heading { gap: 10px; }
+  .erp-downloads__suite-heading h3 { font-size: 13px; }
+  .erp-home .erp-download-options--suite .erp-downloads__links { flex-direction: column; align-items: stretch; }
+  .erp-download-options--suite .erp-downloads__links > li:first-child { flex: auto; }
+  .erp-home .erp-download-options--suite .erp-download-option { width: 100%; min-height: 38px; }
+  .erp-downloads__apps > li { grid-template-columns: 28px 1fr; gap: 10px; }
+  .erp-downloads__apps img { width: 28px; height: 32px; }
+  .erp-download-options--tool { grid-column: 2; display: grid; grid-template-columns: 1fr auto; gap: 4px; }
+  .erp-home .erp-download-options--tool .erp-downloads__links { gap: 6px; }
+  .erp-home .erp-download-options--tool .erp-download-option { min-height: 36px; padding-inline: 12px; }
+  .erp-download-options__mobile { order: 3; }
   .erp-help { padding: 20px; }
-  .erp-help__guide { gap: 12px; }
-  .erp-help__icon { width: 42px; height: 42px; font-size: 24px; }
+  .erp-help__heading { gap: 12px; }
+  .erp-help__icon { width: 42px; height: 42px; font-size: 29px; }
   .erp-help__guide ul { font-size: 11px; }
   .erp-help__pwa { flex-wrap: wrap; gap: 10px; }
   .erp-help__pwa > div:not(.erp-install) { flex: 1; }

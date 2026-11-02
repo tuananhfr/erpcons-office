@@ -29,6 +29,8 @@ it('renders every download without JavaScript and guesses no primary OS', () => 
   }
   expect(html).toContain('<details>')
   expect(html).toContain('SmartScreen')
+  expect(html).toContain('<details class="erp-downloads__individual">')
+  expect(html).not.toContain('<details class="erp-downloads__individual" open')
 })
 
 it('renders the suite above individual downloads with both Windows suite links', () => {
@@ -36,7 +38,7 @@ it('renders the suite above individual downloads with both Windows suite links',
   const { assets, releaseUrl } = suiteDownloads()
   for (const asset of assets) expect(html).toContain(`href="${asset.url}"`)
   expect(html).toContain(`href="${releaseUrl}"`)
-  expect(html.indexOf('Tải trọn bộ ERPCons Office')).toBeLessThan(html.indexOf('Hoặc tải từng ứng dụng'))
+  expect(html.indexOf('Trọn bộ ERPCons Office')).toBeLessThan(html.indexOf('Tải từng ứng dụng'))
 })
 
 it('offers and promises nothing but Windows: no macOS or Linux link, label or install note', () => {

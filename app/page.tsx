@@ -23,10 +23,16 @@ export default function HomePage() {
         <Hero />
         <FeatureGrid />
         {siteFlags().online && <CloudOffice />}
-        <div className="erp-container erp-support-grid">
-          {DESKTOP_DOWNLOADS_ENABLED && <DesktopDownloads />}
-          <HelpCard />
-        </div>
+        <section className="erp-container erp-support" aria-labelledby="support-title">
+          <div className="erp-support__heading">
+            <h2 id="support-title">{DESKTOP_DOWNLOADS_ENABLED ? 'Tải về và hướng dẫn' : 'Hướng dẫn và cài ứng dụng'}</h2>
+            <p>{DESKTOP_DOWNLOADS_ENABLED ? 'Cài đặt ứng dụng Windows hoặc xem hướng dẫn để bắt đầu sử dụng.' : 'Mở, chỉnh sửa và lưu tệp dễ dàng trên thiết bị của bạn.'}</p>
+          </div>
+          <div className="erp-support-grid">
+            {DESKTOP_DOWNLOADS_ENABLED && <DesktopDownloads />}
+            <HelpCard />
+          </div>
+        </section>
         <ExploreBanner />
         <WhyUse />
         <Notices />
