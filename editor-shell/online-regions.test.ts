@@ -507,6 +507,47 @@ describe('saving in the room', () => {
     expect(puts(page)).toHaveLength(1)
   })
 
+  it('left alone as leader, a save of what the room\'s last save already holds is not stored again', async () => {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1, 2, 3))
+    const { page, sockets, host } = await coPage({ office })
+    await sync(page, sockets[0])
+    sockets[0].receive(update(11, 'para:b', 'y'))
+    await host.save(DOC_ID, bytes(8), { revision: 1, reason: 'auto' })
+    // m2 stores version 2 holding seq 11, then drops out: this page leads alone.
+    office.saveElsewhere(DOC_ID, bytes(8))
+    sockets[0].receive({ type: 'saved', v: 1, saved_seq: 11, version: 2 })
+    sockets[0].receive({ type: 'presence', v: 1, seq: 12, members: [ROOM[0]] })
+    sockets[0].receive({ type: 'leader', v: 1, seq: 12, leader: 'm1' })
+    await page.settle()
+    // AutoSave after the remote change: same seq, nothing of this page's that the room lacks.
+    expect(await host.save(DOC_ID, bytes(8, 1), { revision: 2, reason: 'auto' })).toEqual({ status: 'saved', version: 2 })
+    await page.settle()
+    await tick(page, 5 * 60 * 1000)
+    expect(puts(page)).toHaveLength(0)
+    expect(office.version(DOC_ID)).toBe(2)
+  })
+
+  it('left alone as leader, a save at the saved seq still stores this page\'s edit the room has not acknowledged yet', async () => {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1, 2, 3))
+    const { page, sockets, host } = await coPage({ office })
+    await sync(page, sockets[0])
+    sockets[0].receive(update(11, 'para:b', 'y'))
+    office.saveElsewhere(DOC_ID, bytes(8))
+    sockets[0].receive({ type: 'saved', v: 1, saved_seq: 11, version: 2 })
+    sockets[0].receive({ type: 'presence', v: 1, seq: 12, members: [ROOM[0]] })
+    sockets[0].receive({ type: 'leader', v: 1, seq: 12, leader: 'm1' })
+    await page.settle()
+    const granted = host.regionWillEdit('para:a')
+    await grantNext(page, sockets[0])
+    await granted
+    host.regionChanged('para:a', 'x')
+    await host.save(DOC_ID, bytes(8, 2), { revision: 2, reason: 'manual' })
+    await page.settle()
+    expect(puts(page)).toHaveLength(1)
+    expect(puts(page)[0].headers['X-Live-Seq']).toBe('11')
+    expect(puts(page)[0].headers['If-Match']).toBe(office.etag(DOC_ID, 2))
+  })
+
   it('edits that never pause for 30 s still reach storage within 2 minutes', async () => {
     const { page, sockets, host } = await leaderPage()
     for (let i = 0; i < 12; i++) {

@@ -35,7 +35,8 @@
     var id = deps.docId
     var saver = deps.saver
     var regions = deps.regions
-    // The editor's newest bytes of the document: { bytes, revision, seq, done }; done once stored or not ours to store.
+    // The editor's newest bytes of the document: { bytes, revision, seq, covered, done }; covered: the room held all
+    // of this page's edits when they were saved; done once stored or not ours to store.
     var latest = null
     // Saves answered `offline` because the room did not have their edits yet: { revision, mark }.
     var waiting = []
@@ -70,7 +71,10 @@
     function needsSave() {
       if (!latest || latest.done) return false
       var saved = regions.savedSeq()
-      return latest.seq === null || typeof saved !== 'number' || latest.seq >= saved
+      if (latest.seq === null || typeof saved !== 'number' || latest.seq > saved) return true
+      // At the saved seq, bytes whose edits the room already held are what that save stored: another PUT only adds a
+      // version with nothing new, which a member who missed it would later conflict with.
+      return latest.seq === saved && !latest.covered
     }
 
     function schedule() {
@@ -158,8 +162,8 @@
       var revision = revisionOf(options)
       var mark = regions.mark()
       var copy = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
-      latest = { bytes: copy, revision: revision, seq: regions.contentSeq(), stored: false }
       var covered = regions.covered(mark)
+      latest = { bytes: copy, revision: revision, seq: regions.contentSeq(), covered: covered, stored: false }
       if (!covered) {
         saver.hold(id, copy, revision, synced() ? null : 'offline')
         heldMark = mark
