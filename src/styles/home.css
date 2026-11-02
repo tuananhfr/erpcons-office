@@ -231,9 +231,10 @@
 .erp-home .erp-section { padding-block: 40px; }
 .erp-home .erp-section h2 { font-size: 23px; margin-bottom: 24px; }
 .erp-home .erp-why { gap: 50px; }
-.erp-home .erp-why h3 { font-size: 16px; margin: 12px 0 8px; }
-.erp-home .erp-why p { font-size: 12px; max-width: 45ch; }
-.erp-home .erp-why__icon { font-size: 24px; color: var(--erp-text); }
+.erp-home .erp-why > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 12px; row-gap: 8px; align-content: start; align-items: center; }
+.erp-home .erp-why h3 { font-size: 16px; margin: 0; }
+.erp-home .erp-why p { grid-column: 2; font-size: 12px; max-width: 45ch; }
+.erp-home .erp-why__icon { display: flex; align-items: center; justify-content: center; font-size: 24px; line-height: 1; color: var(--erp-text); }
 .erp-home .erp-notices { font-size: 12px; max-width: none; }
 .erp-home .erp-faq { grid-template-columns: 1fr 1fr; max-width: none; gap: 12px; align-items: start; }
 .erp-home .erp-faq details { background: var(--erp-surface); border-color: var(--erp-border); padding: 15px 18px; border-radius: 6px; }
@@ -381,7 +382,6 @@
   .erp-home .erp-section { padding-block: 30px; }
   .erp-home .erp-section h2 { font-size: 20px; margin-bottom: 22px; }
   .erp-home .erp-why { gap: 26px; }
-  .erp-home .erp-why h3 { margin-top: 8px; }
   .erp-home .erp-faq { grid-template-columns: 1fr; }
   .erp-home .erp-site-footer__top { gap: 20px; }
   .erp-home .erp-site-footer__top p { font-size: 12px; }
