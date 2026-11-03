@@ -26,7 +26,7 @@
   }
   if (!usable || !editorPage || embedded) return
   if (linkPage) {
-    online.startLink({ token: linkHash[1], account: account, fetch: window.fetch.bind(window) })
+    online.startLink({ token: linkHash[1], account: account, fetch: window.fetch.bind(window), comment: params.get('comment') })
     return
   }
   online.installShare(account)
@@ -441,7 +441,7 @@
     render()
   }
 
-  // Comments (online-comments.js): owner, editors and commenters, never a version page.
+  // Comments (online-comments.js): every role reads them, owner/editors/commenters write; never a version page.
   var comments = bar && !viewingVersion ? online.createComments({
     api: online.createCommentsApi(account.apiFetch),
     host: hostApi,

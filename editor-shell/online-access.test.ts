@@ -365,7 +365,8 @@ describe('the public link page /<editor>/#link=<token>', () => {
     expect(page.opened[0]).toMatchObject({ docId: DOC_ID, mode: 'view', canDownload: true })
     expect(page.users).toEqual([null])
     expect(store.calls).toEqual([])
-    expect(store.linkCalls.map(c => c.path).sort()).toEqual(['/api/v1/link', '/api/v1/link/content'])
+    // Comment reads (no comment routes in this fake: 404, then one more check) are online-comments.test.ts's.
+    expect([...new Set(store.linkCalls.map(c => c.path).filter(p => !p.includes('/comments')))].sort()).toEqual(['/api/v1/link', '/api/v1/link/content'])
     for (const call of store.linkCalls) {
       expect(call.init).toMatchObject({ credentials: 'omit', referrerPolicy: 'no-referrer' })
       expect(new Headers(call.init.headers).get('X-Link-Token')).toBe(TOKEN)

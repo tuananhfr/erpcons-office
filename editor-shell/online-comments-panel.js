@@ -24,7 +24,8 @@
     orphanedHint: 'Phần nội dung gắn với các nhận xét này đã bị xoá hoặc thay đổi.',
     general: 'Nhận xét chung',
     deleted: 'Nhận xét này đã bị xoá.',
-    tooLong: 'Nhận xét dài quá 10 000 ký tự.'
+    tooLong: 'Nhận xét dài quá 10 000 ký tự.',
+    readOnly: 'Bạn chỉ xem được nhận xét, không thêm hay trả lời.'
   }
 
   function svg(name) {
@@ -125,6 +126,9 @@
       tabButtons[spec[0]] = { button: tab, count: count }
       tabs.appendChild(tab)
     })
+    var readOnlyNote = el('p', 'erp-comments__readonly', MESSAGES.readOnly)
+    readOnlyNote.setAttribute('data-erp-comments-readonly', '')
+    readOnlyNote.hidden = true
     var body = el('div', 'erp-comments__body')
     body.setAttribute('data-erp-comments-body', '')
     var live = el('p', 'erp-comments__live')
@@ -132,6 +136,7 @@
     live.setAttribute('aria-live', 'polite')
     root.appendChild(head)
     root.appendChild(tabs)
+    root.appendChild(readOnlyNote)
     root.appendChild(body)
     root.appendChild(live)
     // The editor under the panel must not receive what is typed here (its keys and shortcuts).
@@ -456,6 +461,7 @@
         tabButtons[key].button.className = 'erp-comments__tab' + (key === filter ? ' erp-comments__tab--on' : '')
       })
       addButton.hidden = !data.rights.write
+      readOnlyNote.hidden = data.rights.write || !data.rights.see
       var scroll = body.scrollTop
       // A box being typed in keeps its focus and caret across a re-render (a reply arriving, a count changing).
       var typing = document.activeElement && body.contains(document.activeElement) ? document.activeElement.getAttribute('data-erp-comments-input') : null

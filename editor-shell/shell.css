@@ -427,6 +427,7 @@ html.erp-embedded .erp-shell { display: none; }
 .erp-comments__tab--on { background: var(--erp-surface); color: var(--erp-ink); box-shadow: 0 1px 2px #10182024; }
 .erp-comments__count { color: var(--erp-text-2); font-weight: 500; font-variant-numeric: tabular-nums; }
 .erp-comments__count:empty { display: none; }
+.erp-comments__readonly { flex: none; margin: 0 16px 8px; color: var(--erp-text-2); font-size: 12px; line-height: 1.4; }
 .erp-comments__body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px 12px 16px; }
 .erp-comments__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .erp-comments__sr, .erp-comments__live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

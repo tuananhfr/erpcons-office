@@ -77,15 +77,16 @@
   /** The filter a thread is listed under. */
   online.commentFilterOf = function (thread) { return thread && thread.status === 'resolved' ? 'resolved' : 'open' }
 
-  var READERS = ['owner', 'editor', 'commenter']
+  var READERS = ['owner', 'editor', 'commenter', 'viewer', 'link']
+  var WRITERS = ['owner', 'editor', 'commenter']
   /**
-   * see: owner, editors and commenters (viewers and link holders never see comments, plan-m5); write: create, reply
-   * and change one's own, only in edit or comment mode; resolve: also resolve, reopen and delete whole threads.
+   * see: everyone who opens the document, viewers and link holders read-only; write: create, reply and change one's
+   * own, owner/editors/commenters in edit or comment mode; resolve: resolve, reopen and delete anyone's threads.
    * `canResolve` is the server's word for it (list `can_resolve`); without one the role decides.
    */
   online.commentRights = function (role, mode, canResolve) {
     var see = READERS.indexOf(role) !== -1
-    var write = see && (mode === 'edit' || mode === 'comment')
+    var write = WRITERS.indexOf(role) !== -1 && (mode === 'edit' || mode === 'comment')
     var moderator = typeof canResolve === 'boolean' ? canResolve : role === 'owner' || role === 'editor'
     return { see: see, write: write, resolve: write && moderator }
   }

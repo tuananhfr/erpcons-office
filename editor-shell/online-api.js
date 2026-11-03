@@ -188,6 +188,7 @@
    * token. The link token goes in `X-Link-Token`, never in a URL (access logs, Referer); it is checked before any
    * request and never logged.
    */
+  var COMMENT_READ = /^\/api\/v1\/documents\/[^/?#]+\/comments(?:[/?]|$)/
   online.createLinkApi = function (fetchFn) {
     function call(token, rest, accept, onOk) {
       if (!online.isLinkToken(token)) return Promise.resolve({ kind: 'notFound' })
@@ -222,6 +223,18 @@
         return sent.then(function (response) {
           return response.ok ? liveTicketOf(response) : problem(response)
         }, function () { return { kind: 'offline' } })
+      },
+      /** An apiFetch for a link holder's comment reads: GET only, the link token decides, never a signed-in account. */
+      commentsFetch: function (token) {
+        return function (path, init) {
+          var method = (init && init.method) || 'GET'
+          if (method !== 'GET' || !online.isLinkToken(token) || typeof path !== 'string' || !COMMENT_READ.test(path)) {
+            throw Object.assign(new Error('invalid_api_path'), { code: 'invalid_api_path' })
+          }
+          var headers = Object.assign({}, init && init.headers, { 'X-Link-Token': token })
+          return fetchFn(path, { method: 'GET', headers: headers, credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' })
+            .then(null, function () { throw Object.assign(new Error('network'), { code: 'network' }) })
+        }
       },
       getLinkContent: function (token) {
         return call(token, '/content', 'application/octet-stream', function (response) {

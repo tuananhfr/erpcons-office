@@ -111,7 +111,8 @@ describe('API client', () => {
     const comments = new FakeComments(office)
     const page = onlinePage({ office })
     const api = (onlineApi(page).createCommentsApi as (f: unknown) => Record<string, (...a: unknown[]) => Promise<{ kind: string }>>)(office.apiFetch)
-    expect((await api.list(DOC_ID)).kind).toBe('forbidden')
+    expect((await api.list(DOC_ID)).kind).toBe('ok')
+    expect((await api.create(DOC_ID, { anchor: ANCHOR, region: null, version: 1, body: 'x' }, 'k')).kind).toBe('forbidden')
     office.setRole(DOC_ID, 'owner')
     expect((await api.get(DOC_ID, '0b9d6c1e-0000-4000-8000-000000000999')).kind).toBe('notFound')
     expect((await api.get(DOC_ID, '../../folders')).kind).toBe('notFound')
@@ -151,15 +152,16 @@ describe('panel state', () => {
     expect(sections.counts).toEqual({ open: 5, resolved: 2 })
   })
 
-  it('rights per role and mode: viewers and link holders see nothing; resolve is the server’s word', () => {
+  it('rights per role and mode: viewers and link holders only read; resolve is the server’s word', () => {
     const page = onlinePage()
     const rights = onlineApi(page).commentRights as (role: string, mode: string, canResolve?: boolean) => unknown
     expect(rights('owner', 'edit')).toEqual({ see: true, write: true, resolve: true })
     expect(rights('editor', 'edit', true)).toEqual({ see: true, write: true, resolve: true })
     expect(rights('commenter', 'comment', false)).toEqual({ see: true, write: true, resolve: false })
     expect(rights('editor', 'view')).toEqual({ see: true, write: false, resolve: false })
-    expect(rights('viewer', 'view')).toEqual({ see: false, write: false, resolve: false })
-    expect(rights('link', 'view')).toEqual({ see: false, write: false, resolve: false })
+    expect(rights('viewer', 'view')).toEqual({ see: true, write: false, resolve: false })
+    expect(rights('link', 'view')).toEqual({ see: true, write: false, resolve: false })
+    expect(rights('viewer', 'comment')).toEqual({ see: true, write: false, resolve: false })
   })
 
   it('keeps only real anchor changes, never a resolved status move', () => {
@@ -204,12 +206,34 @@ describe('who sees comments', () => {
     expect(q(page, '[data-erp-thread-delete]')).toBeNull()
   })
 
-  it('viewer: no buttons, no panel and not a single comments request', async () => {
-    const { page, comments } = await commentPage('viewer', { seed: c => { c.seed(DOC_ID) } })
+  it('viewer: reads threads, marks and "Không còn vị trí" read-only, with no button that writes and only GETs', async () => {
+    const { page, comments, fork } = await commentPage('viewer', {
+      seed: c => {
+        c.seed(DOC_ID, { anchor: ANCHOR, replies: [{ body: 'Đã sửa' }] })
+        c.seed(DOC_ID, { anchor: { region: 'para:x' }, status: 'orphaned' })
+        c.seed(DOC_ID, { status: 'resolved' })
+      },
+    })
     expect(barButton(page, 'comment').hidden).toBe(true)
-    expect(barButton(page, 'comments').hidden).toBe(true)
-    expect(panel(page).hidden).toBe(true)
-    expect(comments.calls).toEqual([])
+    expect(barButton(page, 'comments').hidden).toBe(false)
+    expect(q(page, '[data-erp-online-count]')!.textContent).toBe('2')
+    barButton(page, 'comments').click()
+    await page.settle()
+    expect(panel(page).hidden).toBe(false)
+    expect(threadIds(page, '[data-erp-comments-open]')).toEqual([comments.threads[0].id])
+    expect(threadIds(page, '[data-erp-comments-orphaned]')).toEqual([comments.threads[1].id])
+    expect(card(page, comments.threads[0].id).textContent).toContain('Đã sửa')
+    expect(fork.shown.at(-1)).toHaveLength(2)
+    for (const selector of ['[data-erp-comments-add]:not([hidden])', '[data-erp-thread-reply]', '[data-erp-thread-resolve]', '[data-erp-thread-reopen]', '[data-erp-thread-delete]', '[data-erp-comment-edit]', '[data-erp-comment-delete]']) {
+      expect(q(page, selector), selector).toBeNull()
+    }
+    expect(q(page, '[data-erp-comments-readonly]')!.textContent).toBe('Bạn chỉ xem được nhận xét, không thêm hay trả lời.')
+    q(page, '[data-erp-comments-filter="resolved"]')!.click()
+    await page.settle()
+    expect(threadIds(page)).toEqual([comments.threads[2].id])
+    expect(q(page, '[data-erp-thread-reopen]')).toBeNull()
+    expect(comments.calls.every(call => call.method === 'GET')).toBe(true)
+    expect(fork.resolved).toEqual([])
   })
 
   it('a version page (&version=) has no comments at all', async () => {
@@ -218,17 +242,22 @@ describe('who sees comments', () => {
     expect(comments.calls).toEqual([])
   })
 
-  it('a role taken down to viewer while open hides the panel and the marks', async () => {
+  it('a role taken down to viewer while open keeps the panel and the marks, read-only', async () => {
     const { page, office, fork } = await commentPage('editor', { seed: c => { c.seed(DOC_ID, { anchor: ANCHOR }) } })
     barButton(page, 'comments').click()
     await page.settle()
     expect(fork.shown.at(-1)).toHaveLength(1)
+    expect(q(page, '[data-erp-thread-reply]')).not.toBeNull()
     office.setRole(DOC_ID, 'viewer')
     await tick(page, 31 * 1000)
-    expect(panel(page).hidden).toBe(true)
-    expect(barButton(page, 'comments').hidden).toBe(true)
-    expect(fork.shown.at(-1)).toEqual([])
+    expect(panel(page).hidden).toBe(false)
+    expect(barButton(page, 'comments').hidden).toBe(false)
+    expect(barButton(page, 'comment').hidden).toBe(true)
+    expect(q(page, '[data-erp-thread-reply]')).toBeNull()
+    expect(q(page, '[data-erp-thread-resolve]')).toBeNull()
+    expect(fork.shown.at(-1)).toHaveLength(1)
   })
+
 })
 
 describe('adding a comment', () => {
@@ -424,11 +453,16 @@ describe('deep link ?comment=', () => {
     expect(panel(page).hidden).toBe(true)
   })
 
-  it('a viewer following the link is told comments are not for them', async () => {
-    const { page, comments } = await commentPage('viewer', { search: `?doc=${DOC_ID}&comment=0b9d6c1e-0000-4000-8000-000000000999` })
+  it('a viewer following the link reads the thread', async () => {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1, 2, 3), null, 'viewer')
+    const comments = new FakeComments(office)
+    const thread = comments.seed(DOC_ID, { anchor: ANCHOR })
+    const { page, fork } = await commentPage('viewer', { office, search: `?doc=${DOC_ID}&comment=${thread.id}` })
     await page.settle()
-    expect(page.notices.at(-1)!.text).toBe('Bạn không có quyền xem nhận xét của tài liệu này.')
-    expect(comments.calls).toEqual([])
+    expect(panel(page).hidden).toBe(false)
+    expect(card(page, thread.id).className).toContain('erp-thread--active')
+    expect(fork.focused).toEqual([[ANCHOR, thread.id]])
+    expect(page.location.search).toBe(`?doc=${DOC_ID}`)
   })
 })
 
@@ -471,6 +505,15 @@ describe('live refresh', () => {
     next.receive(hello)
     await page.settle()
     expect(lists()).toBe(offline + 1)
+  })
+
+  it('a viewer in the room follows comments.changed too', async () => {
+    const { page, comments, socket } = await livePage('viewer')
+    const thread = comments.seed(DOC_ID, { anchor: ANCHOR })
+    socket.receive({ type: 'comments.changed', v: 1, thread_id: thread.id })
+    await tick(page, 300)
+    expect(commentCalls(comments, 'GET').at(-1)!.path).toBe(`/api/v1/documents/${DOC_ID}/comments/${thread.id}`)
+    expect(q(page, '[data-erp-online-count]')!.textContent).toBe('1')
   })
 
   it('a thread deleted elsewhere disappears on its comments.changed (404)', async () => {
@@ -621,5 +664,106 @@ describe('load on the server and stale rights (M6 review)', () => {
     expect(q(page, '[data-erp-mode]')?.textContent).toBe('Chỉ nhận xét')
     expect(q(page, '[data-erp-thread-resolve]')).toBeNull()
     expect(q(page, '[data-erp-thread-delete]')).toBeNull()
+  })
+})
+
+describe('the public link page reads comments', () => {
+  const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde'
+  const hello = { type: 'hello', v: 1, you: 'm2', mode: 'view', notice: null, colour: '#1f6feb', seq: 1, leader: null, members: [], limits: {} }
+  async function linkCommentPage(options: { search?: string; WebSocket?: unknown; seed?: (c: FakeComments) => void } = {}) {
+    const office = new FakeOffice().add(DOC_ID, 'Báo cáo quý', 'docx', bytes(1, 2, 3))
+    office.links.set(TOKEN, DOC_ID)
+    const comments = new FakeComments(office)
+    options.seed?.(comments)
+    const page = onlinePage({ office, search: options.search ?? '', hash: `#link=${TOKEN}`, account: { status: 'signed-out', sub: '' }, WebSocket: options.WebSocket } as PageOptions)
+    await page.settle()
+    const fork = commentFork(page)
+    await page.settle()
+    return { page, office, comments, fork }
+  }
+  const commentLinkCalls = (office: FakeOffice) => office.linkCalls.filter(c => c.path.includes('/comments'))
+
+  it('anonymous and read-only: threads and marks, no name, no button that writes; GETs with the token only', async () => {
+    const { page, office, comments, fork } = await linkCommentPage({
+      seed: c => { c.seed(DOC_ID, { anchor: ANCHOR, replies: [{ body: 'Đã sửa' }] }); c.seed(DOC_ID, { status: 'orphaned' }) },
+    })
+    expect(barButton(page, 'comment').hidden).toBe(true)
+    expect(barButton(page, 'comments').hidden).toBe(false)
+    expect(q(page, '[data-erp-online-count]')!.textContent).toBe('2')
+    barButton(page, 'comments').click()
+    await page.settle()
+    expect(threadIds(page, '[data-erp-comments-open]')).toEqual([comments.threads[0].id])
+    expect(threadIds(page, '[data-erp-comments-orphaned]')).toEqual([comments.threads[1].id])
+    const text = card(page, comments.threads[0].id).textContent
+    expect(text).toContain('Đã sửa')
+    expect(text).not.toContain('Trần Thị Bình')
+    expect(text).toContain('Người dùng')
+    expect(fork.shown.at(-1)).toHaveLength(1)
+    for (const selector of ['[data-erp-comments-add]:not([hidden])', '[data-erp-thread-reply]', '[data-erp-thread-resolve]', '[data-erp-thread-delete]', '[data-erp-comment-edit]']) {
+      expect(q(page, selector), selector).toBeNull()
+    }
+    expect(q(page, '[data-erp-comments-readonly]')!.hidden).toBe(false)
+    expect(office.calls).toEqual([])
+    expect(commentLinkCalls(office).length).toBeGreaterThan(0)
+    for (const call of commentLinkCalls(office)) {
+      expect(call.init).toMatchObject({ method: 'GET', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' })
+      const headers = new Headers(call.init.headers)
+      expect(headers.get('X-Link-Token')).toBe(TOKEN)
+      expect(headers.get('Authorization')).toBeNull()
+      expect(call.path).not.toContain(TOKEN)
+    }
+    ;(page.host as unknown as { commentClicked(id: string): void }).commentClicked(comments.threads[0].id)
+    expect(card(page, comments.threads[0].id).className).toContain('erp-thread--active')
+  })
+
+  it('the link API refuses anything but a comment read', async () => {
+    const { page, office } = await linkCommentPage()
+    const linkApi = (onlineApi(page).createLinkApi as (f: unknown) => { commentsFetch(t: string): (p: string, i?: RequestInit) => Promise<Response> })(office.linkFetch)
+    const read = linkApi.commentsFetch(TOKEN)
+    expect(() => read(`/api/v1/documents/${DOC_ID}/comments`, { method: 'POST' })).toThrow('invalid_api_path')
+    expect(() => read(`/api/v1/documents/${DOC_ID}/content`)).toThrow('invalid_api_path')
+    expect(() => linkApi.commentsFetch('short')(`/api/v1/documents/${DOC_ID}/comments`)).toThrow('invalid_api_path')
+    office.offline = true
+    await expect(read(`/api/v1/documents/${DOC_ID}/comments?limit=50`)).rejects.toMatchObject({ code: 'network' })
+  })
+
+  it('follows comments.changed in the room, and the 30 s check without one', async () => {
+    const ws = fakeWebSocket()
+    const { page, office, comments } = await linkCommentPage({ WebSocket: ws.WebSocket })
+    const socket = ws.sockets[0] as FakeSocket
+    socket.accept()
+    socket.receive(hello)
+    await page.settle()
+    const thread = comments.seed(DOC_ID, { anchor: ANCHOR })
+    socket.receive({ type: 'comments.changed', v: 1, thread_id: thread.id })
+    await tick(page, 300)
+    expect(commentLinkCalls(office).at(-1)!.path).toBe(`/api/v1/documents/${DOC_ID}/comments/${thread.id}`)
+    expect(q(page, '[data-erp-online-count]')!.textContent).toBe('1')
+    socket.drop(1006)
+    comments.seed(DOC_ID)
+    await tick(page, 31 * 1000)
+    expect(q(page, '[data-erp-online-count]')!.textContent).toBe('2')
+  })
+
+  it('?comment= opens the panel on the thread and leaves the token in place', async () => {
+    const seeded: string[] = []
+    const { page } = await linkCommentPage({
+      search: '?comment=c0aaaaaa-0000-4000-8000-000000000001',
+      seed: c => { seeded.push(c.seed(DOC_ID, { anchor: ANCHOR }).id) },
+    })
+    expect(seeded[0]).toBe('c0aaaaaa-0000-4000-8000-000000000001')
+    expect(panel(page).hidden).toBe(false)
+    expect(card(page, seeded[0]).className).toContain('erp-thread--active')
+    expect(page.location.search).toBe('')
+    expect(page.location.hash).toBe(`#link=${TOKEN}`)
+  })
+
+  it('a link turned off: the comments go with the document', async () => {
+    const { page, office } = await linkCommentPage({ seed: c => { c.seed(DOC_ID) } })
+    expect(barButton(page, 'comments').hidden).toBe(false)
+    office.links.delete(TOKEN)
+    await tick(page, 31 * 1000)
+    expect(page.dialogId()).toBe('gone')
+    expect(barButton(page, 'comments').hidden).toBe(true)
   })
 })

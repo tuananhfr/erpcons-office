@@ -3,7 +3,8 @@
 export const DOC_ID = '0b9d6c1e-4f2a-4c3b-9d8e-7a6b5c4d3e2f'
 export const OTHER_ID = '7f3e2d1c-0b9a-4876-8543-210fedcba987'
 
-export interface OfficeCall { method: string; path: string; headers: Record<string, string>; body: unknown }
+/** `linkDoc`: made with `X-Link-Token` from the link page; the document that token opens (`''` for none). */
+export interface OfficeCall { method: string; path: string; headers: Record<string, string>; body: unknown; linkDoc?: string }
 type Hook = (call: OfficeCall) => Response | Promise<Response> | undefined
 
 interface StoredDoc { id: string; title: string; format: string; folderId: string | null; versions: Uint8Array[]; role: string; canDownload: boolean; canShare: boolean }
@@ -86,10 +87,19 @@ export class FakeOffice {
     return Promise.resolve(this.route(call))
   }
 
-  /** Stands in for window.fetch on the public link page: `/api/v1/link` and `/content` only, token in `X-Link-Token`. */
+  /** Stands in for window.fetch on the public link page: `/api/v1/link`, `/content`, the live ticket and comment reads, token in `X-Link-Token`. */
   linkFetch = (path: string, init: RequestInit = {}): Promise<Response> => {
     this.linkCalls.push({ path, init })
     if (this.offline) return Promise.reject(new TypeError('Failed to fetch'))
+    if (/^\/api\/v1\/documents\/[^/]+\/comments/.test(path)) {
+      const linkDoc = this.links.get(new Headers(init.headers).get('X-Link-Token') ?? '') ?? ''
+      const call: OfficeCall = { method: init.method ?? 'GET', path, headers: { ...(init.headers as Record<string, string>) }, body: init.body, linkDoc }
+      for (const entry of [...this.hooks]) {
+        const answer = entry.hook(call)
+        if (answer) return Promise.resolve(answer)
+      }
+      return Promise.resolve(problem(404, 'NOT_FOUND'))
+    }
     const live = /^\/api\/v1\/documents\/([^/]+)\/live-ticket$/.exec(path)
     if (live) {
       const holder = this.links.get(new Headers(init.headers).get('X-Link-Token') ?? '')

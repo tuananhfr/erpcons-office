@@ -1,6 +1,7 @@
 // The comment routes of the Office API (plan-m5; erpcons-office-server `/documents/{id}/comments`) on top of a
-// FakeOffice: threads with comments, the role matrix (owner/editor/commenter read and write, owner/editor moderate,
-// viewer 403, no access 404), Idempotency-Key on create and reply, cursor pages and the anchors batch.
+// FakeOffice: threads with comments, the role matrix (every role reads, owner/editor/commenter write, owner/editor
+// moderate, viewer 403 on writes, no access 404), link holders' anonymous
+// reads (`X-Link-Token` through FakeOffice.linkFetch), Idempotency-Key on create and reply, cursor pages and anchors.
 import { problem, type FakeOffice, type OfficeCall } from './fake-office.ts'
 
 export interface FakeComment { id: string; thread_id: string; author_id: string; author_name: string; body: string | null; created_at: string; edited_at: string | null; deleted_at: string | null }
@@ -52,13 +53,15 @@ export class FakeComments {
   }
   thread(id: string) { return this.threads.find(t => t.id === id) }
 
-  private commentDto(c: FakeComment) {
+  private commentDto(c: FakeComment, anonymous = false) {
     const { author_id, ...rest } = c
+    if (anonymous) return { ...rest, author_name: '', mine: false }
     return { ...rest, mine: author_id === this.actor.id }
   }
-  private threadDto(t: FakeThread) {
+  private threadDto(t: FakeThread, anonymous = false) {
     const { created_by, comments, ...rest } = t
-    return { ...rest, mine: created_by === this.actor.id, comments: comments.map(c => this.commentDto(c)) }
+    const shown = { ...rest, mine: created_by === this.actor.id, comments: comments.map(c => this.commentDto(c, anonymous)) }
+    return anonymous ? { ...shown, created_by_name: '', resolved_by_name: rest.resolved_by_name === null ? null : '', mine: false } : shown
   }
 
   private handle(call: OfficeCall): Response | undefined {
@@ -69,7 +72,9 @@ export class FakeComments {
     const docId = decodeURIComponent(match[1])
     const doc = this.office.docs.get(docId)
     if (!doc) return problem(404, 'NOT_FOUND')
-    if (!['owner', 'editor', 'commenter'].includes(doc.role)) return problem(403, 'FORBIDDEN')
+    if (call.linkDoc !== undefined) return this.linkRead(call, url, docId, match[2])
+    const writer = ['owner', 'editor', 'commenter'].includes(doc.role)
+    if (!writer && call.method !== 'GET') return problem(403, 'FORBIDDEN')
     const moderator = doc.role === 'owner' || doc.role === 'editor'
     const body = typeof call.body === 'string' ? JSON.parse(call.body) as Record<string, unknown> : {}
     const key = call.headers['Idempotency-Key']
@@ -151,5 +156,20 @@ export class FakeComments {
       }
     }
     return problem(405, 'METHOD_NOT_ALLOWED')
+  }
+
+  /** A link holder: reads only, the token's own document only, nobody's name. */
+  private linkRead(call: OfficeCall, url: URL, docId: string, tid: string | undefined): Response {
+    if (call.method !== 'GET') return problem(401, 'UNAUTHENTICATED')
+    if (call.linkDoc !== docId) return problem(404, 'NOT_FOUND')
+    const own = this.threads.filter(t => t.document_id === docId)
+    if (!tid) {
+      const limit = Number(url.searchParams.get('limit') ?? 50)
+      const start = Number(url.searchParams.get('cursor') ?? 0)
+      const next = start + limit < own.length ? String(start + limit) : null
+      return json(200, { threads: own.slice(start, start + limit).map(t => this.threadDto(t, true)), next_cursor: next, can_resolve: false })
+    }
+    const thread = own.find(t => t.id === decodeURIComponent(tid))
+    return thread ? json(200, this.threadDto(thread, true)) : problem(404, 'NOT_FOUND')
   }
 }
