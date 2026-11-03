@@ -766,7 +766,7 @@ describe('untrusted sizes, ids and a struggling room (M6 review)', () => {
     host.regionChanged('para:a', 'x'.repeat(400))
     await tick(page, 150)
     expect(sent(sockets[0], 'region.update')).toHaveLength(0)
-    expect(page.notices.at(-1)?.text).toContain('quá lớn')
+    expect(page.notices.at(-1)?.text).toBe('Một thay đổi quá lớn để gửi cho những người đang cùng sửa. Thay đổi đó chỉ có trên máy này.')
     host.regionChanged('para:a', 'ngắn')
     await tick(page, 150)
     const updates = sent(sockets[0], 'region.update')
@@ -775,6 +775,24 @@ describe('untrusted sizes, ids and a struggling room (M6 review)', () => {
     host.regionDidEndEdit('para:a')
     await tick(page, 2000)
     expect(sent(sockets[0], 'lock.release')).toEqual([{ type: 'lock.release', v: 1, region: 'para:a' }])
+  })
+
+  it('a whole-file edit ("*") too big for the room says so plainly, and again a minute later if it keeps happening', async () => {
+    const WHOLE = 'Tệp quá lớn để sửa phần này khi đang có người cùng mở. Thay đổi đó chỉ có trên máy này.'
+    const { page, sockets, host } = await holding('*', { limits: { ...hello().limits, max_region_message_bytes: 300 } })
+    const count = () => page.notices.filter(n => n.text === WHOLE).length
+    host.regionChanged('*', 'x'.repeat(400))
+    await tick(page, 150)
+    expect(sent(sockets[0], 'region.update')).toHaveLength(0)
+    expect(page.notices.at(-1)?.text).toBe(WHOLE)
+    host.regionChanged('*', 'y'.repeat(400))
+    await tick(page, 150)
+    expect(count()).toBe(1)
+    await tick(page, 60 * 1000)
+    host.regionChanged('*', 'z'.repeat(400))
+    await tick(page, 150)
+    expect(count()).toBe(2)
+    expect(sent(sockets[0], 'region.update')).toHaveLength(0)
   })
 
   it('one update per region on its way: newer edits wait (coalesced) for its ack', async () => {

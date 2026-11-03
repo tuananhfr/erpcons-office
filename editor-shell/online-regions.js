@@ -15,6 +15,9 @@
   var DEFAULT_REGION_BYTES = 1024 * 1024
   var REGION_ID_BYTES = 256
   var RELOAD_WAIT_MAX = 30 * 1000
+  // A whole-file editor's only region (docs/erp-host.md, v3).
+  var WHOLE_FILE = '*'
+  var WHOLE_TOO_BIG_GAP = 60 * 1000
 
   function noop() {}
   function isSeq(value) { return typeof value === 'number' && value >= 0 && Math.floor(value) === value }
@@ -89,6 +92,7 @@
     var reloaded = dict()
     var resolving = false
     var tooBigNoticed = false
+    var wholeTooBigQuiet = null
     var cursors = dict()
     var cursorTimer = null
     var cursorWaiting = null
@@ -288,13 +292,21 @@
     function sendEdit(edit) {
       var message = { type: 'region.update', v: 1, region: edit.region, cid: edit.cid, payload: edit.payload }
       if (utf8Length(JSON.stringify(message)) > maxRegionBytes) {
-        // The server would close the connection (1009); the edit stays here, unsynced, and says so once.
+        // The server would close the connection (1009); the edit stays here, unsynced, and says so.
         edit.tooBig = true
+        if (edit.region === WHOLE_FILE) return wholeTooBig()
         if (!tooBigNoticed && deps.notice) deps.notice('Một thay đổi quá lớn để gửi cho những người đang cùng sửa. Thay đổi đó chỉ có trên máy này.')
         tooBigNoticed = true
         return
       }
       if (deps.send(message)) edit.sent = true
+    }
+    // Every edit of a whole-file editor is this one region: it keeps failing while the file stays that big, so the
+    // user is told again now and then rather than once per session.
+    function wholeTooBig() {
+      if (wholeTooBigQuiet) return
+      wholeTooBigQuiet = setTimeout(function () { wholeTooBigQuiet = null }, WHOLE_TOO_BIG_GAP)
+      if (deps.notice) deps.notice('Tệp quá lớn để sửa phần này khi đang có người cùng mở. Thay đổi đó chỉ có trên máy này.')
     }
     function inFlight(region) {
       for (var i = 0; i < outbox.length; i++) if (outbox[i].region === region && outbox[i].sent) return true
