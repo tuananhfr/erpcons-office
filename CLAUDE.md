@@ -111,8 +111,8 @@ Full builds need `trunk` + the wasm32 Rust toolchain on PATH; the `build/` image
     as access lost, `erpHost.setClientId` after `hello`. M4 (region co-editing, erpHost v3 by feature, version stays 2):
     `online-regions.js` (locks, coalesced `region.update`s, acks, replay, cursors, offline-edit conflicts) and
     `online-leader.js` (only the room's leader PUTs, with `X-Live-Seq`). M5 (comments, erpHost v3 comment calls by
-    feature): `online-comments*.js`, the "Nhận xét" side/bottom sheet for owner, editors and commenters only (never
-    viewers, link holders or `&version=`), refreshed on the room's `comments.changed`, `?comment=<thread>` deep link;
+    feature): `online-comments*.js`, the "Nhận xét" side/bottom sheet: everyone reads (viewers and link holders
+    read-only, the link page with `X-Link-Token`), owner/editors/commenters write, never on `&version=`, refreshed on the room's `comments.changed`, `?comment=<thread>` deep link;
     from 1024 px the open sheet narrows the canvas through `--erp-right` (shell.css, read by inject.ts). `online-watch.js` still re-reads the document every 30 s while
     visible as the fallback. Pending
     unacknowledged bytes live in IndexedDB `erpcons-online-pending`. Local QA/E2E build: `ERPCONS_LOCAL_ONLINE=1`

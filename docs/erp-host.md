@@ -251,8 +251,10 @@ erpHost.selectionChanged(regionId, range) // caret or selection, for the other p
 - `regionId` and `payload` are strings the fork defines (table below). A payload is the region's **whole** content
   in the fork's own serialisation, never a delta: the shell coalesces the calls of 150 ms into one `region.update` and
   may replace an unsent payload with a newer one. A `region.update` over the room's `limits.max_region_message_bytes`
-  (default 1 MiB) stays on this device with the notice "Một thay đổi quá lớn để gửi…"; it reaches storage only
-  through this page's own save while it is the leader.
+  (default 1 MiB) stays on this device with the notice "Một thay đổi quá lớn để gửi…" (once per session); for the
+  whole-file region `*` (a file over roughly 750 KB once serialised) the notice is "Tệp quá lớn để sửa phần này khi
+  đang có người cùng mở. Thay đổi đó chỉ có trên máy này.", repeated at most once a minute while it keeps happening.
+  Such an edit reaches storage only through this page's own save while it is the leader.
 - `regionWillEdit` resolves `true` once the room granted the lock (renewed every 2 s by the shell while the region is
   edited or has unsent changes, released after `regionDidEndEdit` once its changes are acknowledged), `false` when
   someone else holds it or the page may not edit. Without a room (offline, still joining, no live channel) it resolves
@@ -283,7 +285,9 @@ regionConflict(regionId) // → 'mine' | 'theirs' or a Promise of it (below)
   `regionConflict(regionId)` for each such region, one at a time ("Giữ bản của tôi" / "Dùng bản mới"). `mine` sends
   this page's edit; `theirs` drops it and calls `applyRemote` with the room's content. An answer that is neither, a
   throw or a rejection counts as `mine`. A fork without `regionConflict` gets the shell's dialog, which asks once for
-  all the regions ("Có N chỗ người khác vừa sửa"); closing it some other way also means `mine`.
+  all the regions ("Có N chỗ người khác vừa sửa"); closing it some other way also means `mine`. Until the answer, the
+  save badge reads "Chưa lưu lên máy chủ" (never "Đã lưu", even after the leader stored the bytes) and leaving the
+  page asks first (`beforeunload`).
 
 ### Saving in a room
 
@@ -332,11 +336,16 @@ feature, as for regions: the shell calls each handler below only when the fork g
 `anchorOfSelection` still gets a working panel: every new thread is document-wide (anchor `{ "kind": "document" }`) and
 reads "Nhận xét chung".
 
-Who sees what (plan-m5, "Quyền"): owner, editors and commenters see and add comments; owner and editors also resolve,
-reopen and delete whole threads (the list's `can_resolve`); everyone edits and deletes only their own comments.
-Viewers, link holders and version pages (`&version=`) get no comments at all: no panel, no bar buttons, no request and
-an empty `showComments([])`. Adding needs `edit` or `comment` mode; an editor kept in `view` by the live room's editor
-limit still reads them.
+Who sees what (plan-m5, "Quyền", owner decisions of GĐ 2): everyone who opens the document reads its comments: the
+"Nhận xét" button with the open count, the panel with every thread, "Không còn vị trí", the marks (`showComments`),
+`commentClicked` and `?comment=`. Owner, editors and commenters add and reply; owner and editors resolve, reopen and
+delete any thread (the list's `can_resolve`), and a thread's author resolves and reopens the threads it started
+(commenters included, never deletes them); everyone edits and deletes only their own comments. Viewers and holders of
+the public link read only: no "Thêm nhận xét", no reply, edit, delete or resolve button, a line "Bạn chỉ xem được nhận
+xét, không thêm hay trả lời." above the list, and only GET requests; the link page reads with `X-Link-Token` (never an
+account) and the server blanks every name for it, so the panel shows "Người dùng". `resolveAnchors` runs only on a page
+that may write. Version pages (`&version=`) get no comments. Adding needs `edit` or `comment` mode; an editor kept in
+`view` by the live room's editor limit reads them like a viewer.
 
 ### Anchors
 
