@@ -12,6 +12,8 @@
     if (doc.conflict) return { state: 'ERROR', message: CONFLICT }
     if (doc.inflight > 0) return { state: 'SAVING', message: LABELS.SAVING }
     if (doc.error && !doc.error.offline) return { state: 'ERROR', message: doc.error.message }
+    // A conflict waiting for the user's choice: whatever was stored may not be the version they keep.
+    if (doc.room && doc.room.conflict) return { state: 'LOCAL_ONLY', message: LABELS.LOCAL_ONLY }
     // Co-editing: the live room holds every edit of this page and its leader stores them (online-leader.js).
     if (doc.room && doc.room.synced && !doc.pending) return { state: 'SERVER_DURABLE', message: LABELS.SERVER_DURABLE }
     if (doc.dirty || doc.pending) {

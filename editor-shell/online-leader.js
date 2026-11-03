@@ -128,7 +128,7 @@
     function room() {
       var all = regions.covered(regions.mark())
       var inRoom = synced() && all
-      saver.setRoom(id, { synced: inRoom, safe: inRoom && (!leading || editors > 1) })
+      saver.setRoom(id, { synced: inRoom, safe: inRoom && (!leading || editors > 1), conflict: regions.conflicted() })
     }
     function update() {
       var version = knownVersion()

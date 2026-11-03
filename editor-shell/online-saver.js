@@ -252,14 +252,15 @@
       },
       /**
        * The live room's view of this page's edits: `synced` when the room holds all of them, `safe` when it would
-       * also keep them if the page went away (another editor stays to save them).
+       * also keep them if the page went away (another editor stays to save them), `conflict` while the user is asked
+       * which version of a region to keep.
        */
       setRoom: function (id, room) {
         var doc = docs[id]
         if (!doc) return
         var before = doc.room
         doc.room = room || null
-        if (!before !== !room || (before && room && (before.synced !== room.synced || before.safe !== room.safe))) changed()
+        if (!before !== !room || (before && room && (before.synced !== room.synced || before.safe !== room.safe || Boolean(before.conflict) !== Boolean(room.conflict)))) changed()
       },
       /** Starts tracking a document opened at `meta.version` / `meta.etag`, dropping any earlier state of it. */
       track: function (meta) {
@@ -354,7 +355,8 @@
       },
       busy: function () {
         return list().some(function (doc) {
-          return (doc.open && doc.dirty && !(doc.room && doc.room.safe)) || doc.inflight > 0 || Boolean(doc.pending)
+          return (doc.open && doc.dirty && !(doc.room && doc.room.safe)) || doc.inflight > 0 || Boolean(doc.pending) ||
+            Boolean(doc.room && doc.room.conflict)
         })
       },
       /** Settles once every save queued so far has finished. */

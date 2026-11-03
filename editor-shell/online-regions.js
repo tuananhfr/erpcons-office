@@ -374,6 +374,8 @@
       if (!regions.length) return
       resolving = true
       regions.forEach(function (region) { lockOf(region).resolving = true })
+      // Until the user chose, a save of the editor's bytes may not hold the version they will keep.
+      changed()
       startRenewals()
       var asked
       if (deps.host.has('regionConflict')) {
@@ -707,6 +709,8 @@
       /** Sends what the 150 ms window holds now (a flush before the page hides or a downgrade). */
       flush: function () { if (bufferTimer) drain() },
       phase: function () { return phase },
+      /** True while the user is asked which version of a conflicting region to keep. */
+      conflicted: function () { return resolving },
       you: function () { return you },
       isLeader: function () { return leader !== null && leader === you },
       /** The room's leader member id, or null (nobody edits, or no room). */

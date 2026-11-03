@@ -641,7 +641,7 @@ describe('saving in the room', () => {
 })
 
 describe('offline edits and their conflict', () => {
-  async function offlineEdit(options: ForkOptions = {}) {
+  async function offlineEdit(options: ForkOptions = {}, extra: Msg = {}) {
     const result = await coPage(options)
     const { page, sockets, host } = result
     await sync(page, sockets[0])
@@ -654,7 +654,7 @@ describe('offline edits and their conflict', () => {
     expect(await host.save(DOC_ID, bytes(1, 1), { revision: 1, reason: 'auto' })).toEqual({ status: 'offline' })
     await tick(page, 5 * 1000)
     const socket = sockets[1]
-    await sync(page, socket, { you: 'm5' }, [update(12, 'cell:s1:A1', 'theirs')])
+    await sync(page, socket, { you: 'm5', ...extra }, [update(12, 'cell:s1:A1', 'theirs')])
     return { ...result, socket }
   }
 
@@ -688,6 +688,33 @@ describe('offline edits and their conflict', () => {
     expect(sent(socket, 'region.update')).toHaveLength(0)
     expect(log.applied).toEqual([['cell:s1:A1', 'theirs', 'm2']])
     expect(sent(socket, 'lock.release')).toEqual([{ type: 'lock.release', v: 1, region: 'cell:s1:A1' }])
+  })
+
+  it('while the conflict waits for an answer (this page leads): not "Đã lưu", and leaving the page asks first', async () => {
+    let answer: (choice: string) => void = () => {}
+    const { page, socket, log } = await offlineEdit({ conflict: () => new Promise<string>(resolve => { answer = resolve }) }, { leader: 'm5' })
+    await grantNext(page, socket)
+    expect(log.asked).toEqual(['cell:s1:A1'])
+    await tick(page, 31 * 1000)
+    expect(page.badge()!.getAttribute('data-erp-save-state')).toBe('LOCAL_ONLY')
+    expect(page.badge()!.textContent).toContain('Chưa lưu')
+    expect(page.fire('beforeunload').defaultPrevented).toBe(true)
+    answer('mine')
+    await page.settle()
+    const cid = sent(socket, 'region.update').at(-1)!.cid
+    socket.receive({ type: 'ack', v: 1, cid, seq: 13 })
+    await tick(page, 31 * 1000)
+    expect(page.badge()!.getAttribute('data-erp-save-state')).toBe('SERVER_DURABLE')
+    expect(page.fire('beforeunload').defaultPrevented).toBe(false)
+  })
+
+  it('while the shell\'s conflict dialog is open (another member leads): not "Đã lưu", and leaving the page asks first', async () => {
+    const { page, socket } = await offlineEdit()
+    await grantNext(page, socket)
+    expect(page.dialogId()).toBe('region-conflict')
+    await tick(page, 31 * 1000)
+    expect(page.badge()!.getAttribute('data-erp-save-state')).toBe('LOCAL_ONLY')
+    expect(page.fire('beforeunload').defaultPrevented).toBe(true)
   })
 
   it('an editor without regionConflict: the shell asks with "Giữ bản của tôi" / "Dùng bản mới"', async () => {
