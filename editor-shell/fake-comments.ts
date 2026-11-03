@@ -1,6 +1,6 @@
 // The comment routes of the Office API (plan-m5; erpcons-office-server `/documents/{id}/comments`) on top of a
 // FakeOffice: threads with comments, the role matrix (every role reads, owner/editor/commenter write, owner/editor
-// moderate, viewer 403 on writes, no access 404), link holders' anonymous
+// moderate, a thread's author resolves and reopens it, viewer 403 on writes, no access 404), link holders' anonymous
 // reads (`X-Link-Token` through FakeOffice.linkFetch), Idempotency-Key on create and reply, cursor pages and anchors.
 import { problem, type FakeOffice, type OfficeCall } from './fake-office.ts'
 
@@ -133,7 +133,7 @@ export class FakeComments {
       return remember(json(201, this.commentDto(comment)))
     }
     if ((action === 'resolve' || action === 'reopen') && call.method === 'POST') {
-      if (!moderator) return problem(403, 'FORBIDDEN')
+      if (!moderator && thread.created_by !== this.actor.id) return problem(403, 'FORBIDDEN')
       thread.status = action === 'resolve' ? 'resolved' : 'open'
       thread.resolved_by_name = action === 'resolve' ? this.actor.name : null
       thread.resolved_at = action === 'resolve' ? this.now() : null

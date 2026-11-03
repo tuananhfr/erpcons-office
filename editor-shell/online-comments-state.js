@@ -91,6 +91,11 @@
     return { see: see, write: write, resolve: write && moderator }
   }
 
+  /** A thread's author resolves and reopens it while it may write; anyone else's needs `resolve`. */
+  online.canResolveThread = function (rights, thread) {
+    return Boolean(rights.resolve || (rights.write && thread && thread.mine))
+  }
+
   /** A map of threads by id, the panel's source of truth between reads. */
   online.createCommentStore = function () {
     var byId = {}

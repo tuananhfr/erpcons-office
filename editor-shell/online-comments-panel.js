@@ -365,7 +365,7 @@
       var top = el('div', 'erp-thread__top')
       top.appendChild(quoteNode(thread))
       var statusKey = 'status:' + thread.id
-      if (data.rights.resolve) {
+      if (online.canResolveThread(data.rights, thread)) {
         var tools = el('div', 'erp-thread__tools')
         if (thread.status === 'resolved') {
           tools.appendChild(iconButton('reopen', 'Mở lại', 'data-erp-thread-reopen', function () {
@@ -376,10 +376,12 @@
             act(statusKey, function () { return deps.onResolve(thread.id) }, function () { say('Đã đánh dấu đã xử lý.') })
           }, busy[statusKey]))
         }
-        tools.appendChild(iconButton('trash', 'Xoá cả chuỗi nhận xét', 'data-erp-thread-delete', function () {
-          confirming = 'thread:' + thread.id
-          render()
-        }))
+        if (data.rights.resolve) {
+          tools.appendChild(iconButton('trash', 'Xoá cả chuỗi nhận xét', 'data-erp-thread-delete', function () {
+            confirming = 'thread:' + thread.id
+            render()
+          }))
+        }
         top.appendChild(tools)
       }
       card.appendChild(top)

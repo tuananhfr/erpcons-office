@@ -164,6 +164,16 @@ describe('panel state', () => {
     expect(rights('viewer', 'comment')).toEqual({ see: true, write: false, resolve: false })
   })
 
+  it('a thread’s author resolves it while it may write; anyone’s threads need resolve rights', () => {
+    const page = onlinePage()
+    const may = onlineApi(page).canResolveThread as (rights: unknown, thread: unknown) => boolean
+    const commenter = { see: true, write: true, resolve: false }
+    expect(may(commenter, { mine: true })).toBe(true)
+    expect(may(commenter, { mine: false })).toBe(false)
+    expect(may({ see: true, write: false, resolve: false }, { mine: true })).toBe(false)
+    expect(may({ see: true, write: true, resolve: true }, { mine: false })).toBe(true)
+  })
+
   it('keeps only real anchor changes, never a resolved status move', () => {
     const page = onlinePage()
     const store = (onlineApi(page).createCommentStore as () => { reset(t: unknown[]): void })()
@@ -258,6 +268,35 @@ describe('who sees comments', () => {
     expect(fork.shown.at(-1)).toHaveLength(1)
   })
 
+  it('commenter: resolves and reopens the threads it started, not anyone else’s, and deletes no thread', async () => {
+    const { page, comments } = await commentPage('commenter', {
+      seed: c => { c.seed(DOC_ID, { by: { id: 'usr_an', name: 'Nguyễn Văn An' } }); c.seed(DOC_ID) },
+    })
+    const [own, theirs] = comments.threads
+    barButton(page, 'comments').click()
+    await page.settle()
+    expect(card(page, own.id).querySelector('[data-erp-thread-resolve]')).not.toBeNull()
+    expect(card(page, theirs.id).querySelector('[data-erp-thread-resolve]')).toBeNull()
+    expect(q(page, '[data-erp-thread-delete]')).toBeNull()
+    card(page, own.id).querySelector('[data-erp-thread-resolve]')!.click()
+    await page.settle()
+    expect(comments.thread(own.id)!.status).toBe('resolved')
+    q(page, '[data-erp-comments-filter="resolved"]')!.click()
+    await page.settle()
+    card(page, own.id).querySelector('[data-erp-thread-reopen]')!.click()
+    await page.settle()
+    expect(comments.thread(own.id)!.status).toBe('open')
+  })
+
+  it('a commenter taken down to viewer loses resolve on its own thread', async () => {
+    const { page, office, comments } = await commentPage('commenter', { seed: c => { c.seed(DOC_ID, { by: { id: 'usr_an', name: 'Nguyễn Văn An' } }) } })
+    barButton(page, 'comments').click()
+    await page.settle()
+    expect(card(page, comments.threads[0].id).querySelector('[data-erp-thread-resolve]')).not.toBeNull()
+    office.setRole(DOC_ID, 'viewer')
+    await tick(page, 31 * 1000)
+    expect(q(page, '[data-erp-thread-resolve]')).toBeNull()
+  })
 })
 
 describe('adding a comment', () => {
